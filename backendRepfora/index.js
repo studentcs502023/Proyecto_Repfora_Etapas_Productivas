@@ -48,6 +48,7 @@ app.use('/api/trackings', trackingRoutes);
 app.use('/api/hours', hourRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/reports', reportRoutes);
+app.use(express.static(path.join(__dirname, 'public'))); // Para servir archivos estáticos (como imágenes)
 
 // Puerto y Listen (Solo si no estamos en test)
 if (process.env.NODE_ENV !== 'test') {
