@@ -3,6 +3,10 @@ import morgan from 'morgan';
 import cors from 'cors'; // Que no falte cors
 import { env } from './src/config/env.js';
 import { conectarMongo } from './src/config/db.js'; 
+import path from 'path';
+import { fileURLToPath } from 'url';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 import { seedSystemConfigs } from './src/config/systemConfig.seed.js';
 import authRoutes from './src/routes/auth.routes.js';
 import usersRoutes from './src/routes/users.routes.js';
@@ -49,8 +53,8 @@ app.use('/api/hours', hourRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/reports', reportRoutes);
 app.use(express.static('dist'));
-app.use(express.static(path.join(__dirname, 'public'))); // Para servir archivos estáticos (como imágenes)
-
+// Ahora sí, path y __dirname estarán definidos
+app.use(express.static(path.join(__dirname, 'public')));
 // Puerto y Listen (Solo si no estamos en test)
 if (process.env.NODE_ENV !== 'test') {
     const PORT = env.PORT || 3000;
