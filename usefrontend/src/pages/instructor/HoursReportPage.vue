@@ -236,3 +236,4 @@ async function downloadReport(year, month) {
 .border-orange { border-color: #ffe0b2; }
 .border-green { border-color: #c8e6c9; }
 </style>
+rm -rf .git
