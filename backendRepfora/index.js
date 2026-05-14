@@ -20,6 +20,7 @@ import trackingRoutes from './src/routes/trackings.routes.js';
 import hourRoutes from './src/routes/hours.routes.js';
 import notificationRoutes from './src/routes/notifications.routes.js';
 import reportRoutes from './src/routes/reports.routes.js';
+import dashboardRoutes from './src/routes/dashboard.routes.js';
 import { initJobs } from './src/jobs/alerts.job.js';
 
 const app = express();
@@ -52,6 +53,7 @@ app.use('/api/trackings', trackingRoutes);
 app.use('/api/hours', hourRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 app.use(express.static('dist'));
 // Ahora sí, path y __dirname estarán definidos
 app.use(express.static(path.join(__dirname, 'public')));
