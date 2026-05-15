@@ -319,12 +319,13 @@ async function fetchTrackings() {
     if (filterStatus.value) params.status = filterStatus.value;
     if (showExtraordinary.value) params.isExtraordinary = true;
 
-    const res = await trackingService.getTrackings(params);
-    trackings.value = res.data.data || res.data;
-    if (res.data.total) pagination.value.rowsNumber = res.data.total;
+    // El interceptor de Axios devuelve el body JSON: { success, message, data: { trackings, pagination } }
+    const body = await trackingService.getTrackings(params);
+    trackings.value = body.data?.trackings || body.data || [];
+    if (body.data?.pagination?.total) pagination.value.rowsNumber = body.data.pagination.total;
   } catch (error) {
     console.error(error);
-    $q.notify({ type: 'negative', message: 'Error al cargar seguimientos.' });
+    $q.notify({ type: 'negative', message: error.message || 'Error al cargar seguimientos.' });
   } finally {
     loading.value = false;
   }
@@ -339,8 +340,9 @@ function onRequest(props) {
 async function fetchMyEPs() {
   try {
     // Instructor fetches all EPs (backend scopes to their assigned ones)
-    const res = await productiveStageService.getAllEPs({ status: 'ACTIVE', limit: 100 });
-    myEPs.value = res.data.data || res.data;
+    // El backend retorna data: { eps, pagination }, el interceptor devuelve ese body
+    const body = await productiveStageService.getAllEPs({ status: 'ACTIVE', limit: 100 });
+    myEPs.value = body.data?.eps || body.data || [];
   } catch (error) {
     console.error('Error fetching EPs', error);
   }
@@ -406,8 +408,8 @@ async function createTracking() {
     fetchTrackings();
   } catch (error) {
     console.error(error);
-    const msg = error.response?.data?.message || 'Error al programar seguimiento.';
-    $q.notify({ type: 'negative', message: msg });
+    // El interceptor transforma el error: { message, status, errors }
+    $q.notify({ type: 'negative', message: error.message || 'Error al programar seguimiento.' });
   } finally {
     saving.value = false;
   }
@@ -428,8 +430,8 @@ async function requestExtraordinary() {
     fetchTrackings();
   } catch (error) {
     console.error(error);
-    const msg = error.response?.data?.message || 'Error al solicitar seguimiento.';
-    $q.notify({ type: 'negative', message: msg });
+    // El interceptor transforma el error: { message, status, errors }
+    $q.notify({ type: 'negative', message: error.message || 'Error al solicitar seguimiento.' });
   } finally {
     saving.value = false;
   }
@@ -453,13 +455,14 @@ async function uploadPDF() {
   try {
     const fd = new FormData();
     fd.append('file', executeForm.value.file);
-    const res = await trackingService.uploadPDF(selectedTracking.value._id, fd);
-    selectedTracking.value.driveFileUrl = (res.data.data || res.data).driveFileUrl;
+    // El interceptor devuelve el body JSON: { success, message, data }
+    const body = await trackingService.uploadPDF(selectedTracking.value._id, fd);
+    selectedTracking.value.driveFileUrl = body.data?.driveFileUrl;
     $q.notify({ type: 'positive', message: 'Documento subido correctamente.' });
     executeStep.value = 2;
   } catch (error) {
     console.error(error);
-    $q.notify({ type: 'negative', message: 'Error al subir documento.' });
+    $q.notify({ type: 'negative', message: error.message || 'Error al subir documento.' });
   } finally {
     saving.value = false;
   }
@@ -493,8 +496,8 @@ async function executeTracking() {
     fetchTrackings();
   } catch (error) {
     console.error(error);
-    const msg = error.response?.data?.message || 'Error al ejecutar seguimiento.';
-    $q.notify({ type: 'negative', message: msg });
+    // El interceptor transforma el error: { message, status, errors }
+    $q.notify({ type: 'negative', message: error.message || 'Error al ejecutar seguimiento.' });
   } finally {
     saving.value = false;
   }

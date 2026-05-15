@@ -165,9 +165,9 @@ async function fetchCompanies() {
     };
 
     const response = await companyService.getAll(params);
-    companies.value = response.data.data || response.data;
-    if (response.data.total) {
-      pagination.value.rowsNumber = response.data.total;
+    companies.value = response.data?.companies || [];
+    if (response.data?.pagination?.total) {
+      pagination.value.rowsNumber = response.data.pagination.total;
     }
   } catch (error) {
     console.error(error);

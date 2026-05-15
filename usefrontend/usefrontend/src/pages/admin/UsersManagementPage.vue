@@ -233,9 +233,13 @@ async function fetchUsers() {
     }
 
     // Adapt to standard pagination response
-    users.value = response.data.data || response.data;
-    if (response.data.total) {
-      pagination.value.rowsNumber = response.data.total;
+    if (activeTab.value === 'INSTRUCTORS') {
+      users.value = response.data?.instructors || [];
+    } else {
+      users.value = response.data?.apprentices || [];
+    }
+    if (response.data?.pagination?.total) {
+      pagination.value.rowsNumber = response.data.pagination.total;
     }
   } catch (error) {
     console.error(error);

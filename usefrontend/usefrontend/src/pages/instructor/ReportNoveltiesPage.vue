@@ -300,12 +300,13 @@ async function fetchNovelties() {
       page: pagination.value.page,
       limit: pagination.value.rowsPerPage
     };
-    const res = await noveltyService.getAll(params);
-    novelties.value = res.data.data || res.data;
-    if (res.data.total) pagination.value.rowsNumber = res.data.total;
+    // El interceptor de Axios devuelve el body JSON: { success, message, data: { novelties, total, page, totalPages } }
+    const body = await noveltyService.getAll(params);
+    novelties.value = body.data?.novelties || body.data || [];
+    if (body.data?.total) pagination.value.rowsNumber = body.data.total;
   } catch (error) {
     console.error(error);
-    $q.notify({ type: 'negative', message: 'Error al cargar novedades.' });
+    $q.notify({ type: 'negative', message: error.message || 'Error al cargar novedades.' });
   } finally {
     loading.value = false;
   }
@@ -320,8 +321,9 @@ function onRequest(props) {
 async function fetchMyEPs() {
   try {
     // Solo activas o en seguimiento, no completadas
-    const res = await productiveStageService.getAllEPs({ limit: 100 });
-    const all = res.data.data || res.data;
+    // El backend retorna data: { eps, pagination }, el interceptor devuelve ese body
+    const body = await productiveStageService.getAllEPs({ limit: 100 });
+    const all = body.data?.eps || body.data || [];
     myEPs.value = all.filter(ep => ep.status !== 'COMPLETED' && ep.status !== 'ARCHIVED');
   } catch (error) {
     console.error('Error fetching EPs', error);
@@ -396,8 +398,8 @@ async function createNovelty() {
     fetchNovelties();
   } catch (error) {
     console.error(error);
-    const msg = error.response?.data?.message || 'Error al reportar novedad.';
-    $q.notify({ type: 'negative', message: msg });
+    // El interceptor transforma el error: { message, status, errors }
+    $q.notify({ type: 'negative', message: error.message || 'Error al reportar novedad.' });
   } finally {
     saving.value = false;
   }
@@ -430,8 +432,8 @@ async function uploadAttachments() {
     fetchNovelties();
   } catch (error) {
     console.error(error);
-    const msg = error.response?.data?.message || 'Error al subir anexos.';
-    $q.notify({ type: 'negative', message: msg });
+    // El interceptor transforma el error: { message, status, errors }
+    $q.notify({ type: 'negative', message: error.message || 'Error al subir anexos.' });
   } finally {
     saving.value = false;
   }

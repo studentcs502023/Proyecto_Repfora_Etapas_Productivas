@@ -175,11 +175,12 @@ onMounted(() => {
 async function fetchApprentices() {
   loading.value = true;
   try {
-    const res = await productiveStageService.getAllEPs({ limit: 100 });
-    eps.value = res.data.data || res.data;
+    // El interceptor de Axios devuelve el body JSON: { success, message, data: { eps, pagination } }
+    const body = await productiveStageService.getAllEPs({ limit: 100 });
+    eps.value = body.data?.eps || body.data || [];
   } catch (error) {
     console.error(error);
-    $q.notify({ type: 'negative', message: 'Error al cargar aprendices.' });
+    $q.notify({ type: 'negative', message: error.message || 'Error al cargar aprendices.' });
   } finally {
     loading.value = false;
   }

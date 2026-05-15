@@ -256,9 +256,10 @@ onMounted(async () => {
     }
   } catch (error) {
     console.error('Error fetching dashboard stats:', error);
+    // El interceptor de index.js ya transforma el error a { message, status, errors }
     $q.notify({
       type: 'negative',
-      message: 'No se pudieron cargar las estadísticas del panel.',
+      message: error.message || 'No se pudieron cargar las estadísticas del panel.',
     });
   }
 });

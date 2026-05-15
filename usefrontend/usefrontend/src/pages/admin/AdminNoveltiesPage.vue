@@ -244,8 +244,8 @@ async function fetchNovelties() {
     if (filterStatus.value) params.status = filterStatus.value;
 
     const res = await noveltyService.getAll(params);
-    novelties.value = res.data.data || res.data;
-    if (res.data.total) pagination.value.rowsNumber = res.data.total;
+    novelties.value = res.data?.novelties || [];
+    if (res.data?.total) pagination.value.rowsNumber = res.data.total;
   } catch (error) {
     console.error(error);
     $q.notify({ type: 'negative', message: 'Error al cargar novedades.' });

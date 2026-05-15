@@ -248,8 +248,10 @@ async function fetchPendingEPs() {
       page: pagination.value.page,
       limit: pagination.value.rowsPerPage
     });
-    pendingEPs.value = res.data.data || res.data;
-    if (res.data.total) pagination.value.rowsNumber = res.data.total;
+    pendingEPs.value = res.data?.eps || [];
+    if (res.data?.pagination?.total) {
+      pagination.value.rowsNumber = res.data.pagination.total;
+    }
   } catch (error) {
     console.error(error);
     $q.notify({ type: 'negative', message: 'Error al cargar solicitudes pendientes.' });
@@ -266,9 +268,9 @@ function onRequest(props) {
 
 async function preloadInstructors() {
   try {
-    // In a real scenario we might fetch by type, or fetch all active and filter client-side
-    const res = await userService.getInstructors({ limit: 1000, status: 'ACTIVE' });
-    const allInstructors = res.data.data || res.data;
+    // Si la API arroja 400 por límite o isActive, ajustamos a max 100 y usamos status='ACTIVE' que es la validación real del backend
+    const res = await userService.getInstructors({ limit: 100, status: 'ACTIVE' });
+    const allInstructors = res.data?.instructors || [];
     
     instructors.value.followup = allInstructors.filter(i => i.instructorType === 'FOLLOWUP');
     instructors.value.technical = allInstructors.filter(i => i.instructorType === 'TECHNICAL');

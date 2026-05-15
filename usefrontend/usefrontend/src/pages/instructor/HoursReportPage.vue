@@ -172,12 +172,12 @@ async function fetchData() {
     const params = { year: selectedYear.value };
     if (selectedMonth.value) params.month = selectedMonth.value;
 
-    const res = await hourService.getInstructorHours(authStore.user.id, params);
-    // Based on API behavior, it might return array of records directly or inside data
-    records.value = res.data.data || res.data || [];
+    // El interceptor de Axios devuelve el body JSON: { success, message, data }
+    const body = await hourService.getInstructorHours(authStore.user.id, params);
+    records.value = body.data || [];
   } catch (error) {
     console.error(error);
-    $q.notify({ type: 'negative', message: 'Error al cargar reporte de horas.' });
+    $q.notify({ type: 'negative', message: error.message || 'Error al cargar reporte de horas.' });
   } finally {
     loading.value = false;
   }

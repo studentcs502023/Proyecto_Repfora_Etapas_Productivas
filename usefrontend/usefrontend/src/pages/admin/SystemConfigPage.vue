@@ -79,8 +79,8 @@ async function fetchConfigs() {
   loading.value = true;
   try {
     const response = await systemConfigService.getAll();
-    // Assuming response is an array of config objects
-    const data = response.data.data || response.data;
+    // Extracción segura del array 'configs'
+    const data = response.data?.configs || [];
     
     configs.value = data.map(c => ({
       ...c,

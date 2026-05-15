@@ -171,11 +171,12 @@ onMounted(() => {
 async function fetchPendingBitacoras() {
   loading.value = true;
   try {
-    const res = await bitacoraService.getPendingReview();
-    pendingBitacoras.value = res.data.data || res.data;
+    // El interceptor de Axios devuelve el body JSON: { success, message, data: { bitacoras, pagination } }
+    const body = await bitacoraService.getPendingReview();
+    pendingBitacoras.value = body.data?.bitacoras || body.data || [];
   } catch (error) {
     console.error(error);
-    $q.notify({ type: 'negative', message: 'Error al cargar bitácoras pendientes.' });
+    $q.notify({ type: 'negative', message: error.message || 'Error al cargar bitácoras pendientes.' });
   } finally {
     loading.value = false;
   }
@@ -221,8 +222,8 @@ async function approveBitacora() {
       fetchPendingBitacoras();
     } catch (error) {
       console.error(error);
-      const msg = error.response?.data?.message || 'Error al aprobar la bitácora.';
-      $q.notify({ type: 'negative', message: msg });
+      // El interceptor transforma el error: { message, status, errors }
+      $q.notify({ type: 'negative', message: error.message || 'Error al aprobar la bitácora.' });
     } finally {
       processing.value = false;
     }
@@ -239,8 +240,8 @@ async function rejectBitacora() {
     fetchPendingBitacoras();
   } catch (error) {
     console.error(error);
-    const msg = error.response?.data?.message || 'Error al rechazar la bitácora.';
-    $q.notify({ type: 'negative', message: msg });
+    // El interceptor transforma el error: { message, status, errors }
+    $q.notify({ type: 'negative', message: error.message || 'Error al rechazar la bitácora.' });
   } finally {
     processing.value = false;
   }
