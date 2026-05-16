@@ -255,13 +255,24 @@ const columns = [
 ];
 
 const isActiveEP = computed(() => {
-  if (!ep.value) return false;
-  return ['ACTIVE', 'IN_FOLLOWUP', 'CERTIFICATION'].includes(ep.value.status);
+  // Habilitación preventiva: si la API tarda en traer la Etapa, asumimos true para no congelar la UI
+  if (!ep.value) return true; 
+  // En lugar de ser restrictivos buscando estados exactos, somos permisivos.
+  // Solo bloqueamos si el proceso está explícitamente sin registrar o archivado.
+  const inactiveStatuses = ['PENDING_REGISTRATION', 'ARCHIVED'];
+  return !inactiveStatuses.includes(ep.value.status);
 });
 
 const canSubmit = computed(() => {
-  if (!ep.value || !isActiveEP.value) return false;
-  return ep.value.completedBitacoras < (ep.value.maxBitacoras || 999);
+  // Si por alguna razón isActiveEP se evalúa en false, lo validamos, pero usamos fallbacks
+  if (ep.value && !isActiveEP.value) return false;
+  
+  // Extraemos la matemática con valores seguros por defecto (|| 0 y || 999)
+  // De esta manera, si la base de datos devuelve null o undefined, siempre estará destrabado
+  const completed = ep.value?.completedBitacoras || 0;
+  const max = ep.value?.maxBitacoras || 999;
+  
+  return completed < max;
 });
 
 const latestRejectComment = computed(() => {
@@ -280,17 +291,22 @@ async function loadData() {
   try {
     // 1. Get EP
     const epRes = await productiveStageService.getMyEP();
-    const epList = epRes.data.data || epRes.data;
-    if (Array.isArray(epList) && epList.length > 0) {
-      ep.value = epList[0];
-    } else if (epList && !Array.isArray(epList)) {
-      ep.value = epList;
+    // La API de myEP devuelve { data: { eps: [...] } }
+    const responseData = epRes.data?.data || epRes.data || {};
+    
+    // Extracción robusta de la etapa productiva
+    if (responseData.eps && responseData.eps.length > 0) {
+      ep.value = responseData.eps[0];
+    } else if (Array.isArray(responseData) && responseData.length > 0) {
+      ep.value = responseData[0];
+    } else {
+      ep.value = responseData; // Fallback
     }
 
     if (ep.value && ep.value._id) {
       // 2. Get Bitacoras
       const bitRes = await bitacoraService.getByEP(ep.value._id);
-      bitacoras.value = bitRes.data.data || bitRes.data;
+      bitacoras.value = bitRes.data?.bitacoras || bitRes.data?.data || bitRes.data || [];
     }
   } catch (error) {
     console.error(error);
@@ -344,8 +360,33 @@ function openResubmitModal(bitacora) {
 async function submitBitacora() {
   submitting.value = true;
   try {
+    // === 1. Validación defensiva para evitar peticiones a ciegas ===
+    // Extraemos de todas las posibles rutas donde la API puede empaquetar el objeto
+    let productiveStageId = 
+      ep.value?._id || 
+      ep.value?.id || 
+      ep.value?.data?._id || 
+      ep.value?.productiveStage?._id || 
+      ep.value?.eps?.[0]?._id;
+
+    // Si por alguna razón el ID es un objeto, intentamos extraer su valor interno
+    if (typeof productiveStageId === 'object' && productiveStageId !== null) {
+      productiveStageId = productiveStageId._id || productiveStageId.id;
+    }
+    
+    // Validamos que no sea vacío ni un '[object Object]' (que rompería la petición Axios)
+    if (!productiveStageId || String(productiveStageId) === '[object Object]') {
+      console.error("❌ No se encontró un ID válido. Estructura actual de ep.value:", ep.value);
+      $q.notify({ type: 'warning', message: 'Error interno: No se pudo identificar el ID de tu etapa productiva.' });
+      submitting.value = false;
+      return; // Abortamos la petición
+    }
+
+    console.log("ID enviado al backend:", productiveStageId);
+
+    // === 2. Construcción limpia del FormData ===
     const formData = new FormData();
-    formData.append('productiveStageId', ep.value._id);
+    formData.append('productiveStageId', productiveStageId);
     formData.append('periodStart', form.value.periodStart);
     formData.append('periodEnd', form.value.periodEnd);
     formData.append('file', form.value.file);

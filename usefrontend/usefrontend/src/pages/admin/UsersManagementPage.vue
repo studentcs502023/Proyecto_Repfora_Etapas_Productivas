@@ -293,16 +293,37 @@ function editUser(user) {
 async function saveUser() {
   saving.value = true;
   try {
-    const payload = { ...userForm.value };
-    delete payload._id;
+    let payload = {};
 
     if (activeTab.value === 'INSTRUCTORS') {
+      payload = {
+        nationalId: userForm.value.nationalId,
+        fullName: userForm.value.fullName,
+        email: userForm.value.email,
+        instructorType: userForm.value.instructorType,
+        knowledgeArea: userForm.value.knowledgeArea || 'Área General' 
+      };
+      if (userForm.value.phone) payload.phone = userForm.value.phone;
+
       if (isEditing.value) {
         await userService.updateInstructor(userForm.value._id, payload);
       } else {
         await userService.createInstructor(payload);
       }
     } else {
+      payload = {
+        nationalId: userForm.value.nationalId,
+        fullName: userForm.value.fullName,
+        email: userForm.value.email,
+        enrollmentNumber: userForm.value.enrollmentNumber,
+        trainingLevel: userForm.value.trainingLevel,
+        program: userForm.value.program || 'Programa No Especificado',
+        trainingCenter: userForm.value.trainingCenter || 'Centro No Especificado',
+        enrollmentExpiryDate: userForm.value.enrollmentExpiryDate || new Date().toISOString(),
+        isPreNov2024: userForm.value.isPreNov2024 || false
+      };
+      if (userForm.value.phone) payload.phone = userForm.value.phone;
+
       if (isEditing.value) {
         await userService.updateApprentice(userForm.value._id, payload);
       } else {
@@ -314,7 +335,11 @@ async function saveUser() {
     showUserModal.value = false;
     fetchUsers();
   } catch (error) {
-    console.error(error);
+    console.error("Error al guardar usuario:", error);
+    if (error.response?.data?.errors) {
+      console.log("=== Campos inválidos ===");
+      console.table(error.response.data.errors);
+    }
     const msg = error.response?.data?.message || 'Error al guardar usuario';
     $q.notify({ type: 'negative', message: msg });
   } finally {

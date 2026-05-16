@@ -226,12 +226,21 @@ function editCompany(company) {
 async function saveCompany() {
   saving.value = true;
   try {
-    const payload = { ...companyForm.value };
-    delete payload._id;
+    const payload = { 
+      name: companyForm.value.name,
+      taxId: companyForm.value.taxId,
+      address: companyForm.value.address,
+      phone: companyForm.value.phone,
+      email: contactForm.value.email || 'correo_temporal@empresa.com'
+    };
     
-    // Add contacts array if contact info is provided
     if (contactForm.value.name || contactForm.value.email) {
-      payload.contacts = [{ ...contactForm.value }];
+      payload.contacts = [{ 
+        fullName: contactForm.value.name || 'Sin nombre',
+        jobTitle: 'Supervisor / Contacto Principal',
+        email: contactForm.value.email,
+        phone: contactForm.value.phone
+      }];
     }
 
     if (isEditing.value) {
@@ -244,7 +253,11 @@ async function saveCompany() {
     showCompanyModal.value = false;
     fetchCompanies();
   } catch (error) {
-    console.error(error);
+    console.error("Error completo:", error);
+    if (error.response?.data?.errors) {
+      console.log("=== Detalle de errores ===");
+      console.table(error.response.data.errors);
+    }
     const msg = error.response?.data?.message || 'Error al guardar empresa';
     $q.notify({ type: 'negative', message: msg });
   } finally {
