@@ -56,7 +56,7 @@ class BitacoraService {
       isActive: true
     });
 
-    if (existingCount >= ep.maxBitacoras) {
+    if (ep.maxBitacoras !== null && existingCount >= ep.maxBitacoras) {
         const error = new Error(`Maximum logbooks reached (${ep.maxBitacoras})`);
         error.statusCode = 400;
         throw error;

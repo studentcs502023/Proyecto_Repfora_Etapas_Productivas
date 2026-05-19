@@ -227,10 +227,7 @@ async function fetchEPs() {
     const resCert = await productiveStageService.getAllEPs({ status: 'CERTIFICATION', limit: 50 });
     const resComp = await productiveStageService.getAllEPs({ status: 'COMPLETED', limit: 20 });
     
-    const certEps = resCert.data?.eps || [];
-    const compEps = resComp.data?.eps || [];
-    
-    eps.value = [...certEps, ...compEps];
+    eps.value = [...(resCert.data.data || resCert.data), ...(resComp.data.data || resComp.data)];
   } catch (error) {
     console.error(error);
     $q.notify({ type: 'negative', message: 'Error al cargar etapas.' });

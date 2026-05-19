@@ -248,10 +248,8 @@ async function fetchPendingEPs() {
       page: pagination.value.page,
       limit: pagination.value.rowsPerPage
     });
-    pendingEPs.value = res.data?.eps || [];
-    if (res.data?.pagination?.total) {
-      pagination.value.rowsNumber = res.data.pagination.total;
-    }
+    pendingEPs.value = res.data.data || res.data;
+    if (res.data.total) pagination.value.rowsNumber = res.data.total;
   } catch (error) {
     console.error(error);
     $q.notify({ type: 'negative', message: 'Error al cargar solicitudes pendientes.' });
@@ -268,13 +266,15 @@ function onRequest(props) {
 
 async function preloadInstructors() {
   try {
-    // Si la API arroja 400 por límite o isActive, ajustamos a max 100 y usamos status='ACTIVE' que es la validación real del backend
+    // In a real scenario we might fetch by type, or fetch all active and filter client-side
     const res = await userService.getInstructors({ limit: 100, status: 'ACTIVE' });
-    const allInstructors = res.data?.instructors || [];
+    const resData = res.data.data || res.data;
+    const allInstructors = resData.instructors || resData;
     
-    instructors.value.followup = allInstructors.filter(i => i.instructorType === 'FOLLOWUP');
-    instructors.value.technical = allInstructors.filter(i => i.instructorType === 'TECHNICAL');
-    instructors.value.project = allInstructors.filter(i => i.instructorType === 'PROJECT');
+    const list = Array.isArray(allInstructors) ? allInstructors : [];
+    instructors.value.followup = list.filter(i => i.instructorType === 'FOLLOWUP');
+    instructors.value.technical = list.filter(i => i.instructorType === 'TECHNICAL');
+    instructors.value.project = list.filter(i => i.instructorType === 'PROJECT');
   } catch (error) {
     console.error('Error loading instructors', error);
   }

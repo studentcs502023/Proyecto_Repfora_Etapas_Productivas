@@ -165,9 +165,9 @@ async function fetchCompanies() {
     };
 
     const response = await companyService.getAll(params);
-    companies.value = response.data?.companies || [];
-    if (response.data?.pagination?.total) {
-      pagination.value.rowsNumber = response.data.pagination.total;
+    companies.value = response.data.data || response.data;
+    if (response.data.total) {
+      pagination.value.rowsNumber = response.data.total;
     }
   } catch (error) {
     console.error(error);
@@ -226,21 +226,12 @@ function editCompany(company) {
 async function saveCompany() {
   saving.value = true;
   try {
-    const payload = { 
-      name: companyForm.value.name,
-      taxId: companyForm.value.taxId,
-      address: companyForm.value.address,
-      phone: companyForm.value.phone,
-      email: contactForm.value.email || 'correo_temporal@empresa.com'
-    };
+    const payload = { ...companyForm.value };
+    delete payload._id;
     
+    // Add contacts array if contact info is provided
     if (contactForm.value.name || contactForm.value.email) {
-      payload.contacts = [{ 
-        fullName: contactForm.value.name || 'Sin nombre',
-        jobTitle: 'Supervisor / Contacto Principal',
-        email: contactForm.value.email,
-        phone: contactForm.value.phone
-      }];
+      payload.contacts = [{ ...contactForm.value }];
     }
 
     if (isEditing.value) {
@@ -253,11 +244,7 @@ async function saveCompany() {
     showCompanyModal.value = false;
     fetchCompanies();
   } catch (error) {
-    console.error("Error completo:", error);
-    if (error.response?.data?.errors) {
-      console.log("=== Detalle de errores ===");
-      console.table(error.response.data.errors);
-    }
+    console.error(error);
     const msg = error.response?.data?.message || 'Error al guardar empresa';
     $q.notify({ type: 'negative', message: msg });
   } finally {

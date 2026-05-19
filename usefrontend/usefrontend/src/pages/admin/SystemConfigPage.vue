@@ -79,8 +79,8 @@ async function fetchConfigs() {
   loading.value = true;
   try {
     const response = await systemConfigService.getAll();
-    // Extracción segura del array 'configs'
-    const data = response.data?.configs || [];
+    // Assuming response is an array of config objects
+    const data = response.data.data || response.data;
     
     configs.value = data.map(c => ({
       ...c,
@@ -111,47 +111,9 @@ async function updateConfig(config) {
   }
 }
 
-// Diccionario para traducir palabras individuales de las llaves de configuración
-const wordDictionary = {
-  'MAX': 'Máximo de',
-  'MIN': 'Mínimo de',
-  'LOGBOOK': 'Bitácora',
-  'LOGBOOKS': 'Bitácoras',
-  'TECHNICIAN': '(Técnico)',
-  'TECHNOLOGIST': '(Tecnólogo)',
-  'HOURS': 'Horas',
-  'TRACKING': 'Seguimiento',
-  'TRACKINGS': 'Seguimientos',
-  'DAYS': 'Días',
-  'EXPIRY': 'Vencimiento',
-  'ENROLLMENT': 'Matrícula',
-  'DEADLINE': 'Límite',
-  'MONTHS': 'Meses',
-  'REGISTRATION': 'Registro',
-  'EP': 'Etapa Productiva',
-  'LIMIT': 'Límite',
-  'ALERT': 'Alerta',
-  'WARNING': 'Aviso',
-  'REQUIRED': 'Requerido'
-};
-
 function formatKeyName(key) {
-  // Traducciones exactas para claves conocidas
-  const exactMatches = {
-    'EP_REGISTRATION_DEADLINE_MONTHS': 'Meses Límite para Registro de EP',
-    'MAX_LOGBOOKS_TECHNICIAN': 'Máximo de Bitácoras (Técnico)',
-    'MAX_LOGBOOKS_TECHNOLOGIST': 'Máximo de Bitácoras (Tecnólogo)'
-  };
-  
-  if (exactMatches[key]) return exactMatches[key];
-
-  // Si no hay traducción exacta, traducimos palabra por palabra (Fallback dinámico)
-  return key.split('_').map(word => {
-    const w = wordDictionary[word.toUpperCase()] || word;
-    // Evitamos transformar palabras con espacios como 'Máximo de' o '(Técnico)' de forma incorrecta
-    if (wordDictionary[word.toUpperCase()]) return w;
-    return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
-  }).join(' ');
+  // Convert MAX_LOGBOOKS_TECHNICIAN to Max Logbooks Technician
+  return key.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ');
 }
 </script>
 

@@ -116,7 +116,7 @@
             </q-item>
             <q-item clickable v-ripple to="/instructor-hours">
               <q-item-section avatar><q-icon name="schedule" /></q-item-section>
-              <q-item-section>Bolsa de Horas</q-item-section>
+              <q-item-section>Horas instructor</q-item-section>
             </q-item>
           </template>
 

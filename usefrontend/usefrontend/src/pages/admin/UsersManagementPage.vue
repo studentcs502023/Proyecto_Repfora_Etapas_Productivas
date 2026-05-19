@@ -78,6 +78,9 @@
             <q-btn v-if="activeTab === 'INSTRUCTORS'" size="sm" flat round :color="props.row.isActive ? 'negative' : 'positive'" :icon="props.row.isActive ? 'block' : 'check_circle'" @click="toggleStatus(props.row)">
               <q-tooltip>{{ props.row.isActive ? 'Desactivar' : 'Activar' }}</q-tooltip>
             </q-btn>
+            <q-btn v-if="activeTab === 'APPRENTICES'" size="sm" flat round color="accent" icon="assignment_ind" @click="openAssignModal(props.row)">
+              <q-tooltip>Asignar Rápido (Pruebas)</q-tooltip>
+            </q-btn>
           </q-td>
         </template>
       </q-table>
@@ -143,12 +146,43 @@
         </q-form>
       </q-card>
     </q-dialog>
+    <!-- Modal: Asignación Rápida -->
+    <q-dialog v-model="showAssignModal" persistent>
+      <q-card style="width: 450px;">
+        <q-form @submit="submitQuickAssign">
+          <q-card-section class="bg-accent text-white">
+            <div class="text-h6">Asignación Rápida (Pruebas)</div>
+          </q-card-section>
+          <q-card-section class="q-pa-md">
+            <p class="text-subtitle2 q-mb-md">Aprendiz: <span class="text-weight-bold">{{ selectedApprentice?.fullName }}</span></p>
+            <q-select 
+              v-model="selectedInstructor" 
+              :options="instructorsList" 
+              option-value="_id" 
+              option-label="fullName" 
+              label="Selecciona un Instructor" 
+              outlined 
+              dense 
+              emit-value 
+              map-options 
+              :rules="[val => !!val || 'Requerido']" 
+            />
+          </q-card-section>
+          <q-card-actions align="right" class="q-pa-md">
+            <q-btn flat label="Cancelar" color="grey" v-close-popup />
+            <q-btn color="accent" label="Asignar" type="submit" :loading="assigning" />
+          </q-card-actions>
+        </q-form>
+      </q-card>
+    </q-dialog>
+
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted, watch } from 'vue';
 import userService from '../../api/user.service';
+import productiveStageService from '../../api/productiveStage.service';
 import { useQuasar } from 'quasar';
 
 const $q = useQuasar();
@@ -173,6 +207,13 @@ const saving = ref(false);
 const showImportModal = ref(false);
 const importFile = ref(null);
 const importing = ref(false);
+
+// Quick Assign State
+const showAssignModal = ref(false);
+const assigning = ref(false);
+const selectedApprentice = ref(null);
+const selectedInstructor = ref('');
+const instructorsList = ref([]);
 
 // Form State
 const userForm = ref({
@@ -228,18 +269,18 @@ async function fetchUsers() {
     let response;
     if (activeTab.value === 'INSTRUCTORS') {
       response = await userService.getInstructors(params);
+      const resData = response.data.data || response.data;
+      users.value = resData.instructors || resData;
+      if (resData.pagination) {
+        pagination.value.rowsNumber = resData.pagination.total;
+      }
     } else {
       response = await userService.getApprentices(params);
-    }
-
-    // Adapt to standard pagination response
-    if (activeTab.value === 'INSTRUCTORS') {
-      users.value = response.data?.instructors || [];
-    } else {
-      users.value = response.data?.apprentices || [];
-    }
-    if (response.data?.pagination?.total) {
-      pagination.value.rowsNumber = response.data.pagination.total;
+      const resData = response.data.data || response.data;
+      users.value = resData.apprentices || resData;
+      if (resData.pagination) {
+        pagination.value.rowsNumber = resData.pagination.total;
+      }
     }
   } catch (error) {
     console.error(error);
@@ -293,37 +334,16 @@ function editUser(user) {
 async function saveUser() {
   saving.value = true;
   try {
-    let payload = {};
+    const payload = { ...userForm.value };
+    delete payload._id;
 
     if (activeTab.value === 'INSTRUCTORS') {
-      payload = {
-        nationalId: userForm.value.nationalId,
-        fullName: userForm.value.fullName,
-        email: userForm.value.email,
-        instructorType: userForm.value.instructorType,
-        knowledgeArea: userForm.value.knowledgeArea || 'Área General' 
-      };
-      if (userForm.value.phone) payload.phone = userForm.value.phone;
-
       if (isEditing.value) {
         await userService.updateInstructor(userForm.value._id, payload);
       } else {
         await userService.createInstructor(payload);
       }
     } else {
-      payload = {
-        nationalId: userForm.value.nationalId,
-        fullName: userForm.value.fullName,
-        email: userForm.value.email,
-        enrollmentNumber: userForm.value.enrollmentNumber,
-        trainingLevel: userForm.value.trainingLevel,
-        program: userForm.value.program || 'Programa No Especificado',
-        trainingCenter: userForm.value.trainingCenter || 'Centro No Especificado',
-        enrollmentExpiryDate: userForm.value.enrollmentExpiryDate || new Date().toISOString(),
-        isPreNov2024: userForm.value.isPreNov2024 || false
-      };
-      if (userForm.value.phone) payload.phone = userForm.value.phone;
-
       if (isEditing.value) {
         await userService.updateApprentice(userForm.value._id, payload);
       } else {
@@ -335,11 +355,7 @@ async function saveUser() {
     showUserModal.value = false;
     fetchUsers();
   } catch (error) {
-    console.error("Error al guardar usuario:", error);
-    if (error.response?.data?.errors) {
-      console.log("=== Campos inválidos ===");
-      console.table(error.response.data.errors);
-    }
+    console.error(error);
     const msg = error.response?.data?.message || 'Error al guardar usuario';
     $q.notify({ type: 'negative', message: msg });
   } finally {
@@ -386,6 +402,39 @@ async function toggleStatus(user) {
       $q.notify({ type: 'negative', message: 'Error al actualizar estado' });
     }
   });
+}
+
+// Quick Assign Logic
+async function openAssignModal(user) {
+  selectedApprentice.value = user;
+  selectedInstructor.value = '';
+  showAssignModal.value = true;
+  if (instructorsList.value.length === 0) {
+    try {
+      const res = await userService.getInstructors({ limit: 100 });
+      const resData = res.data.data || res.data;
+      const list = resData.instructors || resData;
+      instructorsList.value = (Array.isArray(list) ? list : []).filter(i => i.isActive !== false);
+    } catch (e) {
+      console.error(e);
+      $q.notify({ type: 'negative', message: 'Error cargando instructores' });
+    }
+  }
+}
+
+async function submitQuickAssign() {
+  assigning.value = true;
+  try {
+    await productiveStageService.quickAssign(selectedApprentice.value._id, selectedInstructor.value);
+    $q.notify({ type: 'positive', message: '¡Asignación rápida completada con éxito! (Etapa Activa)' });
+    showAssignModal.value = false;
+  } catch (error) {
+    console.error(error);
+    const msg = error.response?.data?.message || 'Error en asignación rápida';
+    $q.notify({ type: 'negative', message: msg });
+  } finally {
+    assigning.value = false;
+  }
 }
 </script>
 

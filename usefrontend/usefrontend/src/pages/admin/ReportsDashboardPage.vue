@@ -178,23 +178,17 @@ onMounted(() => {
 async function loadAllReports() {
   loading.value = true;
   try {
-    // Usar Promise.allSettled para evitar que un fallo (ej. Error 500) bloquee toda la pantalla
-    const results = await Promise.allSettled([
+    const [epRes, hrRes, expRes] = await Promise.all([
       reportService.getEPSummary(),
       reportService.getInstructorHours(),
       reportService.getEnrollmentExpiry()
     ]);
     
-    const epRes = results[0].status === 'fulfilled' ? results[0].value : { data: {} };
-    const hrRes = results[1].status === 'fulfilled' ? results[1].value : { data: {} };
-    const expRes = results[2].status === 'fulfilled' ? results[2].value : { data: {} };
-    
-    // Asignar los datos con fallback a estructuras vacías si vienen indefinidos por un error
-    epSummary.value = epRes.data?.data || epRes.data || { totalEPs: 0, byStatus: {}, byModality: {} };
-    hourSummary.value = hrRes.data?.data || hrRes.data || { instructors: [], grandTotals: {} };
-    expiryReport.value = expRes.data?.data || expRes.data || { apprentices: [] };
+    epSummary.value = epRes.data.data || epRes.data;
+    hourSummary.value = hrRes.data.data || hrRes.data;
+    expiryReport.value = expRes.data.data || expRes.data;
   } catch (error) {
-    console.error('Error crítico procesando reportes:', error);
+    console.error(error);
     $q.notify({ type: 'negative', message: 'Error al cargar los reportes.' });
   } finally {
     loading.value = false;
