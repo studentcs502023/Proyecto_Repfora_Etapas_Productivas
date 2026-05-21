@@ -82,6 +82,16 @@ class ProductiveStageController {
             return errorResponse(res, error.statusCode || 500, error.message);
         }
     }
+
+    async quickAssign(req, res) {
+        try {
+            const { apprenticeId, instructorId } = req.body;
+            const ep = await epService.quickAssign(apprenticeId, instructorId, req.user.id);
+            return successResponse(res, 200, "Asignación rápida completada exitosamente", { ep });
+        } catch (error) {
+            return errorResponse(res, error.statusCode || 500, error.message);
+        }
+    }
 }
 
 export default new ProductiveStageController();

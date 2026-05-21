@@ -56,7 +56,7 @@ class BitacoraService {
       isActive: true
     });
 
-    if (existingCount >= ep.maxBitacoras) {
+    if (ep.maxBitacoras !== null && existingCount >= ep.maxBitacoras) {
         const error = new Error(`Maximum logbooks reached (${ep.maxBitacoras})`);
         error.statusCode = 400;
         throw error;
@@ -134,31 +134,33 @@ class BitacoraService {
       filter.apprentice = reqUser.id;
       if (productiveStageId) filter.productiveStage = productiveStageId;
     } else if (reqUser.role === 'INSTRUCTOR') {
-      if (!productiveStageId) {
-        const error = new Error('productiveStageId is required for instructors');
-        error.statusCode = 400;
-        throw error;
-      }
-      
-      const ep = await ProductiveStage.findById(productiveStageId);
-      if (!ep) {
-        const error = new Error('ProductiveStage not found');
-        error.statusCode = 404;
-        throw error;
-      }
-      
-      const isAssigned = [
-        ep.followupInstructor?.toString(),
-        ep.technicalInstructor?.toString(),
-        ep.projectInstructor?.toString()
-      ].includes(reqUser.id.toString());
+      // Instructors can list their assigned bitacoras.
+      // If productiveStageId is provided, verify access and filter by it.
+      // If not, filter by instructor field (covers all their assigned bitacoras).
+      if (productiveStageId) {
+        const ep = await ProductiveStage.findById(productiveStageId);
+        if (!ep) {
+          const error = new Error('ProductiveStage not found');
+          error.statusCode = 404;
+          throw error;
+        }
+        
+        const isAssigned = [
+          ep.followupInstructor?.toString(),
+          ep.technicalInstructor?.toString(),
+          ep.projectInstructor?.toString()
+        ].includes(reqUser.id.toString());
 
-      if (!isAssigned) {
-        const error = new Error('Forbidden: You are not assigned to this ProductiveStage');
-        error.statusCode = 403;
-        throw error;
+        if (!isAssigned) {
+          const error = new Error('Forbidden: You are not assigned to this ProductiveStage');
+          error.statusCode = 403;
+          throw error;
+        }
+        filter.productiveStage = productiveStageId;
+      } else {
+        // No productiveStageId: return all bitacoras where instructor is assigned
+        filter.instructor = reqUser.id;
       }
-      filter.productiveStage = productiveStageId;
     } else if (reqUser.role === 'ADMIN') {
       if (productiveStageId) filter.productiveStage = productiveStageId;
     }

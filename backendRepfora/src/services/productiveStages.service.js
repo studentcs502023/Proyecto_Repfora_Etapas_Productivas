@@ -461,6 +461,103 @@ class ProductiveStageService {
             .populate("company")
             .populate("followupInstructor technicalInstructor projectInstructor", "fullName email phone");
     }
+
+    /**
+     * Realiza una asignación rápida de instructor de seguimiento a un aprendiz (para pruebas)
+     */
+    async quickAssign(apprenticeId, instructorId, performedBy) {
+        // 1. Validar aprendiz
+        const apprentice = await User.findOne({ _id: apprenticeId, role: "APPRENTICE" });
+        if (!apprentice) {
+            const error = new Error("Aprendiz no encontrado");
+            error.statusCode = 404;
+            throw error;
+        }
+
+        // 2. Validar instructor
+        const instructor = await User.findOne({ _id: instructorId, role: "INSTRUCTOR", status: "ACTIVE" });
+        if (!instructor) {
+            const error = new Error("Instructor no encontrado o inactivo");
+            error.statusCode = 404;
+            throw error;
+        }
+
+        // 3. Buscar si ya existe una etapa productiva activa/pendiente
+        let ep = await ProductiveStage.findOne({ apprentice: apprenticeId, isActive: true });
+
+        const level = apprentice.trainingLevel || "TECHNOLOGIST";
+        const maxBitacoras = await getConfig(`MAX_LOGBOOKS_${level}`) || 13;
+        const requiredTrackings = await getConfig(`REQUIRED_TRACKINGS_${level}`) || 3;
+
+        if (ep) {
+            // Actualizar etapa existente
+            ep.followupInstructor = instructorId;
+            ep.maxBitacoras = maxBitacoras;
+            ep.requiredTrackings = requiredTrackings;
+            if (ep.status === "PENDING_APPROVAL" || ep.status === "PENDING_REGISTRATION") {
+                ep.status = "ACTIVE";
+                ep.approvalDate = new Date();
+            }
+            await ep.save();
+        } else {
+            // Crear una empresa dummy para la asignación rápida si no hay ninguna
+            let company = await Company.findOne();
+            if (!company) {
+                company = new Company({
+                    name: "Empresa de Pruebas",
+                    taxId: "900000000-1",
+                    address: "Calle Ficticia 123",
+                    phone: "3001234567",
+                    email: "contacto@pruebas.com",
+                    contacts: [{
+                        fullName: "Contacto Prueba",
+                        jobTitle: "Supervisor de Pruebas",
+                        phone: "3001234567",
+                        email: "contacto@pruebas.com",
+                        isPrimary: true
+                    }]
+                });
+                await company.save();
+            }
+
+            // Crear una nueva etapa productiva activa
+            ep = new ProductiveStage({
+                apprentice: apprenticeId,
+                company: company._id,
+                modality: "APPRENTICESHIP_CONTRACT",
+                status: "ACTIVE",
+                registrationDate: new Date(),
+                approvalDate: new Date(),
+                startDate: new Date(),
+                estimatedEndDate: new Date(Date.now() + 6 * 30 * 24 * 60 * 60 * 1000), // 6 meses
+                maxBitacoras,
+                requiredTrackings,
+                followupInstructor: instructorId,
+                companySnapshot: {
+                    companyName: company.name,
+                    taxId: company.taxId,
+                    address: company.address,
+                    apprenticeJobTitle: "Aprendiz de Pruebas",
+                    supervisorName: "Supervisor de Pruebas",
+                    supervisorEmail: "supervisor@pruebas.com",
+                    supervisorPhone: "3001234567"
+                },
+                driveFolderId: `folder_ep_${apprenticeId}`,
+                driveFolderUrl: `https://drive.google.com/mock/${apprenticeId}`
+            });
+            await ep.save();
+        }
+
+        await recordAuditLog({
+            action: AUDIT_ACTIONS.EP_INSTRUCTOR_ASSIGNED || "EP_INSTRUCTOR_ASSIGNED",
+            entity: "ProductiveStage",
+            entityId: ep._id,
+            performedBy,
+            details: { followupInstructor: instructorId }
+        });
+
+        return ep;
+    }
 }
 
 export default new ProductiveStageService();

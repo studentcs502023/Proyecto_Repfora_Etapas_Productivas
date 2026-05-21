@@ -69,6 +69,78 @@ const checkMissingBitacoras = async () => {
 };
 
 /**
+ * Check for apprentices missing EP registration (monthly reminder) - RF-003
+ */
+const checkUnregisteredApprentices = async () => {
+  console.log('[Cron] Checking unregistered apprentices...');
+  
+  const activeApprentices = await User.find({ role: 'APPRENTICE', isActive: true });
+  
+  for (const apprentice of activeApprentices) {
+    const epCount = await ProductiveStage.countDocuments({ apprentice: apprentice._id, isActive: true });
+    
+    if (epCount === 0 && apprentice.createdAt) {
+      const msSinceCreation = new Date() - new Date(apprentice.createdAt);
+      const daysSinceCreation = Math.floor(msSinceCreation / (1000 * 60 * 60 * 24));
+      
+      // Remind them every 30 days roughly, until 24 months (730 days)
+      if (daysSinceCreation > 0 && daysSinceCreation % 30 === 0 && daysSinceCreation <= 730) {
+         const monthsLeft = 24 - Math.floor(daysSinceCreation / 30);
+         await notificationService.send({
+            type: 'EP_REGISTRATION_REMINDER',
+            recipients: [apprentice._id.toString()],
+            title: 'Recordatorio: Registro de Etapa Productiva',
+            message: `Estimado aprendiz, aún no ha registrado su etapa productiva. Le recordamos que por ley tiene un máximo de 2 años para finalizarla. Le quedan aproximadamente ${monthsLeft} meses. Por favor, ingrese al sistema y registre su modalidad.`,
+            metadata: { entity: 'User', entityId: apprentice._id }
+         });
+      }
+    }
+  }
+};
+
+/**
+ * Check for critical desertion (3 months without bitacoras) - RF-005
+ */
+const checkCriticalDesertion = async () => {
+  console.log('[Cron] Checking critical desertion (3 months without bitacora)...');
+  const ninetyDaysAgo = new Date();
+  ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+
+  const activeEPs = await ProductiveStage.find({
+    status: { $in: ['ACTIVE', 'IN_FOLLOWUP'] },
+    isActive: true
+  }).populate('apprentice');
+
+  const admins = await User.find({ role: 'ADMIN', isActive: true });
+  const adminIds = admins.map(a => a._id.toString());
+
+  if (adminIds.length === 0) return;
+
+  for (const ep of activeEPs) {
+    if (!ep.startDate) continue;
+
+    const latestBitacora = await Bitacora.findOne({ productiveStage: ep._id, isActive: true }).sort({ submittedAt: -1 });
+
+    let isDesertion = false;
+    if (latestBitacora) {
+       if (new Date(latestBitacora.submittedAt) < ninetyDaysAgo) isDesertion = true;
+    } else {
+       if (new Date(ep.startDate) < ninetyDaysAgo) isDesertion = true;
+    }
+
+    if (isDesertion) {
+      await notificationService.send({
+        type: 'NEW_CRITICAL_NOVELTY',
+        recipients: adminIds,
+        title: 'ALERTA CRÍTICA: Posible Deserción de Aprendiz',
+        message: `El aprendiz ${ep.apprentice.fullName} (Ficha: ${ep.apprentice.enrollmentNumber || 'N/A'}) lleva más de 3 meses sin subir una bitácora en la plataforma. Se sugiere iniciar proceso de revisión o anulación por incumplimiento.`,
+        metadata: { entity: 'ProductiveStage', entityId: ep._id }
+      });
+    }
+  }
+};
+
+/**
  * Start all scheduled jobs
  */
 export const initJobs = () => {
@@ -76,7 +148,8 @@ export const initJobs = () => {
   cron.schedule('0 8 * * *', async () => {
     await checkOverdueReviews();
     await checkMissingBitacoras();
-    // More checks can be added here (enrollment exipiry, etc)
+    await checkUnregisteredApprentices();
+    await checkCriticalDesertion();
   });
   
   console.log('⏰ Scheduled jobs initialized');

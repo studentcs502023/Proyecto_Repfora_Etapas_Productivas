@@ -1,4 +1,5 @@
 import express from 'express';
+import mongoose from 'mongoose';
 import morgan from 'morgan';
 import cors from 'cors'; // Que no falte cors
 import { env } from './src/config/env.js';
@@ -20,6 +21,7 @@ import trackingRoutes from './src/routes/trackings.routes.js';
 import hourRoutes from './src/routes/hours.routes.js';
 import notificationRoutes from './src/routes/notifications.routes.js';
 import reportRoutes from './src/routes/reports.routes.js';
+import dashboardRoutes from './src/routes/dashboard.routes.js';
 import { initJobs } from './src/jobs/alerts.job.js';
 
 const app = express();
@@ -31,6 +33,8 @@ if (process.env.NODE_ENV !== 'test') {
         seedSystemConfigs();
         // Iniciar cron jobs
         initJobs();
+    }).catch((error) => {
+        console.error("❌ No se pudieron iniciar los servicios de base de datos debido al fallo en la conexión.");
     });
 }
 
@@ -38,6 +42,17 @@ if (process.env.NODE_ENV !== 'test') {
 app.use(cors());
 app.use(morgan('dev')); 
 app.use(express.json()); 
+
+// Middleware para validar que la base de datos esté conectada en las peticiones de API
+app.use('/api', (req, res, next) => {
+    if (mongoose.connection.readyState !== 1) {
+        return res.status(503).json({
+            status: "error",
+            message: "La base de datos no está disponible o no está conectada. Por favor, verifique la conexión en el servidor."
+        });
+    }
+    next();
+});
 
 // Rutas base
 app.use('/api/auth', authRoutes);
@@ -52,6 +67,7 @@ app.use('/api/trackings', trackingRoutes);
 app.use('/api/hours', hourRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 app.use(express.static('dist'));
 // Ahora sí, path y __dirname estarán definidos
 app.use(express.static(path.join(__dirname, 'public')));

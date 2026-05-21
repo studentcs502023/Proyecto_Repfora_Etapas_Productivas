@@ -94,4 +94,14 @@ router.post("/:id/comments",
     epController.addComment
 );
 
+router.post("/quick-assign",
+    checkRole("ADMIN"),
+    [
+        body("apprenticeId").isMongoId().withMessage("ID de aprendiz inválido"),
+        body("instructorId").isMongoId().withMessage("ID de instructor de seguimiento inválido"),
+        validateFields
+    ],
+    epController.quickAssign
+);
+
 export default router;

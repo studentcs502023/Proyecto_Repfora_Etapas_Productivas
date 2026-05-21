@@ -10,6 +10,7 @@ export const conectarMongo = async () => {
     console.log("✅ Mongo conectado");
   } catch (error) {
     console.error("❌ Error Mongo:", error.message);
+    throw error;
   }
 };  
 

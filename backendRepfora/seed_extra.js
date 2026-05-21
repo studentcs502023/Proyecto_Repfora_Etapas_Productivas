@@ -9,6 +9,16 @@ const seedExtras = async () => {
         const salt = await bcrypt.genSalt(10);
         const pass = await bcrypt.hash('Sena123!', salt);
         
+        await User.updateOne({ nationalId: '111111' }, {
+            nationalId: '111111',
+            fullName: 'Administrador de Prueba',
+            email: 'admin@sena.edu.co',
+            password: pass,
+            role: 'ADMIN',
+            status: 'ACTIVE',
+            firstLogin: false
+        }, { upsert: true });
+
         await User.updateOne({ nationalId: '222222' }, {
             nationalId: '222222',
             fullName: 'Instructor de Prueba',
@@ -32,7 +42,10 @@ const seedExtras = async () => {
             firstLogin: false
         }, { upsert: true });
         
-        console.log('✅ Cuentas creadas exitosamente: Instructor (222222) y Aprendiz (333333) con pass Sena123!');
+        console.log('✅ Cuentas creadas exitosamente:');
+        console.log('🔑 Administrador -> Cédula: 111111 | Contraseña: Sena123!');
+        console.log('🔑 Instructor    -> Cédula: 222222 | Contraseña: Sena123!');
+        console.log('🔑 Aprendiz      -> Cédula: 333333 | Contraseña: Sena123!');
         process.exit(0);
     } catch (err) {
         console.error('Error:', err);

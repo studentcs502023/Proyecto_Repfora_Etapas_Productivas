@@ -4,6 +4,7 @@ import crypto from "crypto";
 import User from "../models/User.model.js";
 import { recordAuditLog } from "../utils/auditLog.util.js";
 import { env } from "../config/env.js";
+import emailService from "./email.service.js";
 
 /**
  * Lógica principal de inicio de sesión.
@@ -116,8 +117,33 @@ const forgotPassword = async (email) => {
     user.resetPasswordExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
     await user.save();
 
-    // TODO: Implementar envío real de email. Por ahora lo dejamos logueado.
-    console.log(`📧 [Simulacro Email] Enlace de recuperación para ${email}: /reset-password?token=${resetToken}`);
+    // Enviar correo de recuperación (RF-002 Escenario 3)
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5174';
+    const resetLink = `${frontendUrl}/reset-password?token=${resetToken}`;
+
+    try {
+        await emailService.send({
+            to: email,
+            subject: 'Recuperación de Contraseña - REPFORA E.P.',
+            body: `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #eee; padding: 20px; border-radius: 8px;">
+                    <h2 style="color: #39a900; text-align: center;">REPFORA E.P. — SENA</h2>
+                    <p>Estimado/a <strong>${user.fullName}</strong>,</p>
+                    <p>Hemos recibido una solicitud para restablecer su contraseña de acceso a la plataforma REPFORA E.P.</p>
+                    <p>Para crear una nueva contraseña, haga clic en el siguiente enlace:</p>
+                    <div style="text-align: center; margin: 25px 0;">
+                        <a href="${resetLink}" style="background-color: #39a900; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: bold;">Restablecer Contraseña</a>
+                    </div>
+                    <p style="color: #666; font-size: 13px;">Este enlace es válido por <strong>24 horas</strong>. Si usted no solicitó este cambio, ignore este correo.</p>
+                    <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; text-align: center;">
+                        <p style="font-size: 12px; color: #666;">Este es un mensaje automático. Por favor no responda a este correo.</p>
+                    </div>
+                </div>
+            `
+        });
+    } catch (emailErr) {
+        console.error('[AuthService] Error enviando correo de recuperación:', emailErr.message);
+    }
 
     return { message: "Si el correo existe en nuestro sistema, recibirás un enlace de recuperación" };
 };
