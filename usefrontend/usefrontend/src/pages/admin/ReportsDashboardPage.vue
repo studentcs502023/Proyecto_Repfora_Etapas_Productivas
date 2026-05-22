@@ -178,21 +178,26 @@ onMounted(() => {
 async function loadAllReports() {
   loading.value = true;
   try {
-    // Usar Promise.allSettled para evitar que un fallo (ej. Error 500) bloquee toda la pantalla
+    // Usar Promise.allSettled para evitar que un fallo parcial bloquee toda la pantalla
     const results = await Promise.allSettled([
       reportService.getEPSummary(),
       reportService.getInstructorHours(),
       reportService.getEnrollmentExpiry()
     ]);
     
-    const epRes = results[0].status === 'fulfilled' ? results[0].value : { data: {} };
-    const hrRes = results[1].status === 'fulfilled' ? results[1].value : { data: {} };
-    const expRes = results[2].status === 'fulfilled' ? results[2].value : { data: {} };
+    // Extracción de datos con fallbacks seguros
+    const epResult = results[0].status === 'fulfilled' ? results[0].value : { data: {} };
+    const hrResult = results[1].status === 'fulfilled' ? results[1].value : { data: {} };
+    const expResult = results[2].status === 'fulfilled' ? results[2].value : { data: {} };
     
-    // Asignar los datos con fallback a estructuras vacías si vienen indefinidos por un error
-    epSummary.value = epRes.data?.data || epRes.data || { totalEPs: 0, byStatus: {}, byModality: {} };
-    hourSummary.value = hrRes.data?.data || hrRes.data || { instructors: [], grandTotals: {} };
-    expiryReport.value = expRes.data?.data || expRes.data || { apprentices: [] };
+    // Asignar los datos considerando el interceptor que devuelve {success, message, data}
+    epSummary.value = epResult.data || { totalEPs: 0, byStatus: {}, byModality: {} };
+    hourSummary.value = hrResult.data || { instructors: [], grandTotals: {} };
+    expiryReport.value = expResult.data || { apprentices: [] };
+    
+    if (results.some(r => r.status === 'rejected')) {
+      console.warn('Algunos reportes no se pudieron cargar completamente.');
+    }
   } catch (error) {
     console.error('Error crítico procesando reportes:', error);
     $q.notify({ type: 'negative', message: 'Error al cargar los reportes.' });
