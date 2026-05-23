@@ -40,6 +40,7 @@
                 label="Fecha de Inicio Estimada"
                 type="date"
                 outlined
+                stack-label
                 :rules="[val => !!val || 'Requerido']"
               />
             </div>
@@ -49,6 +50,7 @@
                 label="Fecha de Finalización Estimada"
                 type="date"
                 outlined
+                stack-label
                 :rules="[val => !!val || 'Requerido']"
               />
             </div>
@@ -60,32 +62,102 @@
         </q-form>
       </q-step>
 
-      <!-- STEP 2: Empresa y Supervisor -->
+      <!-- STEP 2: Documentación de Soporte -->
       <q-step
         :name="2"
-        title="Empresa y Supervisor"
-        icon="business"
+        title="Documentación Obligatoria"
+        icon="upload_file"
         :done="step > 2"
       >
         <q-form @submit="stepper.next()" class="q-gutter-md">
-          <div class="text-subtitle2 text-black q-mb-sm">Selección de Empresa</div>
-          <q-select
-            v-model="form.companyId"
-            :options="companies"
-            option-value="_id"
-            option-label="name"
-            label="Buscar Empresa Coformadora"
-            outlined
-            emit-value
-            map-options
-            :rules="[val => !!val || 'Seleccione una empresa']"
-          >
-            <template v-slot:no-option>
-              <q-item>
-                <q-item-section class="text-grey">No se encontraron empresas. Contacte a la coordinación.</q-item-section>
-              </q-item>
-            </template>
-          </q-select>
+          <div class="text-subtitle2 text-black q-mb-sm">Documentos Requeridos para: {{ getModalityLabel(form.modality) || '...' }}</div>
+          <p class="text-grey-7">Por favor, adjunte los siguientes documentos en formato PDF (máximo 3MB por archivo).</p>
+
+          <div v-if="requiredDocuments.length === 0" class="text-warning q-mb-md">
+            Seleccione una modalidad en el paso anterior para ver los documentos requeridos.
+          </div>
+
+          <div v-for="doc in requiredDocuments" :key="doc.type" class="q-mb-md">
+            <q-file 
+              v-model="uploadedDocuments[doc.type]" 
+              :label="doc.label + (doc.required ? ' *' : '')" 
+              outlined 
+              accept=".pdf"
+              :rules="[
+                val => (!doc.required || !!val) || 'Requerido',
+                val => !val || val.type === 'application/pdf' || 'Solo formato PDF',
+                val => !val || val.size <= 3 * 1024 * 1024 || 'Máximo 3MB'
+              ]"
+            >
+              <template v-slot:prepend><q-icon name="picture_as_pdf" /></template>
+            </q-file>
+          </div>
+
+          <q-stepper-navigation>
+            <q-btn type="submit" color="primary" label="Continuar" :disable="requiredDocuments.length === 0" />
+            <q-btn flat color="primary" @click="step = 1" label="Atrás" class="q-ml-sm" />
+          </q-stepper-navigation>
+        </q-form>
+      </q-step>
+
+      <!-- STEP 3: Empresa y Supervisor -->
+      <q-step
+        :name="3"
+        title="Empresa y Supervisor"
+        icon="business"
+        :done="step > 3"
+      >
+        <q-form @submit="stepper.next()" class="q-gutter-md">
+          <div class="q-mb-md">
+            <q-radio v-model="companyMode" val="existing" label="Seleccionar Empresa Existente" color="primary" />
+            <q-radio v-model="companyMode" val="new" label="Registrar Nueva Empresa" color="primary" />
+          </div>
+
+          <!-- Existing Company -->
+          <div v-if="companyMode === 'existing'" class="q-mb-md">
+            <q-select
+              v-model="form.companyId"
+              :options="companies"
+              option-value="_id"
+              option-label="name"
+              label="Buscar Empresa Coformadora"
+              outlined
+              emit-value
+              map-options
+              use-input
+              input-debounce="0"
+              @filter="filterCompanies"
+              :rules="[val => !!val || 'Seleccione una empresa']"
+            >
+              <template v-slot:no-option>
+                <q-item>
+                  <q-item-section class="text-grey">No se encontraron empresas.</q-item-section>
+                </q-item>
+              </template>
+            </q-select>
+          </div>
+
+          <!-- New Company -->
+          <div v-if="companyMode === 'new'" class="q-mb-md">
+            <div class="text-subtitle2 text-black q-mb-sm">Datos de la Empresa</div>
+            <div class="row q-col-gutter-md">
+              <div class="col-12 col-md-6">
+                <q-input v-model="newCompany.taxId" label="NIT" outlined :rules="[val => !!val || 'Requerido']" />
+              </div>
+              <div class="col-12 col-md-6">
+                <q-input v-model="newCompany.name" label="Razón Social" outlined :rules="[val => !!val || 'Requerido']" />
+              </div>
+              <div class="col-12">
+                <q-input v-model="newCompany.address" label="Dirección" outlined :rules="[val => !!val || 'Requerido']" />
+              </div>
+              <div class="col-12 col-md-6">
+                <q-input v-model="newCompany.phone" label="Teléfono (Empresa)" outlined :rules="[val => !!val || 'Requerido']" />
+              </div>
+              <div class="col-12 col-md-6">
+                <q-input v-model="newCompany.email" label="Correo Electrónico (Empresa)" type="email" outlined :rules="[val => !!val || 'Requerido']" />
+              </div>
+            </div>
+          </div>
 
           <q-separator class="q-my-md" />
           <div class="text-subtitle2 text-black q-mb-sm">Datos del Supervisor / Cargo</div>
@@ -128,14 +200,14 @@
 
           <q-stepper-navigation>
             <q-btn type="submit" color="primary" label="Continuar" />
-            <q-btn flat color="primary" @click="step = 1" label="Atrás" class="q-ml-sm" />
+            <q-btn flat color="primary" @click="step = 2" label="Atrás" class="q-ml-sm" />
           </q-stepper-navigation>
         </q-form>
       </q-step>
 
-      <!-- STEP 3: Confirmación -->
+      <!-- STEP 4: Confirmación -->
       <q-step
-        :name="3"
+        :name="4"
         title="Confirmación"
         icon="check"
       >
@@ -151,7 +223,7 @@
             <q-item>
               <q-item-section>
                 <q-item-label caption>Empresa</q-item-label>
-                <q-item-label>{{ selectedCompanyName }}</q-item-label>
+                <q-item-label>{{ companyMode === 'new' ? newCompany.name : selectedCompanyName }}</q-item-label>
               </q-item-section>
             </q-item>
             <q-item>
@@ -167,6 +239,21 @@
               </q-item-section>
             </q-item>
           </q-list>
+
+          <q-separator class="q-my-md" />
+          <div class="text-subtitle2 text-primary q-mb-sm">Documentos a Subir</div>
+          <q-list dense>
+            <q-item v-for="doc in requiredDocuments" :key="doc.type">
+              <q-item-section avatar>
+                <q-icon :name="uploadedDocuments[doc.type] ? 'check_circle' : 'error'" :color="uploadedDocuments[doc.type] ? 'positive' : 'negative'" />
+              </q-item-section>
+              <q-item-section>
+                <q-item-label>{{ doc.label }}</q-item-label>
+                <q-item-label caption>{{ uploadedDocuments[doc.type] ? uploadedDocuments[doc.type].name : 'Pendiente' }}</q-item-label>
+              </q-item-section>
+            </q-item>
+          </q-list>
+
           <div class="q-mt-md text-caption text-grey-8">
             Al enviar esta solicitud, será revisada por la coordinación para su aprobación y asignación de instructores.
           </div>
@@ -174,7 +261,7 @@
 
         <q-stepper-navigation>
           <q-btn color="positive" @click="submitEP" label="Enviar Solicitud" :loading="submitting" />
-          <q-btn flat color="primary" @click="step = 2" label="Atrás" class="q-ml-sm" />
+          <q-btn flat color="primary" @click="step = 3" label="Atrás" class="q-ml-sm" />
         </q-stepper-navigation>
       </q-step>
     </q-stepper>
@@ -182,10 +269,11 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import productiveStageService from '../../api/productiveStage.service';
 import companyService from '../../api/company.service';
+import documentService from '../../api/document.service';
 import { useQuasar } from 'quasar';
 
 const $q = useQuasar();
@@ -194,7 +282,10 @@ const router = useRouter();
 const step = ref(1);
 const stepper = ref(null);
 const submitting = ref(false);
+
+const companyMode = ref('existing');
 const companies = ref([]);
+const originalCompanies = ref([]);
 
 const form = ref({
   modality: '',
@@ -209,6 +300,54 @@ const form = ref({
   }
 });
 
+const newCompany = ref({
+  taxId: '',
+  name: '',
+  address: '',
+  phone: '',
+  email: ''
+});
+
+const uploadedDocuments = ref({});
+
+const requiredDocuments = computed(() => {
+  switch (form.value.modality) {
+    case 'APPRENTICESHIP_CONTRACT':
+      return [
+        { type: 'SIGNED_CONTRACT', label: 'Contrato firmado por todas las partes', required: true },
+        { type: 'ARL_CERTIFICATE', label: 'Certificación de afiliación a ARL', required: true },
+        { type: 'PAYROLL_REGISTRY', label: 'Registro en planilla', required: true }
+      ];
+    case 'INTERNSHIP':
+      return [
+        { type: 'ACCEPTANCE_LETTER', label: 'Convenio o carta de aceptación de la empresa', required: true },
+        { type: 'ARL_CERTIFICATE', label: 'Certificación ARL (cuando aplique)', required: true },
+        { type: 'ALTERNATIVE_SELECTION_FORMAT', label: 'Formato de selección de alternativa', required: true },
+        { type: 'ACTIVITIES_SCHEDULE', label: 'Cronograma de actividades', required: true }
+      ];
+    case 'INDIVIDUAL_PRODUCTIVE_PROJECT':
+    case 'GROUP_PRODUCTIVE_PROJECT':
+      return [
+        { type: 'PROJECT_PROPOSAL', label: 'Propuesta de proyecto aprobada', required: true },
+        { type: 'ENTITY_ENDORSEMENT', label: 'Aval de la entidad/empresa', required: true },
+        { type: 'ACTIVITIES_SCHEDULE', label: 'Cronograma de desarrollo', required: true },
+        { type: 'BUDGET', label: 'Presupuesto (cuando aplique)', required: true }
+      ];
+    case 'LABOR_LINK':
+      return [
+        { type: 'EMPLOYMENT_CONTRACT', label: 'Contrato laboral o acta de vinculación', required: true },
+        { type: 'ARL_CERTIFICATE', label: 'Certificación ARL', required: true },
+        { type: 'PAYROLL_REGISTRY', label: 'Registro en planilla (cuando aplique)', required: true }
+      ];
+    default:
+      return [];
+  }
+});
+
+watch(() => form.value.modality, () => {
+  uploadedDocuments.value = {};
+});
+
 const modalityOptions = [
   { label: 'Contrato de Aprendizaje', value: 'APPRENTICESHIP_CONTRACT' },
   { label: 'Vínculo Laboral', value: 'LABOR_LINK' },
@@ -219,15 +358,17 @@ const modalityOptions = [
 
 onMounted(async () => {
   try {
-    const res = await companyService.getAll({ limit: 100 });
-    companies.value = res.data.data || res.data;
+    const res = await companyService.getAll({ limit: 1000 });
+    const data = res.data?.data || res.data;
+    originalCompanies.value = data.companies || data || [];
+    companies.value = [...originalCompanies.value];
   } catch (error) {
     $q.notify({ type: 'negative', message: 'No se pudieron cargar las empresas.' });
   }
 });
 
 const selectedCompanyName = computed(() => {
-  const company = companies.value.find(c => c._id === form.value.companyId);
+  const company = originalCompanies.value.find(c => c._id === form.value.companyId);
   return company ? company.name : 'No seleccionada';
 });
 
@@ -236,15 +377,65 @@ function getModalityLabel(val) {
   return opt ? opt.label : val;
 }
 
+function filterCompanies(val, update) {
+  if (val === '') {
+    update(() => {
+      companies.value = originalCompanies.value;
+    });
+    return;
+  }
+  update(() => {
+    const needle = val.toLowerCase();
+    companies.value = originalCompanies.value.filter(
+      v => v.name.toLowerCase().indexOf(needle) > -1 || v.taxId.indexOf(needle) > -1
+    );
+  });
+}
+
 async function submitEP() {
   submitting.value = true;
   try {
-    await productiveStageService.registerEP(form.value);
+    const payload = {
+      ...form.value
+    };
+    
+    // Si la empresa es nueva, NO la creamos en base de datos.
+    // Enviamos omitido el companyId y guardamos los datos de la nueva empresa en el snapshot.
+    // El backend se encargará de crearla SÓLO si el Admin aprueba la solicitud.
+    if (companyMode.value === 'new') {
+      delete payload.companyId; // Removemos cualquier ID en blanco
+      payload.companySnapshot.companyName = newCompany.value.name;
+      payload.companySnapshot.taxId = newCompany.value.taxId;
+      payload.companySnapshot.address = newCompany.value.address;
+      payload.companySnapshot.companyPhone = newCompany.value.phone;
+      payload.companySnapshot.companyEmail = newCompany.value.email;
+    }
+
+    // 1. Registrar Etapa Productiva (Queda en PENDING_APPROVAL)
+    const epRes = await productiveStageService.registerEP(payload);
+    const newEpId = epRes.data?.ep?._id || epRes.data?.data?.ep?._id || epRes.data?._id;
+
+    // 2. Subir Documentos Dinámicos
+    if (newEpId) {
+      const uploadPromises = [];
+      for (const doc of requiredDocuments.value) {
+        const file = uploadedDocuments.value[doc.type];
+        if (file) {
+          const fd = new FormData();
+          fd.append('productiveStageId', newEpId);
+          fd.append('documentType', doc.type);
+          fd.append('file', file);
+          uploadPromises.push(documentService.upload(fd));
+        }
+      }
+      await Promise.all(uploadPromises);
+    }
+
     $q.notify({
       type: 'positive',
-      message: 'Etapa Productiva registrada con éxito. Está pendiente de aprobación.'
+      message: 'Solicitud enviada con éxito. Pendiente de revisión por Administración.'
     });
-    router.push('/dashboard');
+    router.push({ name: 'dashboard' });
   } catch (error) {
     console.error(error);
     const msg = error.response?.data?.message || 'Error al registrar la etapa productiva.';

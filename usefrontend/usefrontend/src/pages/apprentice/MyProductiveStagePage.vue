@@ -20,7 +20,7 @@
       <q-icon name="info" size="4em" color="primary" class="q-mb-md" />
       <div class="text-h6 text-primary">No tienes una Etapa Productiva registrada</div>
       <p class="text-grey-8">Debes registrar tu etapa productiva para comenzar tu proceso de seguimiento y certificación.</p>
-      <q-btn color="primary" label="Registrar Etapa Productiva" to="/apprentice/register-ep" class="q-mt-md" />
+      <q-btn color="primary" label="Registrar Etapa Productiva" to="/register-ep" class="q-mt-md" />
     </q-card>
 
     <div v-else class="row q-col-gutter-lg">
@@ -157,7 +157,36 @@
           </q-card-section>
         </q-card>
 
+        <!-- Documents Card -->
+        <q-card flat bordered class="q-mb-lg">
+          <q-card-section class="bg-grey-2 row items-center">
+            <div class="text-subtitle1 text-weight-bold text-black col">Documentos Enviados</div>
+            <q-badge :label="epDocuments.length" color="primary" rounded />
+          </q-card-section>
+          <q-inner-loading :showing="loadingDocs">
+            <q-spinner-dots size="40px" color="primary" />
+          </q-inner-loading>
+          <q-list v-if="!loadingDocs" bordered separator>
+            <q-item v-if="epDocuments.length === 0">
+              <q-item-section class="text-grey text-center q-pa-md">No has enviado documentos todavía.</q-item-section>
+            </q-item>
+            <q-item v-for="doc in epDocuments" :key="doc._id">
+              <q-item-section avatar>
+                <q-icon name="picture_as_pdf" color="negative" size="26px" />
+              </q-item-section>
+              <q-item-section>
+                <q-item-label class="text-weight-bold">{{ getDocTypeLabel(doc.documentType) }}</q-item-label>
+                <q-item-label caption>{{ doc.fileName }}</q-item-label>
+              </q-item-section>
+              <q-item-section side>
+                <q-badge :color="docStatusColor(doc.status)" :label="docStatusLabel(doc.status)" />
+              </q-item-section>
+            </q-item>
+          </q-list>
+        </q-card>
+
       </div>
+
 
       <!-- Right Column (Sidebar) -->
       <div class="col-12 col-md-4">
@@ -235,6 +264,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import productiveStageService from '../../api/productiveStage.service';
+import documentService from '../../api/document.service';
 import { useAuthStore } from '../../stores/auth';
 import { useQuasar } from 'quasar';
 
@@ -245,6 +275,8 @@ const ep = ref(null);
 const loading = ref(true);
 const newComment = ref('');
 const sendingComment = ref(false);
+const epDocuments = ref([]);
+const loadingDocs = ref(false);
 
 const modalityOptions = [
   { label: 'Contrato de Aprendizaje', value: 'APPRENTICESHIP_CONTRACT' },
@@ -276,8 +308,7 @@ async function fetchMyEP() {
   loading.value = true;
   try {
     const res = await productiveStageService.getMyEP();
-    // Assuming getMyEP returns array and we want the first active or the only one
-    const epList = res.data.data || res.data;
+    const epList = res.data.data?.eps || res.data.data || res.data;
     if (Array.isArray(epList) && epList.length > 0) {
       ep.value = epList[0];
     } else if (epList && !Array.isArray(epList)) {
@@ -285,6 +316,8 @@ async function fetchMyEP() {
     } else {
       ep.value = null;
     }
+    // Load documents after EP
+    if (ep.value?._id) fetchMyDocuments(ep.value._id);
   } catch (error) {
     console.error(error);
     $q.notify({ type: 'negative', message: 'Error al cargar los datos de tu etapa productiva.' });
@@ -293,9 +326,52 @@ async function fetchMyEP() {
   }
 }
 
+async function fetchMyDocuments(epId) {
+  loadingDocs.value = true;
+  try {
+    const res = await documentService.getDocuments({ productiveStageId: epId });
+    epDocuments.value = res.data.data || res.data || [];
+  } catch (e) {
+    console.error('Error loading documents:', e);
+  } finally {
+    loadingDocs.value = false;
+  }
+}
+
 function getModalityLabel(val) {
   const opt = modalityOptions.find(o => o.value === val);
   return opt ? opt.label : val;
+}
+
+function getDocTypeLabel(type) {
+  const map = {
+    SIGNED_CONTRACT: 'Contrato firmado',
+    ARL_CERTIFICATE: 'Certificado ARL',
+    PAYROLL_REGISTRY: 'Registro en planilla',
+    ACCEPTANCE_LETTER: 'Carta de aceptación / Convenio',
+    ALTERNATIVE_SELECTION_FORMAT: 'Formato selección de alternativa',
+    ACTIVITIES_SCHEDULE: 'Cronograma de actividades',
+    PROJECT_PROPOSAL: 'Propuesta de proyecto',
+    ENTITY_ENDORSEMENT: 'Aval de entidad/empresa',
+    BUDGET: 'Presupuesto',
+    EMPLOYMENT_CONTRACT: 'Contrato laboral / Acta de vinculación',
+    JOB_DESCRIPTION: 'Descripción del cargo',
+    EP_CERTIFICATE: 'Certificado de Etapa Productiva',
+    PERFORMANCE_EVALUATION: 'Evaluación de Desempeño',
+    COMMITMENT_LETTER: 'Carta de Compromiso',
+    OTHER: 'Soporte general'
+  };
+  return map[type] || type;
+}
+
+function docStatusColor(status) {
+  const map = { SUBMITTED: 'orange', IN_VALIDATION: 'blue', APPROVED: 'positive', REJECTED: 'negative' };
+  return map[status] || 'grey';
+}
+
+function docStatusLabel(status) {
+  const map = { SUBMITTED: 'Enviado', IN_VALIDATION: 'En Revisión', APPROVED: 'Aprobado', REJECTED: 'Rechazado' };
+  return map[status] || status;
 }
 
 function formatDate(dateStr) {

@@ -55,20 +55,25 @@ class ProductiveStageService {
         }
 
         // 4. Verificar empresa
-        const company = await Company.findById(data.companyId);
-        if (!company) {
-            const error = new Error("La empresa seleccionada no existe");
-            error.statusCode = 404;
-            throw error;
+        let companySnapshot = { ...data.companySnapshot };
+        if (data.companyId) {
+            const company = await Company.findById(data.companyId);
+            if (!company) {
+                const error = new Error("La empresa seleccionada no existe");
+                error.statusCode = 404;
+                throw error;
+            }
+            companySnapshot.companyName = company.name;
+            companySnapshot.taxId = company.taxId;
+            companySnapshot.address = company.address;
+        } else {
+            // Es una nueva empresa, validamos que el snapshot tenga lo necesario
+            if (!companySnapshot.companyName || !companySnapshot.taxId) {
+                const error = new Error("Debe proporcionar los datos de la nueva empresa");
+                error.statusCode = 400;
+                throw error;
+            }
         }
-
-        // 5. Crear Snapshot de la empresa
-        const companySnapshot = {
-            companyName: company.name,
-            taxId: company.taxId,
-            address: company.address,
-            ...data.companySnapshot
-        };
 
         // 6. Crear EP
         const ep = new ProductiveStage({
@@ -190,6 +195,26 @@ class ProductiveStageService {
         const level = ep.apprentice.trainingLevel;
         const maxBitacoras = await getConfig(`MAX_LOGBOOKS_${level}`);
         const requiredTrackings = await getConfig(`REQUIRED_TRACKINGS_${level}`);
+
+        // 1.5. Crear la empresa si era propuesta por el aprendiz y no existe
+        if (!ep.company) {
+            const newCompany = new Company({
+                name: ep.companySnapshot.companyName,
+                taxId: ep.companySnapshot.taxId,
+                address: ep.companySnapshot.address || 'Pendiente',
+                phone: ep.companySnapshot.companyPhone || ep.companySnapshot.supervisorPhone || '0000000',
+                email: ep.companySnapshot.companyEmail || ep.companySnapshot.supervisorEmail || 'pendiente@correo.com',
+                contacts: [{
+                    fullName: ep.companySnapshot.supervisorName || 'Pendiente',
+                    jobTitle: ep.companySnapshot.apprenticeJobTitle || 'Supervisor',
+                    phone: ep.companySnapshot.supervisorPhone,
+                    email: ep.companySnapshot.supervisorEmail,
+                    isPrimary: true
+                }]
+            });
+            await newCompany.save();
+            ep.company = newCompany._id;
+        }
 
         // 2. Actualizar datos
         ep.status = "ACTIVE";

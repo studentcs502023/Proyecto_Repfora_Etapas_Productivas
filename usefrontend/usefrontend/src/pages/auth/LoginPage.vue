@@ -119,8 +119,12 @@ async function handleLogin() {
       position: 'top'
     });
 
-    // Redirection is handled by the guard or manually here
-    router.push({ name: 'dashboard' });
+    // Redirection directly to RF-003 for apprentice
+    if (authStore.user?.role === 'APPRENTICE') {
+      router.push('/register-ep');
+    } else {
+      router.push({ name: 'dashboard' });
+    }
   } catch (error) {
     console.error('Login error:', error);
     // Error notification is usually enough, store error is shown in UI

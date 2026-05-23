@@ -13,6 +13,22 @@ const safeParse = (key) => {
   }
 };
 
+const decodeJwt = (token) => {
+  try {
+    if (!token) return null;
+    const base64Url = token.split('.')[1];
+    if (!base64Url) return null;
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+    }).join(''));
+    return JSON.parse(jsonPayload);
+  } catch (error) {
+    console.error('Error decoding JWT token:', error);
+    return null;
+  }
+};
+
 export const useAuthStore = defineStore('auth', {
   state: () => ({
     user: safeParse('user'),
@@ -50,14 +66,20 @@ export const useAuthStore = defineStore('auth', {
           localStorage.setItem('user', JSON.stringify(user));
         } else if (requiresPasswordChange) {
           // firstLogin case: backend only returns token, no user object.
-          // Fetch the full profile using the token we just saved.
+          // Decode the token to get the basic user information without making a 403 request
           try {
-            const meRes = await authService.getMe();
-            const mePayload = meRes.data || meRes;
-            this.user = mePayload;
-            localStorage.setItem('user', JSON.stringify(mePayload));
+            const decoded = decodeJwt(token);
+            if (decoded) {
+              this.user = {
+                id: decoded.id,
+                fullName: decoded.fullName,
+                role: decoded.role,
+                firstLogin: false
+              };
+              localStorage.setItem('user', JSON.stringify(this.user));
+            }
           } catch (e) {
-            console.warn('Could not fetch profile after first login:', e);
+            console.error('Error decoding token after login:', e);
           }
         }
 
@@ -91,7 +113,8 @@ export const useAuthStore = defineStore('auth', {
     async fetchProfile() {
       try {
         const response = await authService.getMe();
-        this.user = response.data.user;
+        const userData = response.data || response;
+        this.user = userData;
         localStorage.setItem('user', JSON.stringify(this.user));
       } catch (err) {
         console.error('Error al obtener perfil:', err);

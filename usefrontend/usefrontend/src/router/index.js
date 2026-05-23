@@ -11,12 +11,12 @@ const routes = [
   },
 
   // --- MANDATORY ACTION ROUTES ---
-  // {
-  //   path: '/change-password',
-  //   name: 'change-password',
-  //   component: () => import('../pages/auth/ChangePasswordFirstLoginPage.vue'),
-  //   meta: { requiresAuth: true, forcePasswordChange: true }
-  // },
+  {
+    path: '/change-password',
+    name: 'change-password',
+    component: () => import('../pages/auth/ChangePasswordFirstLoginPage.vue'),
+    meta: { requiresAuth: true, forcePasswordChange: true }
+  },
 
   // --- PROTECTED ROUTES (MAIN LAYOUT) ---
   {

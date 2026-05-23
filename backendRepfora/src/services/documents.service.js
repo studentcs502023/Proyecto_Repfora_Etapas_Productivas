@@ -29,8 +29,15 @@ export const createDocument = async (reqUser, productiveStageId, documentType, f
     throw new Error('403|Forbidden: You can only submit documents for your own ProductiveStage');
   }
 
-  if (ep.status !== 'CERTIFICATION') {
-    throw new Error('400|Documents can only be submitted when your EP is in certification stage');
+  const registrationDocTypes = [
+    'SIGNED_CONTRACT', 'ARL_CERTIFICATE', 'PAYROLL_REGISTRY', 
+    'ACCEPTANCE_LETTER', 'ALTERNATIVE_SELECTION_FORMAT', 'ACTIVITIES_SCHEDULE', 
+    'PROJECT_PROPOSAL', 'ENTITY_ENDORSEMENT', 'BUDGET', 
+    'EMPLOYMENT_CONTRACT', 'JOB_DESCRIPTION', 'OTHER'
+  ];
+
+  if (ep.status !== 'CERTIFICATION' && !(ep.status === 'PENDING_APPROVAL' && registrationDocTypes.includes(documentType))) {
+    throw new Error('400|Documents can only be submitted when your EP is in certification stage (except support documents during registration)');
   }
 
   const existing = await Document.findOne({

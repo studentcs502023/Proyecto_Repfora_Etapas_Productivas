@@ -49,7 +49,7 @@ class UserService {
             password: hashedPassword,
             role: "INSTRUCTOR",
             status: "ACTIVE",
-            firstLogin: true,
+            firstLogin: false,
         });
 
         // 3. Integración Google Drive (MOCK por ahora)
@@ -338,7 +338,7 @@ class UserService {
             password: hashedPassword,
             role: "APPRENTICE",
             status: "ACTIVE",
-            firstLogin: true,
+            firstLogin: false,
         });
 
         await apprentice.save();
@@ -538,7 +538,7 @@ class UserService {
                     password: hashedPassword,
                     role: "APPRENTICE",
                     status: "ACTIVE",
-                    firstLogin: true
+                    firstLogin: false
                 });
 
                 await apprentice.save();

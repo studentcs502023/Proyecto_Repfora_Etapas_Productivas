@@ -61,10 +61,17 @@
         <q-card-section class="col q-pa-lg scroll">
           <div class="row q-col-gutter-lg">
             
-            <!-- Left Column: Details -->
+            <!-- Left Column: Details + Documents -->
             <div class="col-12 col-md-6">
               <div class="text-h4 text-black q-mb-md">Detalles de la Solicitud</div>
               <q-list bordered separator class="rounded-borders">
+                <q-item>
+                  <q-item-section>
+                    <q-item-label caption>Aprendiz</q-item-label>
+                    <q-item-label class="text-weight-bold">{{ selectedEP.apprentice?.fullName }}</q-item-label>
+                    <q-item-label caption>Ficha: {{ selectedEP.apprentice?.enrollmentNumber }}</q-item-label>
+                  </q-item-section>
+                </q-item>
                 <q-item>
                   <q-item-section>
                     <q-item-label caption>Modalidad</q-item-label>
@@ -92,6 +99,39 @@
                   </q-item-section>
                 </q-item>
               </q-list>
+
+              <!-- Documents submitted by apprentice -->
+              <div class="q-mt-lg">
+                <div class="text-subtitle1 text-black text-weight-bold q-mb-sm">
+                  <q-icon name="folder_open" class="q-mr-xs" />Documentos Enviados por el Aprendiz
+                </div>
+                <q-inner-loading :showing="loadingDocs">
+                  <q-spinner-dots size="40px" color="primary" />
+                </q-inner-loading>
+                <q-list v-if="!loadingDocs" bordered separator class="rounded-borders">
+                  <q-item v-if="epDocuments.length === 0">
+                    <q-item-section class="text-grey text-center">No se encontraron documentos adjuntos.</q-item-section>
+                  </q-item>
+                  <q-item v-for="doc in epDocuments" :key="doc._id">
+                    <q-item-section avatar>
+                      <q-icon name="picture_as_pdf" color="negative" size="28px" />
+                    </q-item-section>
+                    <q-item-section>
+                      <q-item-label class="text-weight-bold">{{ getDocTypeLabel(doc.documentType) }}</q-item-label>
+                      <q-item-label caption>{{ doc.fileName }}</q-item-label>
+                    </q-item-section>
+                    <q-item-section side>
+                      <q-badge :color="docStatusColor(doc.status)" :label="doc.status" />
+                    </q-item-section>
+                    <q-item-section side>
+                      <q-btn flat round icon="open_in_new" color="primary" size="sm"
+                        :href="doc.driveFileUrl" target="_blank"
+                        :disable="!doc.driveFileUrl"
+                        title="Ver documento" />
+                    </q-item-section>
+                  </q-item>
+                </q-list>
+              </div>
 
               <div class="q-mt-xl bg-red-1 q-pa-md rounded-borders bordered border-red">
                 <div class="text-subtitle1 text-negative q-mb-sm text-weight-bold">Rechazar Solicitud</div>
@@ -171,6 +211,7 @@
 import { ref, computed, onMounted } from 'vue';
 import productiveStageService from '../../api/productiveStage.service';
 import userService from '../../api/user.service';
+import documentService from '../../api/document.service';
 import { useQuasar } from 'quasar';
 
 const $q = useQuasar();
@@ -184,6 +225,8 @@ const showReviewModal = ref(false);
 const selectedEP = ref(null);
 const processing = ref(false);
 const rejectReason = ref('');
+const epDocuments = ref([]);
+const loadingDocs = ref(false);
 
 const assignments = ref({
   followupInstructorId: '',
@@ -248,8 +291,9 @@ async function fetchPendingEPs() {
       page: pagination.value.page,
       limit: pagination.value.rowsPerPage
     });
-    pendingEPs.value = res.data.data || res.data;
-    if (res.data.total) pagination.value.rowsNumber = res.data.total;
+    const payload = res.data.data || res.data;
+    pendingEPs.value = payload.eps || payload;
+    if (payload.pagination?.total) pagination.value.rowsNumber = payload.pagination.total;
   } catch (error) {
     console.error(error);
     $q.notify({ type: 'negative', message: 'Error al cargar solicitudes pendientes.' });
@@ -280,15 +324,53 @@ async function preloadInstructors() {
   }
 }
 
-function openReviewModal(ep) {
+async function openReviewModal(ep) {
   selectedEP.value = ep;
   rejectReason.value = '';
+  epDocuments.value = [];
   assignments.value = {
     followupInstructorId: '',
     technicalInstructorId: '',
     projectInstructorId: ''
   };
   showReviewModal.value = true;
+
+  // Load documents for this EP
+  loadingDocs.value = true;
+  try {
+    const res = await documentService.getDocuments({ productiveStageId: ep._id });
+    epDocuments.value = res.data.data || res.data || [];
+  } catch (e) {
+    console.error('Error loading documents:', e);
+  } finally {
+    loadingDocs.value = false;
+  }
+}
+
+function getDocTypeLabel(type) {
+  const map = {
+    SIGNED_CONTRACT: 'Contrato firmado',
+    ARL_CERTIFICATE: 'Certificado ARL',
+    PAYROLL_REGISTRY: 'Registro en planilla',
+    ACCEPTANCE_LETTER: 'Carta de aceptación / Convenio',
+    ALTERNATIVE_SELECTION_FORMAT: 'Formato selección de alternativa',
+    ACTIVITIES_SCHEDULE: 'Cronograma de actividades',
+    PROJECT_PROPOSAL: 'Propuesta de proyecto',
+    ENTITY_ENDORSEMENT: 'Aval de entidad/empresa',
+    BUDGET: 'Presupuesto',
+    EMPLOYMENT_CONTRACT: 'Contrato laboral / Acta de vinculación',
+    JOB_DESCRIPTION: 'Descripción del cargo',
+    EP_CERTIFICATE: 'Certificado de Etapa Productiva',
+    PERFORMANCE_EVALUATION: 'Evaluación de Desempeño',
+    COMMITMENT_LETTER: 'Carta de Compromiso',
+    OTHER: 'Soporte general'
+  };
+  return map[type] || type;
+}
+
+function docStatusColor(status) {
+  const map = { SUBMITTED: 'orange', IN_VALIDATION: 'blue', APPROVED: 'positive', REJECTED: 'negative' };
+  return map[status] || 'grey';
 }
 
 async function approveAndAssign() {
