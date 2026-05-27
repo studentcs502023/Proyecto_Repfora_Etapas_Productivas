@@ -1,0 +1,147 @@
+// Custom Global Styles
+:root {
+  /* ===== Colors from reference project ===== */
+  --color_card: #318335;
+  --color_text_card: white;
+  --color_button: #2e7d32;
+  --color_text_button: white;
+  --color_box: #2e7d32;
+  --color_button_closed: black;
+  --color_header: #2e7d32;
+  --color_input: #2e7d32;
+  --color_tooltip: #d4cece;
+}
+
+body {
+  background-color: #f4f7f5; // Fondo Gris verdoso claro sugerido en UX_UI_DESIGN_SPEC
+  font-family: 'Montserrat', sans-serif;
+}
+
+.text-primary {
+  color: $primary !important;
+}
+
+.text-secondary {
+  color: $secondary !important;
+}
+
+/* Reference Styles Implementation */
+.style-select {
+  color: var(--color_input) !important;
+  border-color: var(--color_input) !important;
+  outline-color: var(--color_input) !important;
+}
+
+.q-field__control {
+  color: var(--color_input) !important;
+}
+
+.q-item.q-router-link--active,
+.q-item--active {
+  color: var(--color_input) !important;
+}
+
+.style-btn {
+  background-color: var(--color_button) !important;
+  color: var(--color_text_button) !important;
+}
+
+.style-text {
+  text-transform: capitalize !important;
+}
+
+/* Tooltip Styles */
+.tooltip {
+  position: relative;
+  
+  .open-tooltip {
+    color: var(--color_box);
+    font-weight: 800;
+    text-transform: uppercase;
+    font-size: 16px;
+    cursor: pointer;
+    transition: 0.3s;
+    
+    &:hover {
+      opacity: 0.7;
+    }
+  }
+
+  .content-tooltip {
+    width: 300px;
+    background: #fff;
+    padding: 10px;
+    position: absolute;
+    top: 80%;
+    left: -40%;
+    border-radius: 5px;
+    visibility: hidden;
+    opacity: 0;
+    transition: 0.2s;
+    z-index: 100;
+    border: 2px solid var(--color_box);
+
+    &::before {
+      content: "";
+      position: absolute;
+      width: 25px;
+      height: 25px;
+      background: #fff;
+      top: 0;
+      left: 50%;
+      border: 2px solid;
+      border-color: var(--color_box) transparent transparent var(--color_box);
+      transform: translate(-50%, -50%) rotate(45deg);
+    }
+
+    .h-tooltip {
+      font-size: 18px;
+      text-transform: capitalize;
+      font-weight: 900;
+    }
+
+    .p-tooltip {
+      line-height: 1.4;
+    }
+  }
+
+  &:hover .content-tooltip {
+    visibility: visible;
+    opacity: 1;
+  }
+}
+
+/* Sticky Header Tables */
+.my-sticky-header-table {
+  height: 60vh;
+
+  .q-table__top,
+  .q-table__bottom,
+  thead tr:first-child th {
+    background-color: white;
+    color: black;
+    font-weight: 600;
+  }
+
+  thead tr th {
+    position: sticky;
+    z-index: 1;
+    top: 0;
+  }
+}
+
+/* Scrollbar Styles */
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: #bbbbbb;
+  border-radius: 5px;
+  border: 2px solid #f1f2f3;
+}
+
+::-webkit-scrollbar-track {
+  border-radius: 5px;
+}
