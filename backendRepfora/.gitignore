@@ -7,6 +7,7 @@ ENV/
 # Dependencias de Node
 node_modules/
 
+backendRepfora/public/assets/
 # Variables de entorno
 .env
 
