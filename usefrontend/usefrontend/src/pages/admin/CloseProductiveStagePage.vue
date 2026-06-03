@@ -78,6 +78,34 @@
             <!-- Left Column: Documents -->
             <div class="col-12 col-md-7">
               <div class="text-h4 text-black q-mb-md">Documentos Obligatorios</div>
+
+              <!-- Checklist de referencia para el admin -->
+              <q-expansion-item
+                dense
+                expand-separator
+                icon="checklist"
+                label="Ver lista de documentos requeridos (RF-006)"
+                class="q-mb-md bg-blue-1 rounded-borders"
+                header-class="text-weight-bold"
+              >
+                <q-card flat bordered class="bg-white">
+                  <q-card-section class="q-pa-sm">
+                    <q-list dense>
+                      <q-item v-for="(item, idx) in requiredDocumentChecklist" :key="idx" class="q-py-xs">
+                        <q-item-section avatar>
+                          <q-icon name="radio_button_unchecked" size="xs" color="primary" />
+                        </q-item-section>
+                        <q-item-section>
+                          <q-item-label class="text-caption">{{ idx + 1 }}. {{ item.label }}</q-item-label>
+                          <q-item-label v-if="item.note" caption class="text-warning text-caption">
+                            <q-icon name="info" size="xs" /> {{ item.note }}
+                          </q-item-label>
+                        </q-item-section>
+                      </q-item>
+                    </q-list>
+                  </q-card-section>
+                </q-card>
+              </q-expansion-item>
               
               <q-banner v-if="loadingDocs" class="bg-grey-2 q-mb-md text-center">
                 <q-spinner color="primary" size="2em" /> Cargando estado...
@@ -90,17 +118,40 @@
                     <q-item-section avatar>
                       <q-icon :name="getDocIcon(reqDoc.value)" size="2em" :color="getDocColor(reqDoc.value)" />
                     </q-item-section>
-                    
+
                     <q-item-section>
                       <q-item-label class="text-weight-bold">{{ reqDoc.label }}</q-item-label>
                       <q-item-label caption v-if="!hasDocument(reqDoc.value)" class="text-negative">
-                        El aprendiz aún no ha subido este documento.
+                        El aprendiz a&uacute;n no ha subido este documento.
                       </q-item-label>
                       <q-item-label caption v-else>
                         Subido el: {{ formatDateTime(getDocument(reqDoc.value).uploadedAt) }}
                       </q-item-label>
+                      <!-- Comentarios / Observaciones del documento -->
+                      <div v-if="hasDocument(reqDoc.value) && getDocument(reqDoc.value).comments && getDocument(reqDoc.value).comments.length > 0" class="q-mt-sm">
+                        <q-expansion-item
+                          dense
+                          dense-toggle
+                          expand-separator
+                          :label="'Observaciones (' + getDocument(reqDoc.value).comments.length + ')'"
+                          header-class="text-caption text-grey-7"
+                        >
+                          <q-card flat bordered class="bg-grey-1 q-mt-sm">
+                            <q-card-section class="q-pa-sm">
+                              <div v-for="(c, i) in getDocument(reqDoc.value).comments" :key="i" class="q-mb-sm">
+                                <div class="text-caption text-grey-6">
+                                  {{ formatDateTime(c.createdAt) }}
+                                  <span v-if="c.author"> &mdash; {{ c.author.fullName || 'Admin' }}</span>
+                                </div>
+                                <div class="text-body2">{{ c.text }}</div>
+                                <q-separator v-if="i < getDocument(reqDoc.value).comments.length - 1" class="q-my-xs" />
+                              </div>
+                            </q-card-section>
+                          </q-card>
+                        </q-expansion-item>
+                      </div>
                     </q-item-section>
-                    
+
                     <q-item-section side v-if="hasDocument(reqDoc.value)">
                       <div class="row items-center q-gutter-sm">
                         <q-chip :color="getDocStatusColor(getDocument(reqDoc.value).status)" text-color="white" dense>
@@ -117,12 +168,12 @@
 
                 <div class="q-mt-md" v-if="epStatus.submitted && epStatus.submitted.some(d => d.status === 'SUBMITTED')">
                   <div class="text-subtitle2 text-primary q-mb-sm">Acciones de Revisión Pendientes</div>
-                  <q-card flat bordered class="q-pa-sm" v-for="doc in epStatus.submitted.filter(d => d.status === 'SUBMITTED')" :key="doc._id">
+                  <q-card flat bordered class="q-pa-sm" v-for="doc in epStatus.submitted.filter(d => d.status === 'SUBMITTED')" :key="doc._id || doc.id">
                     <div class="row items-center justify-between">
                       <div class="text-weight-bold">{{ getDocTypeLabel(doc.documentType) }}</div>
                       <div class="q-gutter-xs">
-                        <q-btn color="positive" size="sm" label="Aprobar" @click="approveDocument(doc._id)" :loading="processing" />
-                        <q-btn color="negative" size="sm" label="Rechazar" @click="promptReject(doc._id)" :loading="processing" />
+                        <q-btn color="positive" size="sm" label="Aprobar" @click="approveDocument(doc._id || doc.id)" :loading="processing" />
+                        <q-btn color="negative" size="sm" label="Rechazar" @click="promptReject(doc._id || doc.id)" :loading="processing" />
                       </div>
                     </div>
                   </q-card>
@@ -139,14 +190,14 @@
                 <q-card-section>
                   <div class="text-subtitle2 q-mb-sm">Resumen del Expediente</div>
                   <div class="row justify-between q-mb-xs">
-                    <span>Bitácoras ({{ selectedEP.completedBitacoras }} / {{ selectedEP.maxBitacoras || '?' }})</span>
-                    <q-icon :name="selectedEP.completedBitacoras >= selectedEP.maxBitacoras ? 'check_circle' : 'cancel'" 
-                            :color="selectedEP.completedBitacoras >= selectedEP.maxBitacoras ? 'positive' : 'negative'" />
+                    <span>Bit&aacute;coras ({{ selectedEP.completedBitacoras }} / {{ selectedEP.maxBitacoras ?? 0 }})</span>
+                    <q-icon :name="(selectedEP.maxBitacoras ?? 0) === 0 || selectedEP.completedBitacoras >= selectedEP.maxBitacoras ? 'check_circle' : 'cancel'"
+                            :color="(selectedEP.maxBitacoras ?? 0) === 0 || selectedEP.completedBitacoras >= selectedEP.maxBitacoras ? 'positive' : 'negative'" />
                   </div>
                   <div class="row justify-between q-mb-xs">
-                    <span>Seguimientos ({{ selectedEP.completedTrackings }} / {{ selectedEP.requiredTrackings || '?' }})</span>
-                    <q-icon :name="selectedEP.completedTrackings >= selectedEP.requiredTrackings ? 'check_circle' : 'cancel'" 
-                            :color="selectedEP.completedTrackings >= selectedEP.requiredTrackings ? 'positive' : 'negative'" />
+                    <span>Seguimientos ({{ selectedEP.completedTrackings }} / {{ selectedEP.requiredTrackings ?? 0 }})</span>
+                    <q-icon :name="(selectedEP.requiredTrackings ?? 0) === 0 || selectedEP.completedTrackings >= selectedEP.requiredTrackings ? 'check_circle' : 'cancel'"
+                            :color="(selectedEP.requiredTrackings ?? 0) === 0 || selectedEP.completedTrackings >= selectedEP.requiredTrackings ? 'positive' : 'negative'" />
                   </div>
                   <div class="row justify-between q-mb-xs">
                     <span>Documentos Aprobados</span>
@@ -159,9 +210,9 @@
               <div class="bg-blue-1 text-primary q-pa-md rounded-borders border-blue q-mb-md">
                 <div class="text-weight-bold q-mb-sm"><q-icon name="info" /> Requisitos para el cierre</div>
                 <ul class="q-pl-md q-my-none text-caption">
-                  <li>Todas las bitácoras deben estar aprobadas.</li>
+                  <li>Todas las bit&aacute;coras deben estar aprobadas.</li>
                   <li>Todos los seguimientos deben estar ejecutados.</li>
-                  <li>Los 3 documentos finales deben estar cargados y <strong>aprobados</strong> por usted.</li>
+                  <li>El documento PDF &uacute;nico (dosier de certificaci&oacute;n) debe estar cargado y <strong>aprobado</strong> por usted.</li>
                   <li>No debe haber novedades sin resolver.</li>
                 </ul>
               </div>
@@ -203,9 +254,17 @@ const loadingDocs = ref(false);
 const processing = ref(false);
 
 const requiredDocumentTypes = [
-  { label: 'Certificado de la Empresa', value: 'EP_CERTIFICATE' },
-  { label: 'Evaluación de Desempeño', value: 'PERFORMANCE_EVALUATION' },
-  { label: 'Acta de Compromiso', value: 'COMMITMENT_LETTER' }
+  { label: 'Dosier de Certificaci\u00f3n (PDF \u00fanico)', value: 'CERTIFICATION_DOSSIER' }
+];
+
+const requiredDocumentChecklist = [
+  { label: 'Paz y Salvo diligenciado y firmado por aprendiz e instructor de seguimiento.', note: null },
+  { label: 'Fotocopia del documento de identidad actualizado y legible al 150%. Extranjeros: documento del pa\u00eds de origen y permiso de permanencia temporal.', note: null },
+  { label: 'Certificado de inscripci\u00f3n o registro en la Agencia P\u00fablica de Empleo (APE).', note: null },
+  { label: 'Evidencia fotogr\u00e1fica de la destrucci\u00f3n del carnet estudiantil. Si no fue beneficiario, carta explicando la No entrega.', note: null },
+  { label: 'Certificado de presentaci\u00f3n de pruebas TyT ante el ICFES.', note: 'Aplica SOLO para Tecn\u00f3logos' },
+  { label: 'Certificado de culminaci\u00f3n de etapa productiva emitido por la empresa. Proyecto productivo: acta de cierre aprobada.', note: null },
+  { label: 'Certificado de inventarios de almac\u00e9n, garantizando que no tiene elementos a su cargo.', note: null }
 ];
 
 const columns = [
@@ -308,12 +367,15 @@ function getDocColor(type) {
 
 const canClose = computed(() => {
   if (!selectedEP.value || !epStatus.value) return false;
-  
-  const bitacorasOk = selectedEP.value.completedBitacoras >= (selectedEP.value.maxBitacoras || 1);
-  const trackingsOk = selectedEP.value.completedTrackings >= (selectedEP.value.requiredTrackings || 1);
+
+  const maxBitacoras = selectedEP.value.maxBitacoras ?? 0;
+  const bitacorasOk = maxBitacoras === 0 || selectedEP.value.completedBitacoras >= maxBitacoras;
+
+  const requiredTrackings = selectedEP.value.requiredTrackings ?? 0;
+  const trackingsOk = requiredTrackings === 0 || selectedEP.value.completedTrackings >= requiredTrackings;
+
   const docsOk = epStatus.value.allRequiredApproved;
-  
-  // Also ideally check for novelties resolved, but button can be enabled and backend rejects if not.
+
   return bitacorasOk && trackingsOk && docsOk;
 });
 
@@ -355,7 +417,7 @@ async function approveDocument(docId) {
 function promptReject(docId) {
   $q.dialog({
     title: 'Rechazar Documento',
-    message: 'Indique el motivo del rechazo (Mín. 10 caracteres):',
+    message: 'Indique el motivo del rechazo. Sea espec\u00edfico sobre qu\u00e9 documentos faltan o deben corregirse (M\u00edn. 10 caracteres):',
     prompt: {
       model: '',
       type: 'textarea',

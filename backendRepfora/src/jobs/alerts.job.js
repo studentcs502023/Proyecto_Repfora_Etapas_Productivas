@@ -11,6 +11,7 @@ import {
   buildBitacoraOverdueSubject, buildBitacoraOverdueMessage,
   buildTrackingSubject, buildTrackingMessage
 } from '../templates/calendarReminderEmail.template.js';
+import { buildExpirySubject, buildExpiryMessage } from '../templates/enrollmentExpiryEmail.template.js';
 
 /**
  * Find PENDING bitacoras older than 7 days and notify ADMIN

@@ -87,7 +87,10 @@
             </q-item>
             <q-item clickable v-ripple to="/certification">
               <q-item-section avatar><q-icon name="workspace_premium" /></q-item-section>
-              <q-item-section>Certificación Final</q-item-section>
+              <q-item-section>Certificaci&oacute;n Final</q-item-section>
+              <q-item-section side v-if="showCertBadge">
+                <q-badge :color="certBadgeColor" floating>{{ certBadgeLabel }}</q-badge>
+              </q-item-section>
             </q-item>
             <q-separator />
             <q-item clickable v-ripple to="/mi-perfil">
@@ -167,13 +170,23 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useAuthStore } from '../stores/auth';
 import { useRouter } from 'vue-router';
+import productiveStageService from '../api/productiveStage.service';
+import documentService from '../api/document.service';
 
 const authStore = useAuthStore();
 const router = useRouter();
 const leftDrawerOpen = ref(false);
+
+const certBadgeLabel = ref('');
+const certBadgeColor = ref('negative');
+
+const showCertBadge = computed(() => {
+  if (!authStore.isApprentice) return false;
+  return certBadgeLabel.value !== '';
+});
 
 const profileRoute = computed(() => {
   if (authStore.isApprentice) return '/mi-perfil';
@@ -188,6 +201,52 @@ function handleLogout() {
   authStore.logout();
   router.push('/login');
 }
+
+async function checkCertNotification() {
+  if (!authStore.isApprentice) return;
+  try {
+    const epRes = await productiveStageService.getMyEP();
+    const epList = epRes.data?.eps || [];
+    const ep = epList.length > 0 ? epList[0] : null;
+    if (!ep || ep.status !== 'CERTIFICATION') return;
+
+    const TWO_MONTHS_MS = 60 * 24 * 60 * 60 * 1000;
+    const now = new Date();
+    let deadlineClose = false;
+    if (ep.estimatedEndDate) {
+      const end = new Date(ep.estimatedEndDate);
+      deadlineClose = end.getTime() - now.getTime() <= TWO_MONTHS_MS;
+    }
+
+    let hasRejected = false;
+    let hasNoDoc = true;
+    if (ep._id) {
+      const statusRes = await documentService.getEPStatus(ep._id);
+      const statusData = statusRes.data;
+      if (statusData && statusData.submitted && statusData.submitted.length > 0) {
+        hasNoDoc = false;
+        hasRejected = statusData.submitted.some(d => d.status === 'REJECTED');
+      }
+    }
+
+    if (hasRejected) {
+      certBadgeLabel.value = '!';
+      certBadgeColor.value = 'negative';
+    } else if (hasNoDoc && deadlineClose) {
+      certBadgeLabel.value = '!';
+      certBadgeColor.value = 'warning';
+    } else if (hasNoDoc) {
+      certBadgeLabel.value = '!';
+      certBadgeColor.value = 'orange';
+    }
+  } catch {
+    // Silencioso
+  }
+}
+
+onMounted(() => {
+  checkCertNotification();
+});
 </script>
 
 <style scoped>

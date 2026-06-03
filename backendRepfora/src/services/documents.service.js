@@ -164,7 +164,7 @@ export const approveDocument = async (reqUser, id) => {
   document.reviewedBy = reqUser.id;
   await document.save();
 
-  const required = ['EP_CERTIFICATE', 'PERFORMANCE_EVALUATION', 'COMMITMENT_LETTER'];
+  const required = ['CERTIFICATION_DOSSIER'];
   const approvedDocs = await Document.find({
     productiveStage: document.productiveStage._id,
     documentType: { $in: required },
@@ -369,14 +369,16 @@ export const getEPDocumentStatus = async (reqUser, productiveStageId) => {
     }
   }
 
-  const required = ['EP_CERTIFICATE', 'PERFORMANCE_EVALUATION', 'COMMITMENT_LETTER'];
+  const required = ['CERTIFICATION_DOSSIER'];
   const documents = await Document.find({ productiveStage: productiveStageId, isActive: true });
 
   const submitted = documents.map(d => ({
     documentType: d.documentType,
     status: d.status,
+    fileName: d.fileName,
     driveFileUrl: d.driveFileUrl,
-    id: d._id
+    id: d._id,
+    comments: d.comments
   }));
 
   const approvedTypes = documents

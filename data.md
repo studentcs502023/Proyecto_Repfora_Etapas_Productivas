@@ -1669,3 +1669,327 @@ Cron diario 8 AM ahora ejecuta 5 chequeos:
 checkOverdueReviews → checkBitacoraSchedule → checkUpcomingTrackings → checkEnrollmentExpiry → checkCriticalDesertion
 Para probar sin esperar, cambia '0 8 * * *' por '* * * * *' en la línea 298 y reinicia el backend.
 ▣  Build · DeepSeek V4 Pro · 2m 16s
+
+
+
+Now let me add the required documents checklist reference to the admin review modal, so the admin knows what to verify in the PDF:
+← Edit Proyecto_Repfora_Etapas_Productivas-DevJefferson (1)\Proyecto_Repfora_Etapas_Productivas-DevJefferson\usefrontend\usefrontend\src\pages\admin\CloseProductiveStagePage.vue
+
+<!-- Left Column: Documents -->
+<div class="col-12 col-md-7">
+  <div class="text-h4 text-black q-mb-md">Documentos Obligatorios</div>
+
+  <!-- Checklist de referencia para el admin -->
+  <q-expansion-item
+    dense
+    expand-separator
+    icon="checklist"
+    label="Ver lista de documentos requeridos (RF-006)"
+    class="q-mb-md bg-blue-1 rounded-borders"
+    header-class="text-weight-bold"
+  >
+    <q-card flat bordered class="bg-white">
+      <q-card-section class="q-pa-sm">
+        <q-list dense>
+          <q-item v-for="(item, idx) in requiredDocumentChecklist" :key="idx" class="q-py-xs">
+            <q-item-section avatar>
+              <q-icon name="radio_button_unchecked" size="xs" color="primary" />
+            </q-item-section>
+            <q-item-section>
+              <q-item-label class="text-caption">{{ idx + 1 }}. {{ item.label }}</q-item-label>
+              <q-item-label v-if="item.note" caption class="text-warning text-caption">
+                <q-icon name="info" size="xs" /> {{ item.note }}
+              </q-item-label>
+            </q-item-section>
+          </q-item>
+        </q-list>
+      </q-card-section>
+    </q-card>
+  </q-expansion-item>
+  
+  <q-banner v-if="loadingDocs" class="bg-grey-2 q-mb-md text-center">
+    <q-spinner color="primary" size="2em" /> Cargando estado...
+  </q-banner>
++ Thought: 551ms
+Now add the checklist array in the script:
+← Edit Proyecto_Repfora_Etapas_Productivas-DevJefferson (1)\Proyecto_Repfora_Etapas_Productivas-DevJefferson\usefrontend\usefrontend\src\pages\admin\CloseProductiveStagePage.vue
+const loadingDocs = ref(false);
+const processing = ref(false);
+
+const requiredDocumentTypes = [
+  { label: 'Dosier de Certificacion (PDF unico)', value: 'CERTIFICATION_DOSSIER' }
+  { label: 'Dosier de Certificaci&oacute;n (PDF &uacute;nico)', value: 'CERTIFICATION_DOSSIER' }
+];
+
+const requiredDocumentChecklist = [
+  { label: 'Paz y Salvo diligenciado y firmado por aprendiz e instructor de seguimiento.', note: null },
+  { label: 'Fotocopia del documento de identidad actualizado y legible al 150%. Extranjeros: documento del pa&iacute;s de origen y permiso de permanencia temporal.', note: null },
+  { label: 'Certificado de inscripci&oacute;n o registro en la Agencia P&uacute;blica de Empleo (APE).', note: null },
+  { label: 'Evidencia fotogr&aacute;fica de la destrucci&oacute;n del carnet estudiantil. Si no fue beneficiario, carta explicando la No entrega.', note: null },
+  { label: 'Certificado de presentaci&oacute;n de pruebas TyT ante el ICFES.', note: 'Aplica SOLO para Tecn&oacute;logos' },
+  { label: 'Certificado de culminaci&oacute;n de etapa productiva emitido por la empresa. Proyecto productivo: acta de cierre aprobada.', note: null },
+  { label: 'Certificado de inventarios de almac&eacute;n, garantizando que no tiene elementos a su cargo.', note: null }
+];
+
+const columns = [
+  { name: 'apprentice', label: 'Aprendiz', field: 'apprentice', align: 'left' },
+  { name: 'company', label: 'Empresa', field: row => row.companySnapshot?.companyName, align: 'left' },
+  { name: 'dates', label: 'Fechas', align: 'left' },
++ Thought: 3.5s
+Let me also improve the rejection prompt text to remind the admin to be specific:
+← Edit Proyecto_Repfora_Etapas_Productivas-DevJefferson (1)\Proyecto_Repfora_Etapas_Productivas-DevJefferson\usefrontend\usefrontend\src\pages\admin\CloseProductiveStagePage.vue
+
+function promptReject(docId) {
+  $q.dialog({
+    title: 'Rechazar Documento',
+    message: 'Indique el motivo del rechazo (Mín. 10 caracteres):',
+    message: 'Indique el motivo del rechazo. Sea espec&iacute;fico sobre qu&eacute; documentos faltan o deben corregirse (M&iacute;n. 10 caracteres):',
+    prompt: {
+      model: '',
+      type: 'textarea',
+      isValid: val => val.length >= 10
++ Thought: 17.2s
+I need to fix the script strings - HTML entities don't work in JavaScript strings. Let me fix all three files:
+← Edit Proyecto_Repfora_Etapas_Productivas-DevJefferson (1)\Proyecto_Repfora_Etapas_Productivas-DevJefferson\usefrontend\usefrontend\src\pages\apprentice\CertificationPage.vue
+const uploadFile = ref(null);
+
+const requiredItems = [
+  { label: 'Paz y Salvo diligenciado y firmado por el aprendiz e instructor de seguimiento.', note: null },
+  { label: 'Fotocopia del documento de identidad actualizado y legible al 150%. Extranjeros: documento del pa&iacute;s de origen y permiso de permanencia temporal.', note: null },
+  { label: 'Certificado de inscripci&oacute;n o registro en la Agencia P&uacute;blica de Empleo (APE).', note: null },
+  { label: 'Evidencia fotogr&aacute;fica de la destrucci&oacute;n del carnet estudiantil. Si no fue beneficiario, carta explicando la No entrega.', note: null },
+  { label: 'Certificado de la presentaci&oacute;n de pruebas TyT ante el ICFES.', note: 'Aplica SOLO para Tecn&oacute;logos' },
+  { label: 'Certificado de culminaci&oacute;n de etapa productiva emitido por la empresa. Proyecto productivo: acta de cierre aprobada.', note: null },
+  { label: 'Certificado de inventarios de almac&eacute;n, garantizando que no tiene elementos a su cargo.', note: null }
+  { label: 'Fotocopia del documento de identidad actualizado y legible al 150%. Extranjeros: documento del pa\u00eds de origen y permiso de permanencia temporal.', note: null },
+  { label: 'Certificado de inscripci\u00f3n o registro en la Agencia P\u00fablica de Empleo (APE).', note: null },
+  { label: 'Evidencia fotogr\u00e1fica de la destrucci\u00f3n del carnet estudiantil. Si no fue beneficiario, carta explicando la No entrega.', note: null },
+  { label: 'Certificado de la presentaci\u00f3n de pruebas TyT ante el ICFES.', note: 'Aplica SOLO para Tecn\u00f3logos' },
+  { label: 'Certificado de culminaci\u00f3n de etapa productiva emitido por la empresa. Proyecto productivo: acta de cierre aprobada.', note: null },
+  { label: 'Certificado de inventarios de almac\u00e9n, garantizando que no tiene elementos a su cargo.', note: null }
+];
+
+const TWO_MONTHS_MS = 60 * 24 * 60 * 60 * 1000;
+
++ Thought: 732ms
+← Edit Proyecto_Repfora_Etapas_Productivas-DevJefferson (1)\Proyecto_Repfora_Etapas_Productivas-DevJefferson\usefrontend\usefrontend\src\pages\apprentice\CertificationPage.vue
+      }
+    }
+  } catch (error) {
+    console.error(error);
+    $q.notify({ type: 'negative', message: 'Error al cargar el estado de certificaci&oacute;n.' });
+    $q.notify({ type: 'negative', message: 'Error al cargar el estado de certificaci\u00f3n.' });
+  } finally {
+    loading.value = false;
+  }
+}
++ Thought: 763ms
+← Edit Proyecto_Repfora_Etapas_Productivas-DevJefferson (1)\Proyecto_Repfora_Etapas_Productivas-DevJefferson\usefrontend\usefrontend\src\pages\admin\CloseProductiveStagePage.vue
+const loadingDocs = ref(false);
+const processing = ref(false);
+
+const requiredDocumentTypes = [
+  { label: 'Dosier de Certificaci&oacute;n (PDF &uacute;nico)', value: 'CERTIFICATION_DOSSIER' }
+  { label: 'Dosier de Certificaci\u00f3n (PDF \u00fanico)', value: 'CERTIFICATION_DOSSIER' }
+];
+
+const requiredDocumentChecklist = [
+  { label: 'Paz y Salvo diligenciado y firmado por aprendiz e instructor de seguimiento.', note: null },
+  { label: 'Fotocopia del documento de identidad actualizado y legible al 150%. Extranjeros: documento del pa&iacute;s de origen y permiso de permanencia temporal.', note: null },
+  { label: 'Certificado de inscripci&oacute;n o registro en la Agencia P&uacute;blica de Empleo (APE).', note: null },
+  { label: 'Evidencia fotogr&aacute;fica de la destrucci&oacute;n del carnet estudiantil. Si no fue beneficiario, carta explicando la No entrega.', note: null },
+  { label: 'Certificado de presentaci&oacute;n de pruebas TyT ante el ICFES.', note: 'Aplica SOLO para Tecn&oacute;logos' },
+  { label: 'Certificado de culminaci&oacute;n de etapa productiva emitido por la empresa. Proyecto productivo: acta de cierre aprobada.', note: null },
+  { label: 'Certificado de inventarios de almac&eacute;n, garantizando que no tiene elementos a su cargo.', note: null }
+  { label: 'Fotocopia del documento de identidad actualizado y legible al 150%. Extranjeros: documento del pa\u00eds de origen y permiso de permanencia temporal.', note: null },
+  { label: 'Certificado de inscripci\u00f3n o registro en la Agencia P\u00fablica de Empleo (APE).', note: null },
+  { label: 'Evidencia fotogr\u00e1fica de la destrucci\u00f3n del carnet estudiantil. Si no fue beneficiario, carta explicando la No entrega.', note: null },
+  { label: 'Certificado de presentaci\u00f3n de pruebas TyT ante el ICFES.', note: 'Aplica SOLO para Tecn\u00f3logos' },
+  { label: 'Certificado de culminaci\u00f3n de etapa productiva emitido por la empresa. Proyecto productivo: acta de cierre aprobada.', note: null },
+  { label: 'Certificado de inventarios de almac\u00e9n, garantizando que no tiene elementos a su cargo.', note: null }
+];
+
+const columns = [
+  { name: 'apprentice', label: 'Aprendiz', field: 'apprentice', align: 'left' },
++ Thought: 756ms
+← Edit Proyecto_Repfora_Etapas_Productivas-DevJefferson (1)\Proyecto_Repfora_Etapas_Productivas-DevJefferson\usefrontend\usefrontend\src\pages\admin\CloseProductiveStagePage.vue
+
+function promptReject(docId) {
+  $q.dialog({
+    title: 'Rechazar Documento',
+    message: 'Indique el motivo del rechazo. Sea espec&iacute;fico sobre qu&eacute; documentos faltan o deben corregirse (M&iacute;n. 10 caracteres):',
+    message: 'Indique el motivo del rechazo. Sea espec\u00edfico sobre qu\u00e9 documentos faltan o deben corregirse (M\u00edn. 10 caracteres):',
+    prompt: {
+      model: '',
+      type: 'textarea',
+      isValid: val => val.length >= 10
++ Thought: 763ms
+Let me verify the project builds correctly:
+→Read Proyecto_Repfora_Etapas_Productivas-DevJefferson (1)\Proyecto_Repfora_Etapas_Productivas-DevJefferson\usefrontend\usefrontend\package.json 
++ Thought: 689ms
+# Build project to check for errors in Proyecto_Repfora_Etapas_Productivas-DevJefferson (1)\Proyecto_Repfora_Etapas_Productivas-DevJefferson\usefrontend\usefrontend
+$ npm run build
+> repfora-frontend-new@1.0.0 build
+> vite build
+
+vite v4.5.14 building for production...
+transforming...
+✓ 292 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                                                  0.46 kB │ gzip:  0.31 kB
+dist/assets/fa-v4compatibility-0ce9033c.woff2                    4.80 kB
+…
+Click to expand
++ Thought: 560ms
+Build successful, no errors. Let me finalize:
+# Todos
+[✓] Mejorar CertificationPage.vue: alerta de fecha límite (2 meses), historial de observaciones cuando es rechazado, mejor guía de re-subida
+[✓] Corregir CloseProductiveStagePage.vue: arreglar texto '3 documentos' por 'documento único PDF', mostrar observaciones/comentarios en el modal de revisión
+[✓] Agregar badge/banner de notificación en sidebar o dashboard para aprendices en fase de certificación con observaciones
++ Thought: 511ms
+Implementacion completada del RF-006 en el frontend. Estos son los cambios:
+1. CertificationPage.vue (Aprendiz)
+- Alerta de fecha limite (Flow 3): banner amarillo cuando la EP esta a 2 meses de vencer y no hay documento aprobado
+- Chip de dias restantes con color segun urgencia (rojo si <= 30 dias)
+- Historial de observaciones (Flow 2): cuando el documento es rechazado, se muestran todos los comentarios del admin en burbujas estilo chat con fecha y autor
+- Mejor guia de re-subida: texto contextual distinto segun si es primera subida, reemplazo o correccion tras rechazo
+- Nota adicional sobre incluir notas explicativas en el PDF
+- Info de fechas de la EP (inicio, fin estimada)
+2. CloseProductiveStagePage.vue (Admin)
+- Corregido "Los 3 documentos finales" por "El documento PDF unico (dosier de certificacion)"
+- Checklist de referencia RF-006 colapsable para que el admin verifique los 7 documentos requeridos
+- Visualizacion de comentarios/observaciones en cada documento dentro del modal de revision (con expansion item y timestamp)
+- Rechazo mas descriptivo: "Sea especifico sobre que documentos faltan o deben corregirse"
+3. MainLayout.vue (Sidebar)
+- Badge de notificacion en el item "Certificacion Final":
+- Rojo: documento rechazado (requiere correccion)
+- Naranja: sin documento + plazo cercano
+- Amarillo: sin documento subido aun
+▣  Build · DeepSeek V4 Pro · 9m 23s
+Failed to load resource: the server responded with a status of 400 (Bad Request)
+CloseProductiveStagePage.vue:406 Error: Invalid document ID
+    at index.js:34:22
+    at async Proxy.approveDocument (CloseProductiveStagePage.vue:402:5)  tengo este error que dice invalid id 
++ Thought: 36.9s
+→Read Proyecto_Repfora_Etapas_Productivas-DevJefferson (1)\Proyecto_Repfora_Etapas_Productivas-DevJefferson\usefrontend\usefrontend\src\api\index.js 
++ Thought: 7.1s
+Encontre el bug. El CloseProductiveStagePage.vue usa doc._id para aprobar/rechazar, pero el backend probablemente retorna id (no _id). En CertificationPage.vue el aprendiz ya usa certDoc.value.id. Corrijo:
+← Edit Proyecto_Repfora_Etapas_Productivas-DevJefferson (1)\Proyecto_Repfora_Etapas_Productivas-DevJefferson\usefrontend\usefrontend\src\pages\admin\CloseProductiveStagePage.vue
+  <q-card flat bordered class="q-pa-sm" v-for="doc in epStatus.submitted.filter(d => d.status === 'SUBMITTED')" :key="doc._id">
+    <div class="row items-center justify-between">
+      <div class="text-weight-bold">{{ getDocTypeLabel(doc.documentType) }}</div>
+      <div class="q-gutter-xs">
+        <q-btn color="positive" size="sm" label="Aprobar" @click="approveDocument(doc._id)" :loading="processing" />
+        <q-btn color="negative" size="sm" label="Rechazar" @click="promptReject(doc._id)" :loading="processing" />
+        <q-btn color="positive" size="sm" label="Aprobar" @click="approveDocument(doc._id || doc.id)" :loading="processing" />
+        <q-btn color="negative" size="sm" label="Rechazar" @click="promptReject(doc._id || doc.id)" :loading="processing" />
+      </div>
+    </div>
+  </q-card>
+</div>
++ Thought: 4.1s
+← Edit Proyecto_Repfora_Etapas_Productivas-DevJefferson (1)\Proyecto_Repfora_Etapas_Productivas-DevJefferson\usefrontend\usefrontend\src\pages\admin\CloseProductiveStagePage.vue
+</q-list>
+
+<div class="q-mt-md" v-if="epStatus.submitted && epStatus.submitted.some(d => d.status === 'SUBMITTED')">
+  <div class="text-subtitle2 text-primary q-mb-sm">Acciones de Revisión Pendientes</div>
+  <q-card flat bordered class="q-pa-sm" v-for="doc in epStatus.submitted.filter(d => d.status === 'SUBMITTED')" :key="doc._id">
+  <q-card flat bordered class="q-pa-sm" v-for="doc in epStatus.submitted.filter(d => d.status === 'SUBMITTED')" :key="doc._id || doc.id">
+    <div class="row items-center justify-between">
+      <div class="text-weight-bold">{{ getDocTypeLabel(doc.documentType) }}</div>
+      <div class="q-gutter-xs">
+        <q-btn color="positive" size="sm" label="Aprobar" @click="approveDocument(doc._id || doc.id)" :loading="processing" />
++ Thought: 543ms
+# Verify build after fix in Proyecto_Repfora_Etapas_Productivas-DevJefferson (1)\Proyecto_Repfora_Etapas_Productivas-DevJefferson\usefrontend\usefrontend
+$ npm run build
+> repfora-frontend-new@1.0.0 build
+> vite build
+
+vite v4.5.14 building for production...
+transforming...
+✓ 292 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                                                  0.46 kB │ gzip:  0.31 kB
+dist/assets/fa-v4compatibility-0ce9033c.woff2                    4.80 kB
+…
+Click to expand
++ Thought: 2.8s
+Build exitoso. El bug estaba en CloseProductiveStagePage.vue donde los botones de aprobar/rechazar pasaban doc._id, pero el backend retorna id (sin underscore). Se cambio a doc._id || doc.id como fallback.
+La inconsistencia venia de que CertificationPage.vue (aprendiz) ya usaba certDoc.value.id correctamente mientras que el admin usaba _id.
+▣  Build · DeepSeek V4 Pro · 1m 23s
+Aún faltan requisitos por cumplir para habilitar el cierre. que faltara aun se ,e escapara algo ya los dicmentos fueron revisamos y pasados a bitacoras tiene 0 le aprendiz
++ Thought: 14.4s
+El problema esta en el canClose de CloseProductiveStagePage.vue. Cuando maxBitacoras es 0, el fallback || 1 lo convierte en 1 y 0 >= 1 falla. Revisemos:
+→Read Proyecto_Repfora_Etapas_Productivas-DevJefferson (1)\Proyecto_Repfora_Etapas_Productivas-DevJefferson\usefrontend\usefrontend\src\pages\admin\CloseProductiveStagePage.vue [offset=327, limit=50]
++ Thought: 6.4s
+Encontre el bug. canClose usa || 1 como fallback para maxBitacoras y requiredTrackings. Como 0 es falsy, 0 || 1 = 1, y 0 >= 1 falla. Debe usar ?? 0 y solo exigir si el valor es mayor a 0:
+← Edit Proyecto_Repfora_Etapas_Productivas-DevJefferson (1)\Proyecto_Repfora_Etapas_Productivas-DevJefferson\usefrontend\usefrontend\src\pages\admin\CloseProductiveStagePage.vue
+}
+
+const canClose = computed(() => {
+  if (!selectedEP.value || !epStatus.value) return false;
+  
+  const bitacorasOk = selectedEP.value.completedBitacoras >= (selectedEP.value.maxBitacoras || 1);
+  const trackingsOk = selectedEP.value.completedTrackings >= (selectedEP.value.requiredTrackings || 1);
+
+  const maxBitacoras = selectedEP.value.maxBitacoras ?? 0;
+  const bitacorasOk = maxBitacoras === 0 || selectedEP.value.completedBitacoras >= maxBitacoras;
+
+  const requiredTrackings = selectedEP.value.requiredTrackings ?? 0;
+  const trackingsOk = requiredTrackings === 0 || selectedEP.value.completedTrackings >= requiredTrackings;
+
+  const docsOk = epStatus.value.allRequiredApproved;
+  
+  // Also ideally check for novelties resolved, but button can be enabled and backend rejects if not.
+
+  return bitacorasOk && trackingsOk && docsOk;
+});
+
+function openReviewModal(ep) {
++ Thought: 3.3s
+Tambien actualizo la seccion de resumen para mostrar correctamente 0/0 en vez de 0/? cuando maxBitacoras es 0:
+← Edit Proyecto_Repfora_Etapas_Productivas-DevJefferson (1)\Proyecto_Repfora_Etapas_Productivas-DevJefferson\usefrontend\usefrontend\src\pages\admin\CloseProductiveStagePage.vue
+<q-card flat bordered class="bg-grey-1 q-mb-md">
+  <q-card-section>
+    <div class="text-subtitle2 q-mb-sm">Resumen del Expediente</div>
+    <div class="row justify-between q-mb-xs">
+      <span>Bitácoras ({{ selectedEP.completedBitacoras }} / {{ selectedEP.maxBitacoras || '?' }})</span>
+      <q-icon :name="selectedEP.completedBitacoras >= selectedEP.maxBitacoras ? 'check_circle' : 'cancel'" 
+              :color="selectedEP.completedBitacoras >= selectedEP.maxBitacoras ? 'positive' : 'negative'" />
+      <span>Bit&aacute;coras ({{ selectedEP.completedBitacoras }} / {{ selectedEP.maxBitacoras ?? 0 }})</span>
+      <q-icon :name="(selectedEP.maxBitacoras ?? 0) === 0 || selectedEP.completedBitacoras >= selectedEP.maxBitacoras ? 'check_circle' : 'cancel'"
+              :color="(selectedEP.maxBitacoras ?? 0) === 0 || selectedEP.completedBitacoras >= selectedEP.maxBitacoras ? 'positive' : 'negative'" />
+    </div>
+    <div class="row justify-between q-mb-xs">
+      <span>Seguimientos ({{ selectedEP.completedTrackings }} / {{ selectedEP.requiredTrackings || '?' }})</span>
+      <q-icon :name="selectedEP.completedTrackings >= selectedEP.requiredTrackings ? 'check_circle' : 'cancel'" 
+              :color="selectedEP.completedTrackings >= selectedEP.requiredTrackings ? 'positive' : 'negative'" />
+      <span>Seguimientos ({{ selectedEP.completedTrackings }} / {{ selectedEP.requiredTrackings ?? 0 }})</span>
+      <q-icon :name="(selectedEP.requiredTrackings ?? 0) === 0 || selectedEP.completedTrackings >= selectedEP.requiredTrackings ? 'check_circle' : 'cancel'"
+              :color="(selectedEP.requiredTrackings ?? 0) === 0 || selectedEP.completedTrackings >= selectedEP.requiredTrackings ? 'positive' : 'negative'" />
+    </div>
+    <div class="row justify-between q-mb-xs">
+      <span>Documentos Aprobados</span>
+      <q-icon :name="epStatus?.allRequiredApproved ? 'check_circle' : 'cancel'" 
++ Thought: 2.4s
+# Verify build after fix in Proyecto_Repfora_Etapas_Productivas-DevJefferson (1)\Proyecto_Repfora_Etapas_Productivas-DevJefferson\usefrontend\usefrontend
+$ npm run build
+> repfora-frontend-new@1.0.0 build
+> vite build
+
+vite v4.5.14 building for production...
+transforming...
+✓ 292 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                                                  0.46 kB │ gzip:  0.31 kB
+dist/assets/fa-v4compatibility-0ce9033c.woff2                    4.80 kB
+…
+Click to expand
++ Thought: 4.2s
+Build exitoso. El problema era que || 1 convertia 0 en 1. Al usar ?? 0 y verificar === 0:
+- Si maxBitacoras es 0 o no esta definido: no se requieren bitacoras, el check pasa automaticamente
+- Si maxBitacoras > 0: se exige que las completadas sean >= requeridas
+Lo mismo para seguimientos. Con este fix el boton de "Finalizar Etapa Productiva" ya deberia habilitarse cuando los documentos estan aprobados y no hay bitacoras/seguimientos requeridos.

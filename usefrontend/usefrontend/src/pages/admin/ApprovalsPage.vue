@@ -360,8 +360,9 @@ function getDocTypeLabel(type) {
     BUDGET: 'Presupuesto',
     EMPLOYMENT_CONTRACT: 'Contrato laboral / Acta de vinculación',
     JOB_DESCRIPTION: 'Descripción del cargo',
+    CERTIFICATION_DOSSIER: 'Dosier de Certificacion',
     EP_CERTIFICATE: 'Certificado de Etapa Productiva',
-    PERFORMANCE_EVALUATION: 'Evaluación de Desempeño',
+    PERFORMANCE_EVALUATION: 'Evaluacion de Desempeno',
     COMMITMENT_LETTER: 'Carta de Compromiso',
     OTHER: 'Soporte general'
   };

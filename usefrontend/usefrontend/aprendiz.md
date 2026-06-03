@@ -206,3 +206,70 @@ Evento: El usuario ingresa a la sección de "Certificaciones" y sube un único a
 Resultado Esperado: El sistema recibe el archivo correctamente, bloquea nuevos envíos y actualiza el estado del trámite a "En Revisión por Administración" para que el personal encargado valide la documentación.
 
 Campos Visibles: Sección Certificaciones, Cargador de archivos PDF unificado, Indicador de estado de revisión.
+
+
+
+
+REQUISITOS Y FLUJO DE CERTIFICACIÓN - REPORA (RF-007)
+
+======================================================================
+REQUISITO FUNCIONAL: RF-007
+ROL: Como aprendiz
+NECESIDAD: Necesito ver el estado actual de proceso de certificación, junto con detalles específicos según cada estado.
+FINALIDAD: Con la finalidad de conocer en tiempo real el avance de mi certificación y acciones requeridas en caso de observaciones.
+======================================================================
+
+----------------------------------------------------------------------
+ESTADO 1: Estado "Activo"
+----------------------------------------------------------------------
+Descripción / Contexto:
+El aprendiz aún no ha comenzado el proceso de certificación. Falta cargar los documentos requeridos.
+
+Disparador (Trigger):
+Cuando el Aprendiz accede a la sección "Modalidad" y dentro de modalidad entra a "Certificación".
+
+Comportamiento del Sistema / Interfaz:
+- El sistema muestra un espacio vacío para cargar los archivos en formato PDF, los cuales contienen todos los documentos que el aprendiz necesita para su certificación.
+- Al lado de esta sección se encuentra un espacio de certificación, donde se indica el estado del proceso: "Activo".
+- Bajo observaciones (en este caso, el aprendiz podrá visualizar las observaciones realizadas sobre el archivo).
+- Cuando el aprendiz cargue el documento, el estado deberá cambiar automáticamente a “Trámite”.
+
+
+----------------------------------------------------------------------
+ESTADO 2: Estado "Validación"
+----------------------------------------------------------------------
+Descripción / Contexto:
+Cuando el aprendiz suba por primera vez el archivo en formato PDF, el administrador deberá verificar que estén todos los documentos requeridos para la certificación.
+
+Disparador (Trigger):
+Cuando el Aprendiz accede a la sección "Modalidad" y dentro de modalidad entra a "Certificación".
+
+Comportamiento del Sistema / Interfaz:
+Cuando el administrador haya validado los documentos, el estado de certificación cambiará a “En proceso”, lo que permitirá avanzar al siguiente paso: procesar la certificación.
+
+
+----------------------------------------------------------------------
+ESTADO 3: Estado "Proceso"
+----------------------------------------------------------------------
+Descripción / Contexto:
+La certificación está en proceso.
+
+Disparador (Trigger):
+Cuando el Aprendiz accede a la sección "Modalidad" y dentro de modalidad entra a "Certificación".
+
+Comportamiento del Sistema / Interfaz:
+Cuando la certificación haya sido procesada por parte de la administración, el sistema deberá cambiar el estado de certificación a “Finalizado”, indicando que el proceso ha concluido exitosamente.
+
+
+----------------------------------------------------------------------
+ESTADO 4: Estado "Finalizado"
+----------------------------------------------------------------------
+Descripción / Contexto:
+Cuando la verificación esté lista, el aprendiz podrá visualizar en el sistema si su certificación fue aprobada y, en ese caso, descargar o consultar su certificado.
+
+Disparador (Trigger):
+Cuando el Aprendiz accede a la sección "Modalidad" y dentro de modalidad entra a "Certificación".
+
+Comportamiento del Sistema / Interfaz:
+- Cuando el estado de la certificación esté en “Finalizado”, el aprendiz podrá obtener su certificado e ingresar a SOFIA Plus para descargarlo.
+- El proceso habrá terminado, y en la plataforma se mostrará un mensaje de confirmación indicando que: "Su certificado está listo. Puede descargarlo en SOFIA Plus."
