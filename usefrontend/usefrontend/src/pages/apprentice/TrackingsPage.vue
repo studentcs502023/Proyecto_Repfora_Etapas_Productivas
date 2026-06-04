@@ -127,7 +127,7 @@ const columns = [
   { name: 'type', label: 'Tipo', field: 'type', align: 'left' },
   { name: 'scheduledDate', label: 'Fecha Programada', field: row => formatDate(row.scheduledDate), align: 'left' },
   { name: 'executedDate', label: 'Fecha Ejecución', field: row => formatDate(row.executedDate), align: 'left' },
-  { name: 'instructor', label: 'Instructor', field: row => row.instructor?.fullName || 'N/A', align: 'left' },
+  { name: 'instructor', label: 'Instructor', field: row => row.instructor?.fullName || 'N/D', align: 'left' },
   { name: 'status', label: 'Estado', field: 'status', align: 'center' },
   { name: 'document', label: 'Acta', align: 'center' }
 ];

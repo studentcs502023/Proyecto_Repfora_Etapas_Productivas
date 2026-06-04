@@ -141,7 +141,7 @@
                               <div v-for="(c, i) in getDocument(reqDoc.value).comments" :key="i" class="q-mb-sm">
                                 <div class="text-caption text-grey-6">
                                   {{ formatDateTime(c.createdAt) }}
-                                  <span v-if="c.author"> &mdash; {{ c.author.fullName || 'Admin' }}</span>
+                                  <span v-if="c.author"> &mdash; {{ c.author.fullName || 'Administrador' }}</span>
                                 </div>
                                 <div class="text-body2">{{ c.text }}</div>
                                 <q-separator v-if="i < getDocument(reqDoc.value).comments.length - 1" class="q-my-xs" />
@@ -306,12 +306,12 @@ function onRequest(props) {
 }
 
 function formatDate(dateStr) {
-  if (!dateStr) return 'N/A';
+  if (!dateStr) return 'N/D';
   return new Date(dateStr).toLocaleDateString('es-CO');
 }
 
 function formatDateTime(dateStr) {
-  if (!dateStr) return 'N/A';
+  if (!dateStr) return 'N/D';
   return new Date(dateStr).toLocaleString('es-CO', { 
     month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' 
   });

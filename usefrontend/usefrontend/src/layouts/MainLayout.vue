@@ -7,14 +7,14 @@
           dense
           round
           icon="menu"
-          aria-label="Menu"
+          aria-label="Menú"
           @click="toggleLeftDrawer"
         />
 
         <div class="row items-center cursor-pointer" @click="$router.push('/')">
           <img src="https://upload.wikimedia.org/wikipedia/commons/8/83/Sena_Colombia_logo.svg" 
                style="height: 40px; filter: brightness(0) invert(1);" 
-               alt="SENA Logo" 
+               alt="Logo SENA" 
                class="q-mr-md" />
           <q-toolbar-title class="text-weight-bold q-pa-none shrink">
             REPFORA E.P.
@@ -60,10 +60,10 @@
       <div class="q-pa-md text-center bg-primary text-white">
         <img src="https://upload.wikimedia.org/wikipedia/commons/8/83/Sena_Colombia_logo.svg" 
              style="height: 60px; filter: brightness(0) invert(1);" 
-             alt="SENA Logo" 
+             alt="Logo SENA" 
              class="q-mb-md" />
         <div class="text-weight-bold">{{ authStore.user?.fullName }}</div>
-        <div class="text-caption text-grey-4">{{ authStore.user?.role }}</div>
+        <div class="text-caption text-grey-4">{{ roleLabel }}</div>
       </div>
 
       <q-scroll-area class="fit" style="height: calc(100% - 150px); margin-top: 10px;">
@@ -71,7 +71,7 @@
           <!-- COMMON -->
           <q-item clickable v-ripple to="/" exact>
             <q-item-section avatar><q-icon name="dashboard" /></q-item-section>
-            <q-item-section>Dashboard</q-item-section>
+            <q-item-section>Panel</q-item-section>
           </q-item>
 
           <!-- APPRENTICE MENU -->
@@ -120,7 +120,7 @@
             </q-item>
             <q-item clickable v-ripple to="/instructor-hours">
               <q-item-section avatar><q-icon name="schedule" /></q-item-section>
-              <q-item-section>Horas instructor</q-item-section>
+              <q-item-section>Horas Instructor</q-item-section>
             </q-item>
           </template>
 
@@ -149,7 +149,7 @@
             </q-item>
             <q-item clickable v-ripple to="/admin/reports">
               <q-item-section avatar><q-icon name="bar_chart" /></q-item-section>
-              <q-item-section>Reportes (Dashboard)</q-item-section>
+              <q-item-section>Reportes (Panel)</q-item-section>
             </q-item>
             <q-item clickable v-ripple to="/system-config">
               <q-item-section avatar><q-icon name="settings" /></q-item-section>
@@ -186,6 +186,11 @@ const certBadgeColor = ref('negative');
 const showCertBadge = computed(() => {
   if (!authStore.isApprentice) return false;
   return certBadgeLabel.value !== '';
+});
+
+const roleLabel = computed(() => {
+  const map = { ADMIN: 'Administrador', INSTRUCTOR: 'Instructor', APPRENTICE: 'Aprendiz' };
+  return map[authStore.user?.role] || authStore.user?.role || '';
 });
 
 const profileRoute = computed(() => {

@@ -53,7 +53,7 @@
       >
         <template v-slot:body-cell-role="props">
           <q-td :props="props">
-            <q-badge :color="getRoleColor(props.value)" :label="props.value" />
+            <q-badge :color="getRoleColor(props.value)" :label="getRoleLabel(props.value)" />
           </q-td>
         </template>
 
@@ -120,7 +120,11 @@
                 <div class="col-12 col-md-6">
                   <q-select 
                     v-model="userForm.instructorType" 
-                    :options="['FOLLOWUP', 'TECHNICAL', 'PROJECT']" 
+                    :options="[{ label: 'Seguimiento', value: 'FOLLOWUP' }, { label: 'Técnico', value: 'TECHNICAL' }, { label: 'Proyecto', value: 'PROJECT' }]" 
+                    option-label="label"
+                    option-value="value"
+                    emit-value
+                    map-options
                     label="Tipo de Instructor" 
                     outlined dense 
                     :rules="[val => !!val || 'Requerido']" 
@@ -146,7 +150,11 @@
                 <div class="col-12 col-md-4">
                   <q-select 
                     v-model="userForm.trainingLevel" 
-                    :options="['TECHNICIAN', 'TECHNOLOGIST']" 
+                    :options="[{ label: 'Técnico', value: 'TECHNICIAN' }, { label: 'Tecnólogo', value: 'TECHNOLOGIST' }]" 
+                    option-label="label"
+                    option-value="value"
+                    emit-value
+                    map-options
                     label="Nivel de Formación" 
                     outlined dense 
                     :rules="[val => !!val || 'Requerido']" 
@@ -352,6 +360,11 @@ function onRequest(props) {
   fetchUsers();
 }
 
+function getRoleLabel(role) {
+  const map = { ADMIN: 'Administrador', INSTRUCTOR: 'Instructor', APPRENTICE: 'Aprendiz' };
+  return map[role] || role;
+}
+
 function getRoleColor(role) {
   switch (role) {
     case 'ADMIN': return 'secondary';
@@ -455,7 +468,7 @@ async function toggleStatus(user) {
   }).onOk(async () => {
     try {
       if (activeTab.value === 'INSTRUCTORS') {
-        await userService.changeInstructorStatus(user._id, newStatus, 'Status toggled from Admin Dashboard');
+        await userService.changeInstructorStatus(user._id, newStatus, 'Estado cambiado desde el Panel de Administración');
       }
       fetchUsers();
       $q.notify({ type: 'positive', message: 'Estado actualizado' });

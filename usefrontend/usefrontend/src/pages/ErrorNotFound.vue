@@ -6,7 +6,7 @@
       </div>
 
       <div class="text-h2" style="opacity:.4">
-        Oops. Nada por aquí...
+        Ups. Nada por aquí...
       </div>
 
       <q-btn

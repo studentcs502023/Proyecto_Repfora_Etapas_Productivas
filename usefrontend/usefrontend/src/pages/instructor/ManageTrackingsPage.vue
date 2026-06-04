@@ -67,7 +67,7 @@
             >
               {{ getStatusLabel(props.value) }}
             </q-chip>
-            <q-badge v-if="props.row.isExtraordinary && !props.row.approvedByAdmin" color="negative" class="q-ml-sm" label="Esperando Admin" />
+            <q-badge v-if="props.row.isExtraordinary && !props.row.approvedByAdmin" color="negative" class="q-ml-sm" label="Esperando Aprobación" />
           </q-td>
         </template>
 

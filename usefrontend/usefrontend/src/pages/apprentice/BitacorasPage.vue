@@ -197,7 +197,7 @@
           <div class="row q-mb-md">
             <div class="col-6"><strong>Estado:</strong> {{ getStatusLabel(selectedBitacora?.status) }}</div>
             <div class="col-6"><strong>Enviada:</strong> {{ formatDateTime(selectedBitacora?.submittedAt) }}</div>
-            <div class="col-12 q-mt-sm"><strong>Revisada por:</strong> {{ selectedBitacora?.instructor?.fullName || 'N/A' }}</div>
+            <div class="col-12 q-mt-sm"><strong>Revisada por:</strong> {{ selectedBitacora?.instructor?.fullName || 'N/D' }}</div>
           </div>
 
           <q-separator class="q-my-md" />

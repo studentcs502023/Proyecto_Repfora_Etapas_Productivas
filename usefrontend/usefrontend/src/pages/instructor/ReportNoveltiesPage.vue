@@ -358,7 +358,7 @@ function getStatusColor(status) {
 
 function getStatusLabel(status) {
   switch(status) {
-    case 'PENDING': return 'Pendiente Admin';
+    case 'PENDING': return 'Pendiente Administración';
     case 'IN_PROGRESS': return 'En Gestión';
     case 'RESOLVED': return 'Resuelta';
     default: return status;

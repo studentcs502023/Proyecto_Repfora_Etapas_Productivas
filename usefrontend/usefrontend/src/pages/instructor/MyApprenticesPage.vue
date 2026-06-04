@@ -222,7 +222,7 @@ function getStatusColor(status) {
 function getStatusLabel(status) {
   const map = {
     'PENDING_REGISTRATION': 'Sin Registro',
-    'PENDING_APPROVAL': 'Pendiente Admin',
+    'PENDING_APPROVAL': 'Pendiente Administración',
     'ACTIVE': 'Activa',
     'IN_FOLLOWUP': 'En Seguimiento',
     'CERTIFICATION': 'Certificación',

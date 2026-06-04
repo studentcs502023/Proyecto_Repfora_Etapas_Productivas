@@ -13,7 +13,7 @@
             <div class="text-center q-mb-md">
               <img src="https://upload.wikimedia.org/wikipedia/commons/8/83/Sena_Colombia_logo.svg" 
                    style="height: 70px; filter: invert(45%) sepia(85%) saturate(1142%) hue-rotate(85deg) brightness(96%) contrast(87%);" 
-                   alt="SENA Logo" />
+                   alt="Logo SENA" />
             </div>
             
             <div class="text-h6 text-weight-bold text-center q-mb-md text-black" style="letter-spacing: 1px;">

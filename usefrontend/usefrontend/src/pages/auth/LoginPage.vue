@@ -20,7 +20,7 @@
               <img
                 src="https://upload.wikimedia.org/wikipedia/commons/8/83/Sena_Colombia_logo.svg"
                 class="sena-logo-img"
-                alt="SENA Logo"
+                alt="Logo SENA"
               />
             </div>
             <div class="text-white text-h6 text-weight-bold" style="letter-spacing: 2px; text-shadow: 0 0 12px rgba(255,255,255,0.3);">SENA</div>

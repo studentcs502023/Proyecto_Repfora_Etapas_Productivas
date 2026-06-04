@@ -220,7 +220,7 @@ onMounted(() => {
 });
 
 function formatDate(dateStr) {
-  if (!dateStr) return 'N/A';
+  if (!dateStr) return 'N/D';
   return new Date(dateStr).toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
 }
 

@@ -121,7 +121,7 @@
                       <q-item-label caption>{{ doc.fileName }}</q-item-label>
                     </q-item-section>
                     <q-item-section side>
-                      <q-badge :color="docStatusColor(doc.status)" :label="doc.status" />
+                      <q-badge :color="docStatusColor(doc.status)" :label="docStatusLabel(doc.status)" />
                     </q-item-section>
                     <q-item-section side>
                       <q-btn flat round icon="open_in_new" color="primary" size="sm"
@@ -244,7 +244,7 @@ const instructors = ref({
 const columns = [
   { name: 'apprentice', label: 'Aprendiz', field: 'apprentice', align: 'left' },
   { name: 'modality', label: 'Modalidad', field: 'modality', align: 'left' },
-  { name: 'company', label: 'Empresa', field: row => row.companySnapshot?.companyName || row.company?.name || 'N/A', align: 'left' },
+  { name: 'company', label: 'Empresa', field: row => row.companySnapshot?.companyName || row.company?.name || 'N/D', align: 'left' },
   { name: 'dates', label: 'Inicio Estimado', field: row => formatDate(row.startDate), align: 'left' },
   { name: 'actions', label: 'Acciones', align: 'center' }
 ];
@@ -279,7 +279,7 @@ function getModalityLabel(val) {
 }
 
 function formatDate(dateStr) {
-  if (!dateStr) return 'N/A';
+  if (!dateStr) return 'N/D';
   return new Date(dateStr).toLocaleDateString('es-CO');
 }
 
@@ -367,6 +367,11 @@ function getDocTypeLabel(type) {
     OTHER: 'Soporte general'
   };
   return map[type] || type;
+}
+
+function docStatusLabel(status) {
+  const map = { SUBMITTED: 'Enviado', IN_VALIDATION: 'En Validación', APPROVED: 'Aprobado', REJECTED: 'Rechazado' };
+  return map[status] || status;
 }
 
 function docStatusColor(status) {
