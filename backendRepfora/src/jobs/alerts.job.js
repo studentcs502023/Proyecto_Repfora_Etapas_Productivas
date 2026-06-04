@@ -12,6 +12,8 @@ import {
   buildTrackingSubject, buildTrackingMessage
 } from '../templates/calendarReminderEmail.template.js';
 import { buildExpirySubject, buildExpiryMessage } from '../templates/enrollmentExpiryEmail.template.js';
+import { buildCertificationSubject, buildCertificationMessage } from '../templates/certificationReminderEmail.template.js';
+import Document from '../models/Document.model.js';
 
 /**
  * Find PENDING bitacoras older than 7 days and notify ADMIN
@@ -250,6 +252,87 @@ const checkUpcomingTrackings = async () => {
 };
 
 /**
+ * Certification document reminders (RF-006 - Flujo 3)
+ * Notifies apprentices whose EP is in CERTIFICATION status but haven't uploaded
+ * their CERTIFICATION_DOSSIER document yet.
+ * - Sends first reminder ~60 days before estimatedEndDate
+ * - Escalates at YELLOW (30d), ORANGE (15d), RED (7d)
+ * Runs daily at 8 AM.
+ */
+const checkCertificationReminders = async () => {
+  console.log('[Cron] Verificando recordatorios de certificación...');
+
+  const now = new Date();
+  const sixtyDaysFromNow = new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000);
+
+  const certEPs = await ProductiveStage.find({
+    status: 'CERTIFICATION',
+    isActive: true,
+    estimatedEndDate: { $lte: sixtyDaysFromNow }
+  }).populate('apprentice');
+
+  let remindersSent = 0;
+
+  for (const ep of certEPs) {
+    if (!ep.apprentice || !ep.estimatedEndDate) continue;
+
+    const daysRemaining = Math.ceil(
+      (new Date(ep.estimatedEndDate).getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+    );
+
+    if (daysRemaining <= 0) continue;
+
+    const existingDossier = await Document.findOne({
+      productiveStage: ep._id,
+      documentType: 'CERTIFICATION_DOSSIER',
+      status: { $ne: 'REJECTED' },
+      isActive: true
+    });
+
+    if (existingDossier) {
+      console.log(`[Cron] Certificación - ${ep.apprentice.fullName}: ya subió documento, omitiendo.`);
+      continue;
+    }
+
+    let level = null;
+    let shouldNotify = false;
+
+    if (daysRemaining <= 7) {
+      level = 'RED';
+      shouldNotify = true;
+    } else if (daysRemaining <= 15) {
+      level = 'ORANGE';
+      shouldNotify = true;
+    } else if (daysRemaining <= 30) {
+      level = 'YELLOW';
+      shouldNotify = true;
+    } else if (daysRemaining <= 60 && daysRemaining % 7 === 0) {
+      shouldNotify = true;
+    }
+
+    if (shouldNotify) {
+      await notificationService.send({
+        type: 'DOCUMENTS_REMINDER',
+        recipients: [ep.apprentice._id.toString()],
+        title: buildCertificationSubject(level),
+        message: buildCertificationMessage({
+          fullName: ep.apprentice.fullName,
+          daysRemaining,
+          level,
+          estimatedEndDate: ep.estimatedEndDate
+        }),
+        metadata: { entity: 'ProductiveStage', entityId: ep._id }
+      });
+
+      console.log(`[Cron] Recordatorio certificación enviado a ${ep.apprentice.fullName}: ${daysRemaining}d restantes, nivel: ${level || 'INICIAL'}`);
+      remindersSent++;
+    }
+  }
+
+  console.log(`[Cron] Certificación - Recordatorios enviados: ${remindersSent}`);
+};
+
+/**
  * Check for critical desertion (3 months without bitacoras) - RF-005
  */
 const checkCriticalDesertion = async () => {
@@ -301,6 +384,7 @@ export const initJobs = () => {
     await checkBitacoraSchedule();
     await checkUpcomingTrackings();
     await checkEnrollmentExpiry();
+    await checkCertificationReminders();
     await checkCriticalDesertion();
   });
   
