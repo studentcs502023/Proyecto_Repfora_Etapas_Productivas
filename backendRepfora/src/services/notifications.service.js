@@ -32,10 +32,10 @@ class NotificationService {
    * @param {Object}   [params.metadata]    - { entity, entityId, url }
    */
   async send({ type, recipients, title, message, metadata = {} }) {
+    console.log(`[NotificationService] Procesando ${recipients.length} destinatario(s). Tipo: ${type}`);
     const results = [];
 
     for (const recipientId of recipients) {
-      // 1. Create in-platform notification
       const notification = new Notification({
         recipient: recipientId,
         type,
@@ -45,10 +45,12 @@ class NotificationService {
         emailSent: false
       });
 
-      // 2. Attempt to send email (never block on failure)
       try {
         const user = await User.findById(recipientId).select('email fullName');
+        console.log(`[NotificationService] Usuario encontrado: ${user?.fullName || 'NO ENCONTRADO'} - Email: ${user?.email || 'SIN EMAIL'}`);
+
         if (user?.email && process.env.NODE_ENV !== 'test') {
+          console.log('[NotificationService] Llamando a emailService.send()...');
           await emailService.send({
             to: user.email,
             subject: title,
@@ -56,10 +58,12 @@ class NotificationService {
           });
           notification.emailSent = true;
           notification.emailSentAt = new Date();
+          console.log(`[NotificationService] Notificación guardada en DB. emailSent: true`);
         } else if (process.env.NODE_ENV === 'test') {
-          // For tests, we simulate success if configured
           notification.emailSent = true;
           notification.emailSentAt = new Date();
+        } else {
+          console.warn(`[NotificationService] No se envió email: usuario sin email o NODE_ENV=test`);
         }
       } catch (emailErr) {
         notification.emailError = emailErr.message;
@@ -70,6 +74,7 @@ class NotificationService {
       results.push(notification);
     }
 
+    console.log(`[NotificationService] Finalizado. ${results.length} notificación(es) creada(s).`);
     return results;
   }
 

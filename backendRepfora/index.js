@@ -45,6 +45,7 @@ app.use(express.json());
 
 // Middleware para validar que la base de datos esté conectada en las peticiones de API
 app.use('/api', (req, res, next) => {
+    console.log(`[Server] ${req.method} ${req.originalUrl} - DB state: ${mongoose.connection.readyState === 1 ? 'CONECTADA' : 'DESCONECTADA'}`);
     if (mongoose.connection.readyState !== 1) {
         return res.status(503).json({
             status: "error",
@@ -53,6 +54,8 @@ app.use('/api', (req, res, next) => {
     }
     next();
 });
+
+
 
 // Rutas base
 app.use('/api/auth', authRoutes);

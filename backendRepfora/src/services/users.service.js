@@ -6,6 +6,7 @@ import { AUDIT_ACTIONS } from "../utils/enums.js";
 
 import { parseCSV, validateApprenticeRow } from "../utils/importParser.util.js";
 import notificationService from "./notifications.service.js";
+import { buildWelcomeSubject, buildWelcomeMessage } from "../templates/welcomeEmail.template.js";
 
 /**
  * Genera una contraseña temporal siguiendo el patrón Sena + últimos 4 dígitos del ID + *
@@ -49,7 +50,7 @@ class UserService {
             password: hashedPassword,
             role: "INSTRUCTOR",
             status: "ACTIVE",
-            firstLogin: true,
+            firstLogin: false,
         });
 
         // 3. Integración Google Drive (MOCK por ahora)
@@ -342,6 +343,7 @@ class UserService {
         });
 
         await apprentice.save();
+        console.log(`[UserService] Aprendiz creado: ${apprentice.fullName} (${apprentice.nationalId}) - Email: ${apprentice.email}`);
 
         await recordAuditLog({
             action: AUDIT_ACTIONS.APPRENTICE_CREATED || "APPRENTICE_CREATED",
@@ -351,30 +353,14 @@ class UserService {
             details: { nationalId, email },
         });
 
-        // 5. Enviar correo de bienvenida (RF-001)
-        const welcomeMessage = `
-            Por medio del presente correo me complace informarle que usted ya puede iniciar su etapa productiva. Para comenzar este proceso de la mejor manera posible, debe seguir los siguientes pasos:<br><br>
-            <strong>Ingreso a la plataforma:</strong> Ingrese a la página de REPFORA E.P. a través del siguiente enlace: <a href="${process.env.FRONTEND_URL || 'http://localhost:5174'}">Acceso al sistema</a>.<br><br>
-            <strong>Credenciales de acceso:</strong><br>
-            * Usuario: Su número de documento de identidad.<br>
-            * Contraseña: Su número de documento de identidad.<br>
-            <em>(Nota: Tenga en cuenta que es obligatorio realizar el cambio de contraseña en su primer acceso por seguridad).</em><br><br>
-            <strong>Registro del proceso:</strong> Una vez dentro del Dashboard principal, encontrará y deberá seleccionar la opción “Registrar Etapa Productiva”.<br><br>
-            <strong>Documentación:</strong> Allí deberá elegir la modalidad que va a realizar y adjuntar los documentos correspondientes en formato PDF.<br><br>
-            <strong>Validación:</strong> Después de enviar el registro, en un plazo de algunos días recibirá una notificación indicando si su solicitud fue Aceptada o Rechazada.<br><br>
-            Si es Aceptado: Se formalizará el inicio de su etapa productiva y se le asignará un instructor de seguimiento según la modalidad elegida.<br>
-            Si es Rechazado: Deberá revisar las observaciones detalladas por el administrador y realizar las correcciones respectivas lo antes posible para volver a enviar la solicitud.<br><br>
-            Tenga en cuenta que si no realiza correctamente este registro, su etapa productiva no podrá ser validada dentro del sistema.<br><br>
-            Atentamente,<br>
-            <strong>Administrador REPFORA E.P.</strong>
-        `;
-
+        console.log('[UserService] Disparando correo de bienvenida vía notificationService...');
         await notificationService.send({
             type: "SYSTEM_WELCOME",
             recipients: [apprentice._id.toString()],
-            title: "Está registrado en REPFORA E.P. para comenzar su etapa productiva.",
-            message: welcomeMessage
+            title: buildWelcomeSubject(),
+            message: buildWelcomeMessage(),
         });
+        console.log('[UserService] Correo de bienvenida procesado.');
 
         return apprentice;
     }
@@ -556,30 +542,12 @@ class UserService {
             details: { importedCount: results.imported, errorCount: results.errors.length },
         });
 
-        // RF-001: Enviar correos de bienvenida a los importados en background
         if (newApprentices.length > 0) {
-            const welcomeMessage = `
-                Por medio del presente correo me complace informarle que usted ya puede iniciar su etapa productiva. Para comenzar este proceso de la mejor manera posible, debe seguir los siguientes pasos:<br><br>
-                <strong>Ingreso a la plataforma:</strong> Ingrese a la página de REPFORA E.P. a través del siguiente enlace: <a href="${process.env.FRONTEND_URL || 'http://localhost:5174'}">Acceso al sistema</a>.<br><br>
-                <strong>Credenciales de acceso:</strong><br>
-                * Usuario: Su número de documento de identidad.<br>
-                * Contraseña: Su número de documento de identidad.<br>
-                <em>(Nota: Tenga en cuenta que es obligatorio realizar el cambio de contraseña en su primer acceso por seguridad).</em><br><br>
-                <strong>Registro del proceso:</strong> Una vez dentro del Dashboard principal, encontrará y deberá seleccionar la opción “Registrar Etapa Productiva”.<br><br>
-                <strong>Documentación:</strong> Allí deberá elegir la modalidad que va a realizar y adjuntar los documentos correspondientes en formato PDF.<br><br>
-                <strong>Validación:</strong> Después de enviar el registro, en un plazo de algunos días recibirá una notificación indicando si su solicitud fue Aceptada o Rechazada.<br><br>
-                Si es Aceptado: Se formalizará el inicio de su etapa productiva y se le asignará un instructor de seguimiento según la modalidad elegida.<br>
-                Si es Rechazado: Deberá revisar las observaciones detalladas por el administrador y realizar las correcciones respectivas lo antes posible para volver a enviar la solicitud.<br><br>
-                Tenga en cuenta que si no realiza correctamente este registro, su etapa productiva no podrá ser validada dentro del sistema.<br><br>
-                Atentamente,<br>
-                <strong>Administrador REPFORA E.P.</strong>
-            `;
-
             notificationService.send({
                 type: "SYSTEM_WELCOME",
                 recipients: newApprentices.map(a => a._id.toString()),
-                title: "Está registrado en REPFORA E.P. para comenzar su etapa productiva.",
-                message: welcomeMessage
+                title: buildWelcomeSubject(),
+                message: buildWelcomeMessage(),
             }).catch(err => console.error("Error enviando correos de importación:", err));
         }
 

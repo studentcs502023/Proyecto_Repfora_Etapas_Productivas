@@ -70,9 +70,12 @@ class UserController {
 
     async createApprentice(req, res) {
         try {
+            console.log('[UserController] createApprentice llamado. Body:', JSON.stringify(req.body, null, 2));
+            console.log('[UserController] Usuario que ejecuta:', req.user?.nationalId, req.user?.role);
             const apprentice = await userService.createApprentice(req.body, req.user.id);
             return successResponse(res, 201, "Aprendiz creado exitosamente", { apprentice });
         } catch (error) {
+            console.error('[UserController] Error en createApprentice:', error.message);
             return errorResponse(res, error.statusCode || 500, error.message);
         }
     }

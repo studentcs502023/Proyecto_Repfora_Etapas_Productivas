@@ -16,7 +16,7 @@ router.post("/",
     checkRole("APPRENTICE"),
     [
         body("modality").isIn(EP_MODALITIES).withMessage("Modalidad inválida"),
-        body("companyId").isMongoId().withMessage("ID de empresa inválido"),
+        body("companyId").optional().isMongoId().withMessage("ID de empresa inválido"),
         body("companySnapshot.apprenticeJobTitle").notEmpty().withMessage("El cargo es obligatorio"),
         body("companySnapshot.supervisorName").notEmpty().withMessage("El nombre del jefe inmediato es obligatorio"),
         body("startDate").isISO8601().withMessage("Fecha de inicio inválida"),

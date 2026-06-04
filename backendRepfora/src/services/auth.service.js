@@ -118,7 +118,7 @@ const forgotPassword = async (email) => {
     await user.save();
 
     // Enviar correo de recuperación (RF-002 Escenario 3)
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5174';
+    const frontendUrl = env.FRONTEND_URL;
     const resetLink = `${frontendUrl}/reset-password?token=${resetToken}`;
 
     try {
@@ -223,6 +223,26 @@ const changePassword = async (userId, currentPassword, newPassword, ip = null) =
         performedBy: user._id,
         ip
     });
+
+    try {
+        await emailService.send({
+            to: user.email,
+            subject: 'Contraseña actualizada - REPFORA E.P.',
+            body: `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #eee; padding: 20px; border-radius: 8px;">
+                    <h2 style="color: #39a900; text-align: center;">REPFORA E.P. — SENA</h2>
+                    <p>Estimado/a <strong>${user.fullName}</strong>,</p>
+                    <p>Tu contraseña de acceso a la plataforma <strong>REPFORA E.P.</strong> ha sido actualizada exitosamente.</p>
+                    <p>Si no realizaste este cambio, contacta de inmediato al administrador del sistema.</p>
+                    <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; text-align: center;">
+                        <p style="font-size: 12px; color: #666;">Este es un mensaje automático. Por favor no respondas a este correo.</p>
+                    </div>
+                </div>
+            `
+        });
+    } catch (emailErr) {
+        console.error('[AuthService] Error enviando correo de confirmación de cambio de contraseña:', emailErr.message);
+    }
 
     return { success: true };
 };

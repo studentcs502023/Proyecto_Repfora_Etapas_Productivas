@@ -96,6 +96,10 @@ router.post("/apprentices",
         body("isPreNov2024").isBoolean(),
         validateFields
     ],
+    (req, res, next) => {
+        console.log('[UsersRoute] POST /apprentices -> pasó middlewares, ejecutando controlador...');
+        next();
+    },
     userController.createApprentice
 );
 
