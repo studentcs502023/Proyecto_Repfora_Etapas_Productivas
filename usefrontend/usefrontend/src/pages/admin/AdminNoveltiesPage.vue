@@ -5,9 +5,6 @@
         <h2 class="text-h4 text-black text-weight-bold q-my-none">Gestión de Novedades</h2>
         <p class="text-grey-7 q-my-sm">Atiende y resuelve los incidentes reportados por los instructores.</p>
       </div>
-      <div class="col-auto">
-        <q-btn color="primary" icon="refresh" label="Actualizar" @click="fetchNovelties" :loading="loading" />
-      </div>
     </div>
 
     <!-- Filters -->
@@ -88,7 +85,9 @@
         <q-card-section class="bg-primary text-white row items-center q-pb-none">
           <div class="text-h6">Gestión de Novedad - {{ selectedNovelty.apprentice?.fullName }}</div>
           <q-space />
-          <q-btn icon="close" flat round dense v-close-popup />
+          <q-btn icon="close" flat round dense v-close-popup>
+          <q-tooltip>Cerrar</q-tooltip>
+        </q-btn>
         </q-card-section>
 
         <q-card-section class="col q-pa-lg scroll">
@@ -124,7 +123,9 @@
                     <q-item-section avatar><q-icon name="description" color="grey" /></q-item-section>
                     <q-item-section>{{ file.fileName }}</q-item-section>
                     <q-item-section side>
-                      <q-btn type="a" :href="file.driveFileUrl" target="_blank" flat round dense icon="open_in_new" color="primary" />
+                      <q-btn type="a" :href="file.driveFileUrl" target="_blank" flat round dense icon="open_in_new" color="primary">
+                        <q-tooltip>Abrir documento</q-tooltip>
+                      </q-btn>
                     </q-item-section>
                   </q-item>
                 </q-list>
@@ -248,7 +249,7 @@ async function fetchNovelties() {
     if (res.data.total) pagination.value.rowsNumber = res.data.total;
   } catch (error) {
     console.error(error);
-    $q.notify({ type: 'negative', message: 'Error al cargar novedades.' });
+    $q.notify({ type: 'negative', message: error.message || 'Error al cargar novedades.', position: 'top', timeout: 5000 });
   } finally {
     loading.value = false;
   }
@@ -321,16 +322,16 @@ async function updateStatus() {
   try {
     await noveltyService.updateStatus(selectedNovelty.value._id, {
       status: actionForm.value.status,
-      actionsTaken: actionForm.value.actionsTaken
+      actionsTaken: actionForm.value.actionsTaken.trim()
     });
     
-    $q.notify({ type: 'positive', message: 'Estado de la novedad actualizado. PDF regenerado.' });
+    $q.notify({ type: 'positive', message: 'Estado de la novedad actualizado. PDF regenerado.', position: 'top', timeout: 5000 });
     showManageModal.value = false;
     fetchNovelties();
   } catch (error) {
     console.error(error);
     const msg = error.response?.data?.message || 'Error al actualizar novedad.';
-    $q.notify({ type: 'negative', message: msg });
+    $q.notify({ type: 'negative', message: msg, position: 'top', timeout: 5000 });
   } finally {
     saving.value = false;
   }

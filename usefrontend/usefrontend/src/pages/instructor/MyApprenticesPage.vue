@@ -5,9 +5,6 @@
         <h2 class="text-h4 text-black text-weight-bold q-my-none">Mis Aprendices Asignados</h2>
         <p class="text-grey-7 q-my-sm">Vista general de las etapas productivas bajo tu supervisión.</p>
       </div>
-      <div class="col-auto">
-        <q-btn color="primary" icon="refresh" label="Actualizar" @click="fetchApprentices" :loading="loading" />
-      </div>
     </div>
 
     <!-- Filtros -->
@@ -84,9 +81,11 @@
         <q-card-section class="bg-primary text-white row items-center q-pb-none">
           <div class="text-h6">Progreso - {{ selectedEp.apprentice?.fullName }}</div>
           <q-space />
-          <q-btn icon="close" flat round dense v-close-popup />
+<q-btn icon="close" flat round dense v-close-popup>
+          <q-tooltip>Cerrar</q-tooltip>
+        </q-btn>
         </q-card-section>
-        
+
         <q-card-section class="col scroll q-pa-lg">
           <div class="row q-col-gutter-lg">
             
@@ -180,7 +179,7 @@ async function fetchApprentices() {
     eps.value = body.data?.eps || body.data || [];
   } catch (error) {
     console.error(error);
-    $q.notify({ type: 'negative', message: error.message || 'Error al cargar aprendices.' });
+    $q.notify({ type: 'negative', message: error.message || 'Error al cargar aprendices.', position: 'top', timeout: 5000 });
   } finally {
     loading.value = false;
   }

@@ -5,9 +5,6 @@
         <h2 class="text-h4 text-black text-weight-bold q-my-none">Panel de Reportes</h2>
         <p class="text-grey-7 q-my-sm">Visión general del estado de las etapas productivas e instructores.</p>
       </div>
-      <div class="col-auto">
-        <q-btn color="primary" icon="refresh" label="Actualizar" @click="loadAllReports" :loading="loading" />
-      </div>
     </div>
 
     <!-- Loading State -->

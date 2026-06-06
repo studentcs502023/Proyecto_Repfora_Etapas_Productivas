@@ -125,10 +125,10 @@
 
             <div class="row q-col-gutter-sm">
               <div class="col-6">
-                <q-input v-model="form.periodStart" label="Fecha Inicio Periodo" type="date" outlined dense :rules="[val => !!val || 'Requerido']" />
+                <q-input v-model="form.periodStart" label="Fecha Inicio Periodo" type="date" outlined dense :rules="[val => !!val || 'Requerido', val => !form.periodEnd || new Date(val) <= new Date(form.periodEnd) || 'Debe ser anterior a la fecha fin']" />
               </div>
               <div class="col-6">
-                <q-input v-model="form.periodEnd" label="Fecha Fin Periodo" type="date" outlined dense :rules="[val => !!val || 'Requerido']" />
+                <q-input v-model="form.periodEnd" label="Fecha Fin Periodo" type="date" outlined dense :rules="[val => !!val || 'Requerido', val => !form.periodStart || new Date(val) >= new Date(form.periodStart) || 'Debe ser posterior a la fecha inicio']" />
               </div>
             </div>
 
@@ -137,7 +137,7 @@
               label="Archivo de Bitácora (PDF)" 
               outlined dense 
               accept=".pdf"
-              :rules="[val => !!val || 'El archivo es requerido']"
+              :rules="[val => !!val || 'El archivo es requerido', val => !val || val.size <= 10 * 1024 * 1024 || 'Máximo 10MB']"
             >
               <template v-slot:prepend><q-icon name="picture_as_pdf" /></template>
             </q-file>
@@ -170,7 +170,7 @@
               label="Nuevo Archivo (PDF)" 
               outlined dense 
               accept=".pdf"
-              :rules="[val => !!val || 'El archivo es requerido']"
+              :rules="[val => !!val || 'El archivo es requerido', val => !val || val.size <= 10 * 1024 * 1024 || 'Máximo 10MB']"
             >
               <template v-slot:prepend><q-icon name="picture_as_pdf" /></template>
             </q-file>
@@ -190,9 +190,11 @@
         <q-card-section class="bg-grey-2 text-primary row items-center q-pb-sm">
           <div class="text-h6">Detalle de Bitácora #{{ selectedBitacora?.logbookNumber }}</div>
           <q-space />
-          <q-btn icon="close" flat round dense v-close-popup />
+<q-btn icon="close" flat round dense v-close-popup>
+          <q-tooltip>Cerrar</q-tooltip>
+        </q-btn>
         </q-card-section>
-        
+
         <q-card-section class="q-pa-md scroll" style="max-height: 60vh;">
           <div class="row q-mb-md">
             <div class="col-6"><strong>Estado:</strong> {{ getStatusLabel(selectedBitacora?.status) }}</div>
@@ -310,7 +312,7 @@ async function loadData() {
     }
   } catch (error) {
     console.error(error);
-    $q.notify({ type: 'negative', message: 'Error al cargar información.' });
+    $q.notify({ position: 'top', timeout: 5000, type: 'negative', message: error.message || 'Error al cargar información.' });
   } finally {
     loading.value = false;
   }
@@ -377,7 +379,7 @@ async function submitBitacora() {
     // Validamos que no sea vacío ni un '[object Object]' (que rompería la petición Axios)
     if (!productiveStageId || String(productiveStageId) === '[object Object]') {
       console.error("❌ No se encontró un ID válido. Estructura actual de ep.value:", ep.value);
-      $q.notify({ type: 'warning', message: 'Error interno: No se pudo identificar el ID de tu etapa productiva.' });
+      $q.notify({ position: 'top', timeout: 5000, type: 'warning', message: 'Error interno: No se pudo identificar el ID de tu etapa productiva.' });
       submitting.value = false;
       return; // Abortamos la petición
     }
@@ -392,7 +394,7 @@ async function submitBitacora() {
     formData.append('file', form.value.file);
 
     await bitacoraService.submit(formData);
-    $q.notify({ type: 'positive', message: 'Bitácora subida exitosamente.' });
+    $q.notify({ position: 'top', timeout: 5000, type: 'positive', message: 'Bitácora subida exitosamente.' });
     
     showUploadModal.value = false;
     form.value = { periodStart: '', periodEnd: '', file: null };
@@ -400,7 +402,7 @@ async function submitBitacora() {
   } catch (error) {
     console.error(error);
     const msg = error.message || error.response?.data?.message || 'Error al subir la bitácora.';
-    $q.notify({ type: 'negative', message: msg });
+    $q.notify({ position: 'top', timeout: 5000, type: 'negative', message: msg });
   } finally {
     submitting.value = false;
   }
@@ -414,7 +416,7 @@ async function resubmitBitacora() {
     formData.append('file', resubmitFile.value);
 
     await bitacoraService.resubmit(selectedBitacora.value._id, formData);
-    $q.notify({ type: 'positive', message: 'Corrección enviada exitosamente.' });
+    $q.notify({ position: 'top', timeout: 5000, type: 'positive', message: 'Corrección enviada exitosamente.' });
     
     showResubmitModal.value = false;
     resubmitFile.value = null;
@@ -422,7 +424,7 @@ async function resubmitBitacora() {
   } catch (error) {
     console.error(error);
     const msg = error.response?.data?.message || 'Error al enviar la corrección.';
-    $q.notify({ type: 'negative', message: msg });
+    $q.notify({ position: 'top', timeout: 5000, type: 'negative', message: msg });
   } finally {
     submitting.value = false;
   }

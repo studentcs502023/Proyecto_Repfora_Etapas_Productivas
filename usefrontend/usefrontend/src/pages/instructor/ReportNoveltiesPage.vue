@@ -84,9 +84,11 @@
           <q-card-section class="bg-negative text-white row items-center q-pb-none">
             <div class="text-h6"><q-icon name="warning" class="q-mr-sm" /> Formulario de Novedad Crítica</div>
             <q-space />
-            <q-btn icon="close" flat round dense v-close-popup />
+<q-btn icon="close" flat round dense v-close-popup>
+            <q-tooltip>Cerrar</q-tooltip>
+          </q-btn>
           </q-card-section>
-          
+
           <q-card-section class="col scroll q-pa-xl bg-grey-1">
             <div class="row justify-center">
               <div class="col-12" style="max-width: 800px;">
@@ -164,9 +166,11 @@
         <q-card-section class="bg-secondary text-white row items-center">
           <div class="text-h6">Detalle de Novedad</div>
           <q-space />
-          <q-btn icon="close" flat round dense v-close-popup />
+<q-btn icon="close" flat round dense v-close-popup>
+          <q-tooltip>Cerrar</q-tooltip>
+        </q-btn>
         </q-card-section>
-        
+
         <q-card-section class="q-pa-md scroll" style="max-height: 70vh;">
           <div class="row q-col-gutter-sm">
             <div class="col-6"><strong>Aprendiz:</strong> {{ selectedNovelty?.apprentice?.fullName }}</div>
@@ -202,7 +206,9 @@
                 <q-item-section avatar><q-icon name="description" color="grey" /></q-item-section>
                 <q-item-section>{{ file.fileName }}</q-item-section>
                 <q-item-section side>
-                  <q-btn type="a" :href="file.driveFileUrl" target="_blank" flat round dense icon="open_in_new" color="primary" />
+                  <q-btn type="a" :href="file.driveFileUrl" target="_blank" flat round dense icon="open_in_new" color="primary">
+                  <q-tooltip>Abrir documento</q-tooltip>
+                </q-btn>
                 </q-item-section>
               </q-item>
             </q-list>
@@ -306,7 +312,7 @@ async function fetchNovelties() {
     if (body.data?.total) pagination.value.rowsNumber = body.data.total;
   } catch (error) {
     console.error(error);
-    $q.notify({ type: 'negative', message: error.message || 'Error al cargar novedades.' });
+    $q.notify({ type: 'negative', message: error.message || 'Error al cargar novedades.', position: 'top', timeout: 5000 });
   } finally {
     loading.value = false;
   }
@@ -327,6 +333,7 @@ async function fetchMyEPs() {
     myEPs.value = all.filter(ep => ep.status !== 'COMPLETED' && ep.status !== 'ARCHIVED');
   } catch (error) {
     console.error('Error fetching EPs', error);
+    $q.notify({ type: 'negative', message: error.message || 'Error al cargar etapas productivas.', position: 'top', timeout: 5000 });
   }
 }
 
@@ -383,7 +390,7 @@ async function createNovelty() {
     fd.append('productiveStageId', form.value.productiveStageId);
     fd.append('type', form.value.type);
     fd.append('occurrenceDate', form.value.occurrenceDate);
-    fd.append('description', form.value.description);
+    fd.append('description', form.value.description.trim());
     
     if (form.value.files && form.value.files.length > 0) {
       Array.from(form.value.files).forEach(f => {
@@ -393,13 +400,13 @@ async function createNovelty() {
 
     await noveltyService.create(fd);
     
-    $q.notify({ type: 'positive', message: 'Novedad reportada. Coordinación notificada.' });
+    $q.notify({ type: 'positive', message: 'Novedad reportada. Coordinación notificada.', position: 'top', timeout: 5000 });
     showCreateModal.value = false;
     fetchNovelties();
   } catch (error) {
     console.error(error);
     // El interceptor transforma el error: { message, status, errors }
-    $q.notify({ type: 'negative', message: error.message || 'Error al reportar novedad.' });
+    $q.notify({ type: 'negative', message: error.message || 'Error al reportar novedad.', position: 'top', timeout: 5000 });
   } finally {
     saving.value = false;
   }
@@ -427,13 +434,13 @@ async function uploadAttachments() {
 
     await noveltyService.addAttachments(selectedNovelty.value._id, fd);
     
-    $q.notify({ type: 'positive', message: 'Anexos subidos. PDF actualizado.' });
+    $q.notify({ type: 'positive', message: 'Anexos subidos. PDF actualizado.', position: 'top', timeout: 5000 });
     showAttachModal.value = false;
     fetchNovelties();
   } catch (error) {
     console.error(error);
     // El interceptor transforma el error: { message, status, errors }
-    $q.notify({ type: 'negative', message: error.message || 'Error al subir anexos.' });
+    $q.notify({ type: 'negative', message: error.message || 'Error al subir anexos.', position: 'top', timeout: 5000 });
   } finally {
     saving.value = false;
   }

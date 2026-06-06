@@ -73,13 +73,11 @@
         <template v-slot:body-cell-actions="props">
           <q-td :props="props" class="q-gutter-xs">
             <q-btn size="sm" flat round color="secondary" icon="edit" @click="editUser(props.row)">
-              <q-tooltip>Editar</q-tooltip>
+              <q-tooltip>Editar usuario</q-tooltip>
             </q-btn>
-            <q-btn v-if="activeTab === 'INSTRUCTORS'" size="sm" flat round :color="props.row.isActive ? 'negative' : 'positive'" :icon="props.row.isActive ? 'block' : 'check_circle'" @click="toggleStatus(props.row)">
-              <q-tooltip>{{ props.row.isActive ? 'Desactivar' : 'Activar' }}</q-tooltip>
-            </q-btn>
+
             <q-btn v-if="activeTab === 'APPRENTICES'" size="sm" flat round color="accent" icon="assignment_ind" @click="openAssignModal(props.row)">
-              <q-tooltip>Asignar Rápido (Pruebas)</q-tooltip>
+              <q-tooltip>Asignar instructor</q-tooltip>
             </q-btn>
           </q-td>
         </template>
@@ -99,16 +97,16 @@
             <div class="text-subtitle2 text-grey-7 q-mb-xs">Datos Personales</div>
             <div class="row q-col-gutter-sm">
               <div class="col-12 col-md-6">
-                <q-input v-model="userForm.nationalId" label="Cédula / Documento" outlined dense :rules="[val => !!val || 'Requerido']" />
+                <q-input v-model="userForm.nationalId" label="Cédula / Documento" outlined dense :disable="isEditing" :rules="[val => !!val || 'Requerido', val => /^\d{5,15}$/.test(val) || 'Debe tener solo dígitos (5-15)']" />
               </div>
               <div class="col-12 col-md-6">
-                <q-input v-model="userForm.fullName" label="Nombre Completo" outlined dense :rules="[val => !!val || 'Requerido']" />
+                <q-input v-model="userForm.fullName" label="Nombre Completo" outlined dense :rules="[val => !!val || 'Requerido', val => !val || !/\d/.test(val) || 'No se permiten números']" />
               </div>
               <div class="col-12 col-md-6">
-                <q-input v-model="userForm.email" label="Correo Electrónico" type="email" outlined dense :rules="[val => !!val || 'Requerido']" />
+                <q-input v-model="userForm.email" label="Correo Electrónico" type="email" outlined dense :rules="[val => !!val || 'Requerido', val => !val || /.+@.+\..+/.test(val) || 'El correo debe contener @ y un dominio válido']" />
               </div>
               <div class="col-12 col-md-6">
-                <q-input v-model="userForm.phone" label="Teléfono" outlined dense />
+                <q-input v-model="userForm.phone" label="Teléfono" outlined dense :rules="[val => !val || /^\d{7,15}$/.test(val) || 'Debe tener solo dígitos (7-15)']" />
               </div>
             </div>
             
@@ -131,7 +129,18 @@
                   />
                 </div>
                 <div class="col-12 col-md-6">
-                  <q-input v-model="userForm.knowledgeArea" label="Área de Conocimiento" outlined dense :rules="[val => !!val || 'Requerido']" />
+                  <q-select
+                    v-model="userForm.knowledgeArea"
+                    :options="knowledgeAreasFiltered"
+                    label="Área de Conocimiento"
+                    outlined dense
+                    emit-value
+                    map-options
+                    use-input
+                    input-debounce="0"
+                    @filter="filterKnowledgeAreas"
+                    :rules="[val => !!val || 'Requerido']"
+                  />
                 </div>
               </div>
             </template>
@@ -142,10 +151,21 @@
               <div class="text-subtitle2 text-grey-7 q-mb-xs">Datos Académicos</div>
               <div class="row q-col-gutter-sm">
                 <div class="col-12 col-md-4">
-                  <q-input v-model="userForm.enrollmentNumber" label="No. Ficha" outlined dense :rules="[val => !!val || 'Requerido']" />
+                  <q-input v-model="userForm.enrollmentNumber" label="No. Ficha" outlined dense :rules="[val => !!val || 'Requerido', val => /^\d+$/.test(val) || 'Solo números']" />
                 </div>
                 <div class="col-12 col-md-4">
-                  <q-input v-model="userForm.program" label="Programa de Formación" outlined dense :rules="[val => !!val || 'Requerido']" />
+                  <q-select
+                    v-model="userForm.program"
+                    :options="programsFiltered"
+                    label="Programa de Formación"
+                    outlined dense
+                    emit-value
+                    map-options
+                    use-input
+                    input-debounce="0"
+                    @filter="filterPrograms"
+                    :rules="[val => !!val || 'Requerido']"
+                  />
                 </div>
                 <div class="col-12 col-md-4">
                   <q-select 
@@ -161,7 +181,18 @@
                   />
                 </div>
                 <div class="col-12 col-md-6">
-                  <q-input v-model="userForm.trainingCenter" label="Centro de Formación" outlined dense :rules="[val => !!val || 'Requerido']" />
+                  <q-select
+                    v-model="userForm.trainingCenter"
+                    :options="centersFiltered"
+                    label="Centro de Formación"
+                    outlined dense
+                    emit-value
+                    map-options
+                    use-input
+                    input-debounce="0"
+                    @filter="filterCenters"
+                    :rules="[val => !!val || 'Requerido']"
+                  />
                 </div>
                 <div class="col-12 col-md-6">
                   <q-input v-model="userForm.enrollmentExpiryDate" type="date" label="Fin de Etapa Lectiva" outlined dense stack-label :rules="[val => !!val || 'Requerido']" />
@@ -241,6 +272,101 @@ import productiveStageService from '../../api/productiveStage.service';
 import { useQuasar } from 'quasar';
 
 const $q = useQuasar();
+
+const knowledgeAreas = [
+  'Administrativa', 'Agrícola', 'Agroindustrial', 'Artesanías',
+  'Biotecnología', 'Ciencias Naturales', 'Comercio', 'Construcción',
+  'Contable y Financiera', 'Diseño', 'Electricidad y Electrónica',
+  'Gestión Administrativa', 'Gestión de Redes y Seguridad',
+  'Gestión Documental', 'Hostelería y Turismo', 'Idiomas',
+  'Informática y Sistemas', 'Logística', 'Manufactura', 'Mecánica',
+  'Medio Ambiente', 'Mercadeo y Ventas', 'Minería', 'Pecuaria',
+  'Pesca', 'Química', 'Salud', 'Seguridad Ocupacional',
+  'Telecomunicaciones', 'Textil y Confección', 'Transporte', 'Turismo'
+];
+const knowledgeAreasFiltered = ref([...knowledgeAreas]);
+function filterKnowledgeAreas(val, update) {
+  if (val === '') {
+    update(() => { knowledgeAreasFiltered.value = [...knowledgeAreas]; });
+    return;
+  }
+  update(() => {
+    const needle = val.toLowerCase();
+    knowledgeAreasFiltered.value = knowledgeAreas.filter(v => v.toLowerCase().includes(needle));
+  });
+}
+
+const programs = [
+  'Técnico en Sistemas', 'Técnico en Programación de Software',
+  'Técnico en Asistencia Administrativa', 'Técnico en Contabilización de Operaciones Comerciales y Financieras',
+  'Técnico en Electricidad Industrial', 'Técnico en Electrónica Industrial',
+  'Técnico en Mecánica Automotriz', 'Técnico en Soldadura',
+  'Técnico en Cocina', 'Técnico en Panificación',
+  'Técnico en Mesa y Bar', 'Técnico en Atención Integral a la Primera Infancia',
+  'Técnico en Enfermería', 'Técnico en Seguridad Ocupacional',
+  'Técnico en Logística Empresarial', 'Técnico en Mercadeo',
+  'Técnico en Ventas de Productos y Servicios', 'Técnico en Confección Industrial',
+  'Técnico en Gestión Empresarial', 'Técnico en Recursos Humanos',
+  'Técnico en Contabilidad', 'Técnico en Producción Agropecuaria',
+  'Técnico en Instalaciones Eléctricas Residenciales', 'Técnico en Construcciones Livianas',
+  'Técnico en Mantenimiento de Equipos de Cómputo', 'Técnico en Gestión Documental',
+  'Técnico en Producción de Multimedia', 'Técnico en Manejo Ambiental',
+  'Tecnólogo en Análisis y Desarrollo de Software', 'Tecnólogo en Gestión Administrativa',
+  'Tecnólogo en Contabilidad y Finanzas', 'Tecnólogo en Gestión del Talento Humano',
+  'Tecnólogo en Logística del Transporte', 'Tecnólogo en Mercadeo',
+  'Tecnólogo en Producción de Multimedia', 'Tecnólogo en Gestión Documental',
+  'Tecnólogo en Gestión de Redes de Datos', 'Tecnólogo en Gestión de Procesos Administrativos de Salud',
+  'Tecnólogo en Mantenimiento Electrónico e Instrumental Industrial',
+  'Tecnólogo en Electricidad Industrial', 'Tecnólogo en Automatización Industrial',
+  'Tecnólogo en Diseño de Modas', 'Tecnólogo en Gestión de Empresas Agropecuarias',
+  'Tecnólogo en Calidad de los Alimentos', 'Tecnólogo en Gestión de la Producción Industrial',
+  'Tecnólogo en Gestión del Transporte', 'Tecnólogo en Negociación Internacional'
+];
+const programsFiltered = ref([...programs]);
+function filterPrograms(val, update) {
+  if (val === '') {
+    update(() => { programsFiltered.value = [...programs]; });
+    return;
+  }
+  update(() => {
+    const needle = val.toLowerCase();
+    programsFiltered.value = programs.filter(v => v.toLowerCase().includes(needle));
+  });
+}
+
+const trainingCenters = [
+  'Centro de Biotecnología Industrial', 'Centro de Diseño y Metrología',
+  'Centro de Electricidad, Electrónica y Telecomunicaciones',
+  'Centro de Gestión Administrativa', 'Centro de Gestión Industrial',
+  'Centro de Gestión de Mercados, Logística y TI',
+  'Centro de Gestión Tecnológica de Servicios', 'Centro de Materiales y Ensayos',
+  'Centro de Manufactura en Textil y Cuero', 'Centro de Metalmecánico',
+  'Centro de Procesos Industriales y Construcción', 'Centro de Servicios Financieros',
+  'Centro de Tecnología de la Manufactura Avanzada', 'Centro de Tecnologías del Transporte',
+  'Centro de Teleinformática y Producción Industrial',
+  'Centro Nacional de Asistencia Técnica a la Industria (ASTIN)',
+  'Centro Nacional de la Construcción', 'Centro Nacional de la Madera',
+  'Centro Nacional de las Artes Gráficas', 'Centro Nacional de Mecanización Agrícola',
+  'Centro Nacional de Metrología', 'Centro Nacional de Servicios Diagnósticos Automotrices',
+  'Centro Nacional de Hotelería, Turismo y Alimentos',
+  'Centro para la Formación Cafetera', 'Centro para la Formación en Diseño y Marketing',
+  'Complejo Tecnológico de la Costa Atlántica', 'Complejo Tecnológico de la Vivienda',
+  'Complejo Tecnológico Minero-Ambiental', 'Centro de la Construcción y la Madera',
+  'Centro de Comercio y Servicios', 'Centro de Industria y Construcción',
+  'Centro Agropecuario', 'Centro de Recursos Naturales',
+  'Centro de Diseño e Innovación Tecnológica'
+];
+const centersFiltered = ref([...trainingCenters]);
+function filterCenters(val, update) {
+  if (val === '') {
+    update(() => { centersFiltered.value = [...trainingCenters]; });
+    return;
+  }
+  update(() => {
+    const needle = val.toLowerCase();
+    centersFiltered.value = trainingCenters.filter(v => v.toLowerCase().includes(needle));
+  });
+}
 
 // State
 const activeTab = ref('INSTRUCTORS');
@@ -347,7 +473,7 @@ async function fetchUsers() {
     }
   } catch (error) {
     console.error(error);
-    $q.notify({ type: 'negative', message: 'Error al cargar usuarios' });
+    $q.notify({ type: 'negative', message: error.message || 'Error al cargar usuarios', position: 'top', timeout: 5000 });
   } finally {
     loading.value = false;
   }
@@ -400,7 +526,11 @@ function openCreateModal(role) {
 
 function editUser(user) {
   resetForm();
-  userForm.value = { ...user };
+  const data = { ...user };
+  if (data.enrollmentExpiryDate) {
+    data.enrollmentExpiryDate = data.enrollmentExpiryDate.split('T')[0];
+  }
+  userForm.value = data;
   isEditing.value = true;
   showUserModal.value = true;
 }
@@ -408,30 +538,55 @@ function editUser(user) {
 async function saveUser() {
   saving.value = true;
   try {
-    const payload = { ...userForm.value };
-    delete payload._id;
+    const payload = {
+      nationalId: userForm.value.nationalId.trim(),
+      fullName: userForm.value.fullName.trim(),
+      email: userForm.value.email.trim(),
+      phone: userForm.value.phone.trim(),
+      instructorType: userForm.value.instructorType,
+      knowledgeArea: userForm.value.knowledgeArea.trim(),
+      enrollmentNumber: userForm.value.enrollmentNumber,
+      program: userForm.value.program.trim(),
+      trainingLevel: userForm.value.trainingLevel,
+      trainingCenter: userForm.value.trainingCenter.trim(),
+      enrollmentExpiryDate: userForm.value.enrollmentExpiryDate,
+      isPreNov2024: userForm.value.isPreNov2024
+    };
 
     if (activeTab.value === 'INSTRUCTORS') {
       if (isEditing.value) {
         await userService.updateInstructor(userForm.value._id, payload);
+        const idx = users.value.findIndex(u => u._id === userForm.value._id);
+        if (idx !== -1) {
+          const res = await userService.getInstructorById(userForm.value._id);
+          users.value[idx] = res.data.data?.instructor || res.data;
+        }
       } else {
-        await userService.createInstructor(payload);
+        const res = await userService.createInstructor(payload);
+        const created = res.data.data?.instructor || res.data;
+        users.value.unshift(created);
       }
     } else {
       if (isEditing.value) {
         await userService.updateApprentice(userForm.value._id, payload);
+        const idx = users.value.findIndex(u => u._id === userForm.value._id);
+        if (idx !== -1) {
+          const res = await userService.getApprenticeById(userForm.value._id);
+          users.value[idx] = res.data.data?.apprentice || res.data;
+        }
       } else {
-        await userService.createApprentice(payload);
+        const res = await userService.createApprentice(payload);
+        const created = res.data.data?.apprentice || res.data;
+        users.value.unshift(created);
       }
     }
 
-    $q.notify({ type: 'positive', message: `Usuario ${isEditing.value ? 'actualizado' : 'creado'} con éxito` });
+    $q.notify({ type: 'positive', message: `Usuario ${isEditing.value ? 'actualizado' : 'creado'} con éxito`, position: 'top', timeout: 5000 });
     showUserModal.value = false;
-    fetchUsers();
   } catch (error) {
     console.error(error);
     const msg = error.message || error.response?.data?.message || 'Error al guardar usuario';
-    $q.notify({ type: 'negative', message: msg });
+    $q.notify({ type: 'negative', message: msg, position: 'top', timeout: 5000 });
   } finally {
     saving.value = false;
   }
@@ -445,37 +600,17 @@ async function importUsers() {
     formData.append('file', importFile.value);
     
     const res = await userService.importApprentices(formData);
-    $q.notify({ type: 'positive', message: `Importación exitosa. ${res.data?.count || ''} registros procesados.` });
+    $q.notify({ type: 'positive', message: `Importación exitosa. ${res.data?.count || ''} registros procesados.`, position: 'top', timeout: 5000 });
     showImportModal.value = false;
     importFile.value = null;
     if (activeTab.value === 'APPRENTICES') fetchUsers();
   } catch (error) {
     console.error(error);
     const msg = error.response?.data?.message || 'Error al importar usuarios';
-    $q.notify({ type: 'negative', message: msg });
+    $q.notify({ type: 'negative', message: msg, position: 'top', timeout: 5000 });
   } finally {
     importing.value = false;
   }
-}
-
-async function toggleStatus(user) {
-  const newStatus = user.isActive ? 'INACTIVE' : 'ACTIVE';
-  $q.dialog({
-    title: 'Confirmar Acción',
-    message: `¿Desea ${user.isActive ? 'desactivar' : 'activar'} a este usuario?`,
-    cancel: true,
-    persistent: true
-  }).onOk(async () => {
-    try {
-      if (activeTab.value === 'INSTRUCTORS') {
-        await userService.changeInstructorStatus(user._id, newStatus, 'Estado cambiado desde el Panel de Administración');
-      }
-      fetchUsers();
-      $q.notify({ type: 'positive', message: 'Estado actualizado' });
-    } catch (error) {
-      $q.notify({ type: 'negative', message: 'Error al actualizar estado' });
-    }
-  });
 }
 
 // Quick Assign Logic
@@ -491,7 +626,7 @@ async function openAssignModal(user) {
       instructorsList.value = (Array.isArray(list) ? list : []).filter(i => i.isActive !== false);
     } catch (e) {
       console.error(e);
-      $q.notify({ type: 'negative', message: 'Error cargando instructores' });
+      $q.notify({ type: 'negative', message: e.message || 'Error cargando instructores', position: 'top', timeout: 5000 });
     }
   }
 }
@@ -500,12 +635,12 @@ async function submitQuickAssign() {
   assigning.value = true;
   try {
     await productiveStageService.quickAssign(selectedApprentice.value._id, selectedInstructor.value);
-    $q.notify({ type: 'positive', message: '¡Asignación rápida completada con éxito! (Etapa Activa)' });
+    $q.notify({ type: 'positive', message: '¡Asignación rápida completada con éxito! (Etapa Activa)', position: 'top', timeout: 5000 });
     showAssignModal.value = false;
   } catch (error) {
     console.error(error);
     const msg = error.response?.data?.message || 'Error en asignación rápida';
-    $q.notify({ type: 'negative', message: msg });
+    $q.notify({ type: 'negative', message: msg, position: 'top', timeout: 5000 });
   } finally {
     assigning.value = false;
   }

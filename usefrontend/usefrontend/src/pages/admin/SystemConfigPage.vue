@@ -5,9 +5,6 @@
         <h2 class="text-h4 text-black text-weight-bold q-my-none">Configuración del Sistema</h2>
         <p class="text-grey-7 q-my-sm">Parámetros globales, límites de horas y alertas.</p>
       </div>
-      <div class="col-auto">
-        <q-btn color="primary" icon="refresh" label="Recargar" @click="fetchConfigs" :loading="loading" />
-      </div>
     </div>
     
     <q-card flat bordered v-if="loading" class="q-pa-xl text-center">
@@ -89,7 +86,7 @@ async function fetchConfigs() {
     }));
   } catch (error) {
     console.error(error);
-    $q.notify({ type: 'negative', message: 'Error al cargar configuraciones' });
+    $q.notify({ type: 'negative', message: 'Error al cargar configuraciones', position: 'top', timeout: 5000 });
   } finally {
     loading.value = false;
   }
@@ -100,10 +97,10 @@ async function updateConfig(config) {
   try {
     await systemConfigService.update(config.key, config.editValue);
     config.value = config.editValue;
-    $q.notify({ type: 'positive', message: `Configuración ${config.key} actualizada` });
+    $q.notify({ type: 'positive', message: `Configuración ${config.key} actualizada`, position: 'top', timeout: 5000 });
   } catch (error) {
     console.error(error);
-    $q.notify({ type: 'negative', message: 'Error al actualizar configuración' });
+    $q.notify({ type: 'negative', message: 'Error al actualizar configuración', position: 'top', timeout: 5000 });
     // Revertir cambio
     config.editValue = config.value;
   } finally {

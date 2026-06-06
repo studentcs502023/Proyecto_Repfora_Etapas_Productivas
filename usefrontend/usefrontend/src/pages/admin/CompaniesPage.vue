@@ -70,18 +70,18 @@
           </q-card-section>
           
           <q-card-section class="q-pa-md q-gutter-md">
-            <q-input v-model="companyForm.name" label="Razón Social / Nombre" outlined dense :rules="[val => !!val || 'Requerido']" />
-            <q-input v-model="companyForm.taxId" label="NIT / Documento" outlined dense :rules="[val => !!val || 'Requerido']" />
-            <q-input v-model="companyForm.address" label="Dirección" outlined dense />
-            <q-input v-model="companyForm.email" label="Correo Electrónico" type="email" outlined dense :rules="[val => !!val || 'Requerido']" />
-            <q-input v-model="companyForm.phone" label="Teléfono" outlined dense :rules="[val => !!val || 'Requerido']" />
+            <q-input v-model="companyForm.name" label="Razón Social / Nombre" lazy-trim outlined dense hint="Nombre legal o razón social de la empresa" :rules="[val => !!val || 'Requerido', val => !val || !/\d/.test(val) || 'No se permiten números']" />
+            <q-input v-model="companyForm.taxId" label="NIT / Documento" lazy-trim outlined dense hint="NIT sin guiones ni dígito de verificación (solo números)" :rules="[val => !!val || 'Requerido', val => /^\d{5,15}$/.test(val) || 'Debe tener solo dígitos (5-15)']" />
+            <q-input v-model="companyForm.address" label="Dirección" lazy-trim outlined dense hint="Dirección física de la empresa" :rules="[val => !!val || 'Requerido']" />
+            <q-input v-model="companyForm.email" label="Correo Electrónico" type="email" lazy-trim outlined dense hint="Correo corporativo de la empresa" :rules="[val => !!val || 'Requerido', val => !val || /.+@.+\..+/.test(val) || 'El correo debe contener @ y un dominio válido']" />
+            <q-input v-model="companyForm.phone" label="Teléfono" lazy-trim outlined dense hint="Incluye indicativo si aplica" :rules="[val => !!val || 'Requerido', val => /^\d{7,15}$/.test(val) || 'Debe tener solo dígitos (7-15)']" />
             
             <q-separator class="q-my-md" />
             <div class="text-subtitle2 text-black q-mb-sm">Contacto Principal (Opcional)</div>
-            <q-input v-model="contactForm.fullName" label="Nombre del Supervisor" outlined dense />
-            <q-input v-model="contactForm.jobTitle" label="Cargo del Supervisor" outlined dense />
-            <q-input v-model="contactForm.email" label="Correo del Supervisor" type="email" outlined dense />
-            <q-input v-model="contactForm.phone" label="Teléfono del Supervisor" outlined dense />
+            <q-input v-model="contactForm.fullName" label="Nombre del Supervisor" lazy-trim outlined dense hint="Nombre completo del supervisor a cargo" :rules="[val => !!val || 'Requerido', val => !val || !/\d/.test(val) || 'No se permiten números']" />
+            <q-input v-model="contactForm.jobTitle" label="Cargo del Supervisor" lazy-trim outlined dense hint="Ej: Jefe de Talento Humano, Gerente de Operaciones" :rules="[val => !val || val.trim().length >= 3 || 'Mínimo 3 caracteres']" />
+            <q-input v-model="contactForm.email" label="Correo del Supervisor" type="email" lazy-trim outlined dense hint="Correo electrónico directo del supervisor" :rules="[val => !val || /.+@.+\..+/.test(val) || 'El correo debe contener @ y un dominio válido']" />
+            <q-input v-model="contactForm.phone" label="Teléfono del Supervisor" lazy-trim outlined dense hint="Incluye indicativo si aplica" :rules="[val => !val || /^\d{7,15}$/.test(val) || 'Debe ser un número válido (7-15 dígitos)']" />
           </q-card-section>
           
           <q-card-actions align="right" class="q-pa-md">
@@ -129,6 +129,7 @@ const companyForm = ref({
 
 // A simplified contact object for the main creation form
 const contactForm = ref({
+  _id: null,
   fullName: '',
   jobTitle: '',
   email: '',
@@ -165,7 +166,7 @@ async function fetchCompanies() {
       page: pagination.value.page,
       limit: pagination.value.rowsPerPage,
       search: filter.value || undefined,
-      isActive: showInactive.value ? undefined : true
+      isActive: showInactive.value ? false : true
     };
 
     const response = await companyService.getAll(params);
@@ -176,7 +177,7 @@ async function fetchCompanies() {
     }
   } catch (error) {
     console.error(error);
-    $q.notify({ type: 'negative', message: 'Error al cargar empresas' });
+    $q.notify({ type: 'negative', message: error.message || 'Error al cargar empresas', position: 'top', timeout: 5000 });
   } finally {
     loading.value = false;
   }
@@ -199,6 +200,7 @@ function resetForm() {
     email: ''
   };
   contactForm.value = {
+    _id: null,
     fullName: '',
     jobTitle: '',
     email: '',
@@ -226,6 +228,7 @@ function editCompany(company) {
   if (company.contacts && company.contacts.length > 0) {
     const c = company.contacts[0];
     contactForm.value = {
+      _id: c._id || null,
       fullName: c.fullName || c.name || '',
       jobTitle: c.jobTitle || '',
       email: c.email || '',
@@ -240,27 +243,50 @@ function editCompany(company) {
 async function saveCompany() {
   saving.value = true;
   try {
-    const payload = { ...companyForm.value };
-    delete payload._id;
-    
-    // Add contacts array if contact info is provided
+    const payload = {
+      name: companyForm.value.name.trim(),
+      taxId: companyForm.value.taxId.trim(),
+      address: companyForm.value.address.trim(),
+      phone: companyForm.value.phone.trim(),
+      email: companyForm.value.email.trim()
+    };
+
     if (contactForm.value.fullName) {
-      payload.contacts = [{ ...contactForm.value }];
+      payload.contacts = [{
+        fullName: contactForm.value.fullName.trim(),
+        jobTitle: contactForm.value.jobTitle.trim(),
+        email: contactForm.value.email.trim(),
+        phone: contactForm.value.phone.trim()
+      }];
     }
 
     if (isEditing.value) {
+      delete payload.contacts;
       await companyService.update(companyForm.value._id, payload);
+      if (contactForm.value.fullName) {
+        const contactData = {
+          fullName: contactForm.value.fullName.trim(),
+          jobTitle: contactForm.value.jobTitle.trim(),
+          email: contactForm.value.email.trim(),
+          phone: contactForm.value.phone.trim()
+        };
+        if (contactForm.value._id) {
+          await companyService.updateContact(companyForm.value._id, contactForm.value._id, contactData);
+        } else {
+          await companyService.addContact(companyForm.value._id, contactData);
+        }
+      }
     } else {
       await companyService.create(payload);
     }
 
-    $q.notify({ type: 'positive', message: `Empresa ${isEditing.value ? 'actualizada' : 'registrada'} con éxito` });
+    $q.notify({ type: 'positive', message: `Empresa ${isEditing.value ? 'actualizada' : 'registrada'} con éxito`, position: 'top', timeout: 5000 });
     showCompanyModal.value = false;
     fetchCompanies();
   } catch (error) {
     console.error(error);
     const msg = error.response?.data?.message || 'Error al guardar empresa';
-    $q.notify({ type: 'negative', message: msg });
+    $q.notify({ type: 'negative', message: msg, position: 'top', timeout: 5000 });
   } finally {
     saving.value = false;
   }
@@ -278,9 +304,10 @@ async function toggleStatus(company) {
       // Typically toggle status is a patch, but the spec says delete is soft-delete via isActive
       await companyService.delete(company._id);
       fetchCompanies();
-      $q.notify({ type: 'positive', message: 'Estado actualizado' });
+      $q.notify({ type: 'positive', message: 'Estado actualizado', position: 'top', timeout: 5000 });
     } catch (error) {
-      $q.notify({ type: 'negative', message: 'Error al actualizar estado' });
+      console.error(error);
+      $q.notify({ type: 'negative', message: error.message || 'Error al actualizar estado', position: 'top', timeout: 5000 });
     }
   });
 }

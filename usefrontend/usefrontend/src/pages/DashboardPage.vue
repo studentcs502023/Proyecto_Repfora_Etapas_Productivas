@@ -15,9 +15,6 @@
         <q-chip outline color="primary" text-color="primary" icon="event">
           {{ currentDate }}
         </q-chip>
-        <q-btn flat round icon="refresh" color="primary" :loading="loading" @click="loadData">
-          <q-tooltip>Actualizar</q-tooltip>
-        </q-btn>
       </div>
     </div>
 
@@ -217,8 +214,10 @@
             <q-separator />
             <q-card-section class="q-pa-sm">
               <div class="row items-center q-gutter-sm">
-                <q-input v-model="newComment" outlined dense class="col" placeholder="Escribe un comentario..." :disable="sendingComment" />
-                <q-btn flat round color="primary" icon="send" @click="sendComment" :loading="sendingComment" :disable="!newComment.trim()" />
+                <q-input v-model="newComment" outlined dense class="col" placeholder="Escribe un comentario..." :disable="sendingComment" :rules="[val => !val || val.trim().length >= 3 || 'Mínimo 3 caracteres']" />
+                <q-btn flat round color="primary" icon="send" @click="sendComment" :loading="sendingComment" :disable="!newComment.trim()">
+                <q-tooltip>Enviar comentario</q-tooltip>
+              </q-btn>
               </div>
             </q-card-section>
           </q-card>
@@ -354,12 +353,14 @@
 
 <script setup>
 import { computed, ref, onMounted } from 'vue';
+import { useQuasar } from 'quasar';
 import { useAuthStore } from '../stores/auth';
 import productiveStageService from '../api/productiveStage.service';
 import bitacoraService from '../api/bitacora.service';
 import userService from '../api/user.service';
 import hourService from '../api/hours.service';
 
+const $q = useQuasar();
 const authStore = useAuthStore();
 const loading = ref(true);
 
@@ -467,6 +468,7 @@ async function loadData() {
     if (authStore.isAdmin)        await loadAdmin();
   } catch (e) {
     console.error('Dashboard load error:', e);
+    $q.notify({ type: 'negative', message: 'Error al cargar el panel.', position: 'top', timeout: 5000 });
   } finally {
     loading.value = false;
   }
@@ -510,6 +512,7 @@ async function sendComment() {
     await fetchEP();
   } catch (error) {
     console.error(error);
+    $q.notify({ type: 'negative', message: 'Error al enviar comentario.', position: 'top', timeout: 5000 });
   } finally {
     sendingComment.value = false;
   }
@@ -530,13 +533,13 @@ async function loadInstructor() {
   // Aprendices (conteo total de EPs activas asignadas)
   if (results[0].status === 'fulfilled') {
     const d = results[0].value.data;
-    stats.value.instructor.totalApprentices = d?.total ?? (Array.isArray(d?.data) ? d.data.length : 0);
+    stats.value.instructor.totalApprentices = d?.pagination?.total ?? d?.total ?? 0;
   }
 
   // Horas del mes
   if (results[1].status === 'fulfilled') {
     const d = results[1].value.data;
-    const records = d?.data ?? d ?? [];
+    const records = d?.records ?? d?.data ?? [];
     const arr = Array.isArray(records) ? records : [records];
     const rec = arr.find(r => r.year === year && r.month === month) ?? arr[0];
     stats.value.instructor.hoursThisMonth = rec?.totalHours ?? 0;
@@ -546,7 +549,7 @@ async function loadInstructor() {
   // Bitácoras pendientes
   if (results[2].status === 'fulfilled') {
     const d = results[2].value.data;
-    const list = d?.data ?? d ?? [];
+    const list = d?.bitacoras ?? d?.data ?? [];
     pendingBitacoras.value = (Array.isArray(list) ? list : []).slice(0, 5);
     stats.value.instructor.pendingBitacoras = pendingBitacoras.value.length;
   }

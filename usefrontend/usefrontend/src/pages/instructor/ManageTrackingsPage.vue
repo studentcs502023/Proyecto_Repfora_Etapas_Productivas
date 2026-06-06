@@ -26,9 +26,6 @@
         <div class="col-12 col-sm-3">
           <q-checkbox v-model="showExtraordinary" label="Ver Extraordinarios" dense color="warning" @update:model-value="fetchTrackings" />
         </div>
-        <div class="col-auto">
-          <q-btn flat color="primary" icon="refresh" @click="fetchTrackings" :loading="loading" />
-        </div>
       </q-card-section>
     </q-card>
 
@@ -182,7 +179,9 @@
         <q-card-section class="bg-primary text-white row items-center q-pb-none">
           <div class="text-h6">Ejecutar Seguimiento #{{ selectedTracking.trackingNumber }} - {{ selectedTracking.apprentice?.fullName }}</div>
           <q-space />
-          <q-btn icon="close" flat round dense v-close-popup />
+          <q-btn icon="close" flat round dense v-close-popup>
+          <q-tooltip>Cerrar</q-tooltip>
+        </q-btn>
         </q-card-section>
 
         <q-card-section class="col q-pa-lg scroll">
@@ -325,7 +324,7 @@ async function fetchTrackings() {
     if (body.data?.pagination?.total) pagination.value.rowsNumber = body.data.pagination.total;
   } catch (error) {
     console.error(error);
-    $q.notify({ type: 'negative', message: error.message || 'Error al cargar seguimientos.' });
+    $q.notify({ type: 'negative', message: error.message || 'Error al cargar seguimientos.', position: 'top', timeout: 5000 });
   } finally {
     loading.value = false;
   }
@@ -345,6 +344,7 @@ async function fetchMyEPs() {
     myEPs.value = body.data?.eps || body.data || [];
   } catch (error) {
     console.error('Error fetching EPs', error);
+    $q.notify({ type: 'negative', message: error.message || 'Error al cargar etapas productivas.', position: 'top', timeout: 5000 });
   }
 }
 
@@ -400,16 +400,16 @@ async function createTracking() {
       productiveStageId: form.value.productiveStageId,
       type: form.value.type,
       scheduledDate: form.value.scheduledDate,
-      notes: form.value.notes
+      notes: form.value.notes.trim()
     };
     await trackingService.create(payload);
-    $q.notify({ type: 'positive', message: 'Seguimiento programado con éxito.' });
+    $q.notify({ type: 'positive', message: 'Seguimiento programado con éxito.', position: 'top', timeout: 5000 });
     showCreateModal.value = false;
     fetchTrackings();
   } catch (error) {
     console.error(error);
     // El interceptor transforma el error: { message, status, errors }
-    $q.notify({ type: 'negative', message: error.message || 'Error al programar seguimiento.' });
+    $q.notify({ type: 'negative', message: error.message || 'Error al programar seguimiento.', position: 'top', timeout: 5000 });
   } finally {
     saving.value = false;
   }
@@ -422,16 +422,16 @@ async function requestExtraordinary() {
       productiveStageId: form.value.productiveStageId,
       type: form.value.type,
       scheduledDate: form.value.scheduledDate,
-      extraordinaryReason: form.value.extraordinaryReason
+      extraordinaryReason: form.value.extraordinaryReason.trim()
     };
     await trackingService.requestExtraordinary(payload);
-    $q.notify({ type: 'positive', message: 'Solicitud enviada a coordinación.' });
+    $q.notify({ type: 'positive', message: 'Solicitud enviada a coordinación.', position: 'top', timeout: 5000 });
     showExtraordinaryModal.value = false;
     fetchTrackings();
   } catch (error) {
     console.error(error);
     // El interceptor transforma el error: { message, status, errors }
-    $q.notify({ type: 'negative', message: error.message || 'Error al solicitar seguimiento.' });
+    $q.notify({ type: 'negative', message: error.message || 'Error al solicitar seguimiento.', position: 'top', timeout: 5000 });
   } finally {
     saving.value = false;
   }
@@ -458,11 +458,11 @@ async function uploadPDF() {
     // El interceptor devuelve el body JSON: { success, message, data }
     const body = await trackingService.uploadPDF(selectedTracking.value._id, fd);
     selectedTracking.value.driveFileUrl = body.data?.driveFileUrl;
-    $q.notify({ type: 'positive', message: 'Documento subido correctamente.' });
+    $q.notify({ type: 'positive', message: 'Documento subido correctamente.', position: 'top', timeout: 5000 });
     executeStep.value = 2;
   } catch (error) {
     console.error(error);
-    $q.notify({ type: 'negative', message: error.message || 'Error al subir documento.' });
+    $q.notify({ type: 'negative', message: error.message || 'Error al subir documento.', position: 'top', timeout: 5000 });
   } finally {
     saving.value = false;
   }
@@ -477,11 +477,11 @@ async function validateSignatures() {
     });
     executeForm.value.signaturesSavedLocal = true;
     selectedTracking.value.signatureValidatedAt = new Date().toISOString();
-    $q.notify({ type: 'positive', message: 'Firmas validadas correctamente.' });
+    $q.notify({ type: 'positive', message: 'Firmas validadas correctamente.', position: 'top', timeout: 5000 });
     executeStep.value = 3;
   } catch (error) {
     console.error(error);
-    $q.notify({ type: 'negative', message: 'Error al validar firmas.' });
+    $q.notify({ type: 'negative', message: error.message || 'Error al validar firmas.', position: 'top', timeout: 5000 });
   } finally {
     saving.value = false;
   }
@@ -491,13 +491,13 @@ async function executeTracking() {
   saving.value = true;
   try {
     await trackingService.execute(selectedTracking.value._id);
-    $q.notify({ type: 'positive', message: 'Seguimiento ejecutado exitosamente. Horas asignadas.' });
+    $q.notify({ type: 'positive', message: 'Seguimiento ejecutado exitosamente. Horas asignadas.', position: 'top', timeout: 5000 });
     showExecuteModal.value = false;
     fetchTrackings();
   } catch (error) {
     console.error(error);
     // El interceptor transforma el error: { message, status, errors }
-    $q.notify({ type: 'negative', message: error.message || 'Error al ejecutar seguimiento.' });
+    $q.notify({ type: 'negative', message: error.message || 'Error al ejecutar seguimiento.', position: 'top', timeout: 5000 });
   } finally {
     saving.value = false;
   }
@@ -508,7 +508,7 @@ function viewDetails(tracking) {
   if (tracking.driveFileUrl) {
     window.open(tracking.driveFileUrl, '_blank');
   } else {
-    $q.notify({ type: 'info', message: 'Este seguimiento no tiene un documento adjunto.' });
+    $q.notify({ type: 'info', message: 'Este seguimiento no tiene un documento adjunto.', position: 'top', timeout: 5000 });
   }
 }
 </script>

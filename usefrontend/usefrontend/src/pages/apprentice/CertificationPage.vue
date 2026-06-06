@@ -5,9 +5,6 @@
         <h2 class="text-h4 text-black text-weight-bold q-my-none">Certificaci&oacute;n Final</h2>
         <p class="text-grey-7 q-my-sm">Sube tu documentaci&oacute;n en un &uacute;nico archivo PDF para la certificaci&oacute;n de tu etapa productiva.</p>
       </div>
-      <div class="col-auto">
-        <q-btn color="primary" icon="refresh" label="Actualizar" @click="loadData" :loading="loading" />
-      </div>
     </div>
 
     <!-- ALERTA: Plazo pr&oacute;ximo a vencer (2 meses antes de fecha fin estimada) -->
@@ -250,7 +247,7 @@ async function loadData() {
     }
   } catch (error) {
     console.error(error);
-    $q.notify({ type: 'negative', message: 'Error al cargar el estado de certificaci\u00f3n.' });
+    $q.notify({ position: 'top', timeout: 5000, type: 'negative', message: 'Error al cargar el estado de certificaci\u00f3n.' });
   } finally {
     loading.value = false;
   }
@@ -264,21 +261,21 @@ async function uploadDossier() {
       const fd = new FormData();
       fd.append('file', uploadFile.value);
       await documentService.resubmit(certDoc.value.id, fd);
-      $q.notify({ type: 'positive', message: 'Documento corregido y subido exitosamente.' });
+      $q.notify({ position: 'top', timeout: 5000, type: 'positive', message: 'Documento corregido y subido exitosamente.' });
     } else {
       const fd = new FormData();
       fd.append('productiveStageId', ep.value._id);
       fd.append('documentType', 'CERTIFICATION_DOSSIER');
       fd.append('file', uploadFile.value);
       await documentService.upload(fd);
-      $q.notify({ type: 'positive', message: 'Documento subido exitosamente.' });
+      $q.notify({ position: 'top', timeout: 5000, type: 'positive', message: 'Documento subido exitosamente.' });
     }
     uploadFile.value = null;
     await loadData();
   } catch (error) {
     console.error(error);
     const msg = error.response?.data?.message || 'Error al subir documento.';
-    $q.notify({ type: 'negative', message: msg });
+    $q.notify({ position: 'top', timeout: 5000, type: 'negative', message: msg });
   } finally {
     saving.value = false;
   }

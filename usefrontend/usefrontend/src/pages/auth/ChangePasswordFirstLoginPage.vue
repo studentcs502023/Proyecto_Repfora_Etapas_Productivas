@@ -170,14 +170,15 @@ async function handleSubmit() {
   loading.value = true;
   try {
     await authStore.changePasswordFirstLogin({
-      newPassword: form.newPassword,
-      confirmPassword: form.confirmPassword
+      newPassword: form.newPassword.trim(),
+      confirmPassword: form.confirmPassword.trim()
     });
 
     $q.notify({
       type: 'positive',
       message: 'Contraseña actualizada con éxito',
-      position: 'top'
+      position: 'top',
+      timeout: 5000
     });
 
     // Redirect user to the correct place
@@ -191,6 +192,7 @@ async function handleSubmit() {
         }
       } catch (e) {
         console.error('Error al verificar etapa productiva:', e);
+        $q.notify({ type: 'negative', message: 'No se pudo verificar tu etapa productiva. Serás redirigido.', position: 'top', timeout: 5000 });
         router.push('/register-ep');
       }
     } else {
@@ -198,6 +200,7 @@ async function handleSubmit() {
     }
   } catch (error) {
     console.error('Password change error:', error);
+    $q.notify({ type: 'negative', message: error.message || 'Error al cambiar la contraseña', position: 'top', timeout: 5000 });
     errorMsg.value = error.message || 'Error al cambiar la contraseña';
   } finally {
     loading.value = false;

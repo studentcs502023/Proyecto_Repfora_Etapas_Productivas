@@ -5,9 +5,6 @@
         <h2 class="text-h4 text-black text-weight-bold q-my-none">Revisión de Bitácoras</h2>
         <p class="text-grey-7 q-my-sm">Bandeja de bitácoras pendientes de evaluación.</p>
       </div>
-      <div class="col-auto">
-        <q-btn color="primary" icon="refresh" label="Actualizar" @click="fetchPendingBitacoras" :loading="loading" />
-      </div>
     </div>
 
     <!-- Table -->
@@ -62,7 +59,9 @@
         <q-card-section class="bg-primary text-white row items-center q-pb-none">
           <div class="text-h6">Evaluar Bitácora #{{ selectedBitacora.logbookNumber }} - {{ selectedBitacora.apprentice?.fullName }}</div>
           <q-space />
-          <q-btn icon="close" flat round dense v-close-popup />
+          <q-btn icon="close" flat round dense v-close-popup>
+          <q-tooltip>Cerrar</q-tooltip>
+        </q-btn>
         </q-card-section>
 
         <q-card-section class="col q-pa-lg scroll">
@@ -125,7 +124,7 @@
                   <q-card-section>
                     <div class="text-subtitle1 text-negative text-weight-bold q-mb-sm">Rechazar y Solicitar Corrección</div>
                     <p class="text-caption">Indica exactamente qué debe corregir el aprendiz en el documento.</p>
-                    <q-input v-model="rejectReason" type="textarea" outlined dense rows="4" placeholder="Ej: Faltan las firmas en la sección 3..." class="q-mb-sm bg-white" />
+                    <q-input v-model="rejectReason" type="textarea" outlined dense rows="4" placeholder="Ej: Faltan las firmas en la sección 3..." class="q-mb-sm bg-white" :rules="[val => !val || val.trim().length >= 10 || 'Mínimo 10 caracteres']" />
                     <q-btn color="negative" icon="cancel" label="Rechazar" @click="rejectBitacora" class="full-width" :disable="!rejectReason.trim()" :loading="processing" />
                   </q-card-section>
                 </q-card>
@@ -176,7 +175,7 @@ async function fetchPendingBitacoras() {
     pendingBitacoras.value = body.data?.bitacoras || body.data || [];
   } catch (error) {
     console.error(error);
-    $q.notify({ type: 'negative', message: error.message || 'Error al cargar bitácoras pendientes.' });
+    $q.notify({ type: 'negative', message: error.message || 'Error al cargar bitácoras pendientes.', position: 'top', timeout: 5000 });
   } finally {
     loading.value = false;
   }
@@ -217,13 +216,13 @@ async function approveBitacora() {
     processing.value = true;
     try {
       await bitacoraService.approve(selectedBitacora.value._id);
-      $q.notify({ type: 'positive', message: 'Bitácora aprobada exitosamente. Horas asignadas.' });
+      $q.notify({ type: 'positive', message: 'Bitácora aprobada exitosamente. Horas asignadas.', position: 'top', timeout: 5000 });
       showReviewModal.value = false;
       fetchPendingBitacoras();
     } catch (error) {
       console.error(error);
       // El interceptor transforma el error: { message, status, errors }
-      $q.notify({ type: 'negative', message: error.message || 'Error al aprobar la bitácora.' });
+      $q.notify({ type: 'negative', message: error.message || 'Error al aprobar la bitácora.', position: 'top', timeout: 5000 });
     } finally {
       processing.value = false;
     }
@@ -235,13 +234,13 @@ async function rejectBitacora() {
   processing.value = true;
   try {
     await bitacoraService.reject(selectedBitacora.value._id, rejectReason.value.trim());
-    $q.notify({ type: 'warning', message: 'Bitácora rechazada y devuelta al aprendiz.' });
+    $q.notify({ type: 'warning', message: 'Bitácora rechazada y devuelta al aprendiz.', position: 'top', timeout: 5000 });
     showReviewModal.value = false;
     fetchPendingBitacoras();
   } catch (error) {
     console.error(error);
     // El interceptor transforma el error: { message, status, errors }
-    $q.notify({ type: 'negative', message: error.message || 'Error al rechazar la bitácora.' });
+    $q.notify({ type: 'negative', message: error.message || 'Error al rechazar la bitácora.', position: 'top', timeout: 5000 });
   } finally {
     processing.value = false;
   }

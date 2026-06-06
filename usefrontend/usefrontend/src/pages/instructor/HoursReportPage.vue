@@ -5,9 +5,6 @@
         <h2 class="text-h4 text-black text-weight-bold q-my-none">Mi Reporte de Horas</h2>
         <p class="text-grey-7 q-my-sm">Control de horas ejecutadas y generadas para facturación.</p>
       </div>
-      <div class="col-auto">
-        <q-btn color="primary" icon="refresh" label="Actualizar" @click="fetchData" :loading="loading" />
-      </div>
     </div>
 
     <!-- Filters -->
@@ -177,7 +174,7 @@ async function fetchData() {
     records.value = body.data || [];
   } catch (error) {
     console.error(error);
-    $q.notify({ type: 'negative', message: error.message || 'Error al cargar reporte de horas.' });
+    $q.notify({ type: 'negative', message: error.message || 'Error al cargar reporte de horas.', position: 'top', timeout: 5000 });
   } finally {
     loading.value = false;
   }
@@ -208,7 +205,7 @@ async function downloadReport(year, month) {
     const response = await hourService.getReport(authStore.user.id, year, month);
     
     // Create blob link to download
-    const blob = new Blob([response.data], { type: 'application/pdf' });
+    const blob = new Blob([response.data], { type: 'application/pdf', position: 'top', timeout: 5000 });
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
@@ -220,7 +217,7 @@ async function downloadReport(year, month) {
     
   } catch (error) {
     console.error(error);
-    $q.notify({ type: 'negative', message: 'Error al generar el PDF.' });
+    $q.notify({ type: 'negative', message: 'Error al generar el PDF.', position: 'top', timeout: 5000 });
   } finally {
     downloading.value = null;
   }

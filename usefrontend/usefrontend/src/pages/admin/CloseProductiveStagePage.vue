@@ -5,9 +5,6 @@
         <h2 class="text-h4 text-black text-weight-bold q-my-none">Cierre de Etapa Productiva</h2>
         <p class="text-grey-7 q-my-sm">Validación de documentos y finalización del proceso de certificación.</p>
       </div>
-      <div class="col-auto">
-        <q-btn color="primary" icon="refresh" label="Actualizar" @click="fetchEPs" :loading="loading" />
-      </div>
     </div>
 
     <!-- Table -->
@@ -69,7 +66,9 @@
         <q-card-section class="bg-primary text-white row items-center q-pb-none">
           <div class="text-h6">Revisión de Documentos - {{ selectedEP.apprentice?.fullName }}</div>
           <q-space />
-          <q-btn icon="close" flat round dense v-close-popup />
+          <q-btn icon="close" flat round dense v-close-popup>
+          <q-tooltip>Cerrar</q-tooltip>
+        </q-btn>
         </q-card-section>
 
         <q-card-section class="col q-pa-lg scroll">
@@ -294,7 +293,7 @@ async function fetchEPs() {
 
   } catch (error) {
     console.error(error);
-    $q.notify({ type: 'negative', message: 'Error al cargar etapas.' });
+    $q.notify({ type: 'negative', message: 'Error al cargar etapas.', position: 'top', timeout: 5000 });
   } finally {
     loading.value = false;
   }
@@ -393,7 +392,7 @@ async function loadDocuments() {
     epStatus.value = res.data.data || res.data;
   } catch (error) {
     console.error(error);
-    $q.notify({ type: 'negative', message: 'Error al cargar los documentos.' });
+    $q.notify({ type: 'negative', message: 'Error al cargar los documentos.', position: 'top', timeout: 5000 });
   } finally {
     loadingDocs.value = false;
   }
@@ -403,12 +402,12 @@ async function approveDocument(docId) {
   processing.value = true;
   try {
     await documentService.approve(docId);
-    $q.notify({ type: 'positive', message: 'Documento aprobado.' });
+    $q.notify({ type: 'positive', message: 'Documento aprobado.', position: 'top', timeout: 5000 });
     await loadDocuments();
   } catch (error) {
     console.error(error);
     const msg = error.response?.data?.message || 'Error al aprobar documento.';
-    $q.notify({ type: 'negative', message: msg });
+    $q.notify({ type: 'negative', message: msg, position: 'top', timeout: 5000 });
   } finally {
     processing.value = false;
   }
@@ -429,12 +428,12 @@ function promptReject(docId) {
     processing.value = true;
     try {
       await documentService.reject(docId, data);
-      $q.notify({ type: 'warning', message: 'Documento rechazado. Se ha notificado al aprendiz.' });
+      $q.notify({ type: 'warning', message: 'Documento rechazado. Se ha notificado al aprendiz.', position: 'top', timeout: 5000 });
       await loadDocuments();
     } catch (error) {
       console.error(error);
       const msg = error.response?.data?.message || 'Error al rechazar documento.';
-      $q.notify({ type: 'negative', message: msg });
+      $q.notify({ type: 'negative', message: msg, position: 'top', timeout: 5000 });
     } finally {
       processing.value = false;
     }
@@ -451,13 +450,13 @@ async function completeEP() {
     processing.value = true;
     try {
       await productiveStageService.completeEP(selectedEP.value._id);
-      $q.notify({ type: 'positive', message: '¡Etapa Productiva finalizada exitosamente!' });
+      $q.notify({ type: 'positive', message: '¡Etapa Productiva finalizada exitosamente!', position: 'top', timeout: 5000 });
       showReviewModal.value = false;
       fetchEPs();
     } catch (error) {
       console.error(error);
       const msg = error.response?.data?.message || 'Error al cerrar la etapa productiva.';
-      $q.notify({ type: 'negative', message: msg });
+      $q.notify({ type: 'negative', message: msg, position: 'top', timeout: 5000 });
     } finally {
       processing.value = false;
     }

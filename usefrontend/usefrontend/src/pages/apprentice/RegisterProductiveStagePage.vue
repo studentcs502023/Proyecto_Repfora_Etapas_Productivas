@@ -142,7 +142,7 @@
             <div class="text-subtitle2 text-black q-mb-sm">Datos de la Empresa</div>
             <div class="row q-col-gutter-md">
               <div class="col-12 col-md-6">
-                <q-input v-model="newCompany.taxId" label="NIT" outlined :rules="[val => !!val || 'Requerido']" />
+                <q-input v-model="newCompany.taxId" label="NIT" outlined :rules="[val => !!val || 'Requerido', val => /^\d{5,15}$/.test(val) || 'Debe tener solo dígitos (5-15)']" />
               </div>
               <div class="col-12 col-md-6">
                 <q-input v-model="newCompany.name" label="Raz├│n Social" outlined :rules="[val => !!val || 'Requerido']" />
@@ -151,7 +151,7 @@
                 <q-input v-model="newCompany.address" label="Direcci├│n" outlined :rules="[val => !!val || 'Requerido']" />
               </div>
               <div class="col-12 col-md-6">
-                <q-input v-model="newCompany.phone" label="Tel├®fono (Empresa)" outlined :rules="[val => !!val || 'Requerido']" />
+                <q-input v-model="newCompany.phone" label="Tel├®fono (Empresa)" outlined :rules="[val => !!val || 'Requerido', val => /^\d{7,15}$/.test(val) || 'Debe tener solo dígitos (7-15)']" />
               </div>
               <div class="col-12 col-md-6">
                 <q-input v-model="newCompany.email" label="Correo Electr├│nico (Empresa)" type="email" outlined :rules="[val => !!val || 'Requerido']" />
@@ -176,7 +176,7 @@
                 v-model="form.companySnapshot.supervisorName"
                 label="Nombre del Supervisor"
                 outlined
-                :rules="[val => !!val || 'Requerido']"
+                :rules="[val => !!val || 'Requerido', val => !val || !/\d/.test(val) || 'No se permiten números']"
               />
             </div>
             <div class="col-12 col-md-6">
@@ -193,7 +193,7 @@
                 v-model="form.companySnapshot.supervisorPhone"
                 label="Tel├®fono del Supervisor"
                 outlined
-                :rules="[val => !!val || 'Requerido']"
+                :rules="[val => !!val || 'Requerido', val => /^\d{7,15}$/.test(val) || 'Debe tener solo dígitos (7-15)']"
               />
             </div>
           </div>
@@ -363,7 +363,8 @@ onMounted(async () => {
     originalCompanies.value = data.companies || data || [];
     companies.value = [...originalCompanies.value];
   } catch (error) {
-    $q.notify({ type: 'negative', message: 'No se pudieron cargar las empresas.' });
+    console.error(error);
+    $q.notify({ type: 'negative', message: error.message || 'No se pudieron cargar las empresas.', position: 'top', timeout: 5000 });
   }
 });
 

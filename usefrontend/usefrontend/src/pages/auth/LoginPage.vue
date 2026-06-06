@@ -51,7 +51,7 @@
                 outlined
                 dense
                 color="primary"
-                :rules="[val => !!val || 'La cédula es requerida']"
+                :rules="[val => !!val || 'La cédula es requerida', val => /^\d{5,15}$/.test(val) || 'Debe tener solo dígitos (5-15)']"
               >
                 <template v-slot:prepend>
                   <q-icon name="badge" color="primary" />
@@ -133,10 +133,10 @@ const loginForm = reactive({
 async function handleLogin() {
   try {
     await authStore.login({
-      nationalId: loginForm.nationalId,
-      password: loginForm.password
+      nationalId: loginForm.nationalId.trim(),
+      password: loginForm.password.trim()
     });
-    $q.notify({ type: 'positive', message: 'Bienvenido al sistema', position: 'top' });
+    $q.notify({ type: 'positive', message: 'Bienvenido al sistema', position: 'top', timeout: 5000 });
 
     // Redirection directly to RF-003 for apprentice
     if (authStore.user?.role === 'APPRENTICE') {
@@ -146,6 +146,7 @@ async function handleLogin() {
     }
   } catch (error) {
     console.error('Login error:', error);
+    $q.notify({ type: 'negative', message: error.message || 'Error al iniciar sesión', position: 'top', timeout: 5000 });
   }
 }
 

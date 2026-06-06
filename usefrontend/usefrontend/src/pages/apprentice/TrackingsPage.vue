@@ -5,9 +5,6 @@
         <h2 class="text-h4 text-black text-weight-bold q-my-none">Mis Seguimientos</h2>
         <p class="text-grey-7 q-my-sm">Cronograma y registro de evaluaciones con tus instructores.</p>
       </div>
-      <div class="col-auto">
-        <q-btn color="primary" icon="refresh" label="Actualizar" @click="loadData" :loading="loading" />
-      </div>
     </div>
 
     <!-- Loading State -->
@@ -164,7 +161,7 @@ async function loadData() {
     }
   } catch (error) {
     console.error(error);
-    $q.notify({ type: 'negative', message: 'Error al cargar los seguimientos.' });
+    $q.notify({ position: 'top', timeout: 5000, type: 'negative', message: 'Error al cargar los seguimientos.' });
   } finally {
     loading.value = false;
   }

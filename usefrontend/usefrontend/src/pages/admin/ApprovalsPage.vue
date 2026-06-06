@@ -5,9 +5,6 @@
         <h2 class="text-h4 text-black text-weight-bold q-my-none">Bandeja de Aprobaciones</h2>
         <p class="text-grey-7 q-my-sm">Solicitudes de etapa productiva pendientes de revisión y asignación de instructores.</p>
       </div>
-      <div class="col-auto">
-        <q-btn color="primary" icon="refresh" label="Actualizar" @click="fetchPendingEPs" :loading="loading" />
-      </div>
     </div>
 
     <!-- Table -->
@@ -55,7 +52,9 @@
         <q-card-section class="bg-primary text-white row items-center q-pb-none">
           <div class="text-h6">Revisión de Solicitud: {{ selectedEP.apprentice?.fullName }}</div>
           <q-space />
-          <q-btn icon="close" flat round dense v-close-popup />
+          <q-btn icon="close" flat round dense v-close-popup>
+          <q-tooltip>Cerrar</q-tooltip>
+        </q-btn>
         </q-card-section>
 
         <q-card-section class="col q-pa-lg scroll">
@@ -126,8 +125,9 @@
                     <q-item-section side>
                       <q-btn flat round icon="open_in_new" color="primary" size="sm"
                         :href="doc.driveFileUrl" target="_blank"
-                        :disable="!doc.driveFileUrl"
-                        title="Ver documento" />
+                        :disable="!doc.driveFileUrl">
+                        <q-tooltip>Abrir documento</q-tooltip>
+                      </q-btn>
                     </q-item-section>
                   </q-item>
                 </q-list>
@@ -135,7 +135,7 @@
 
               <div class="q-mt-xl bg-red-1 q-pa-md rounded-borders bordered border-red">
                 <div class="text-subtitle1 text-negative q-mb-sm text-weight-bold">Rechazar Solicitud</div>
-                <q-input v-model="rejectReason" label="Motivo de rechazo" type="textarea" outlined dense rows="3" />
+                <q-input v-model="rejectReason" label="Motivo de rechazo" type="textarea" outlined dense rows="3" :rules="[val => !val || val.trim().length >= 10 || 'Mínimo 10 caracteres']" />
                 <q-btn color="negative" label="Rechazar y Notificar" @click="rejectEP" class="q-mt-sm" :disable="!rejectReason" :loading="processing" />
               </div>
             </div>
@@ -296,7 +296,7 @@ async function fetchPendingEPs() {
     if (payload.pagination?.total) pagination.value.rowsNumber = payload.pagination.total;
   } catch (error) {
     console.error(error);
-    $q.notify({ type: 'negative', message: 'Error al cargar solicitudes pendientes.' });
+    $q.notify({ type: 'negative', message: error.message || 'Error al cargar solicitudes pendientes.', position: 'top', timeout: 5000 });
   } finally {
     loading.value = false;
   }
@@ -321,6 +321,7 @@ async function preloadInstructors() {
     instructors.value.project = list.filter(i => i.instructorType === 'PROJECT');
   } catch (error) {
     console.error('Error loading instructors', error);
+    $q.notify({ type: 'negative', message: error.message || 'Error al cargar instructores.', position: 'top', timeout: 5000 });
   }
 }
 
@@ -342,6 +343,7 @@ async function openReviewModal(ep) {
     epDocuments.value = res.data.data || res.data || [];
   } catch (e) {
     console.error('Error loading documents:', e);
+    $q.notify({ type: 'negative', message: 'Error al cargar documentos de la etapa.', position: 'top', timeout: 5000 });
   } finally {
     loadingDocs.value = false;
   }
@@ -397,13 +399,13 @@ async function approveAndAssign() {
 
     await productiveStageService.assignInstructors(epId, payload);
 
-    $q.notify({ type: 'positive', message: 'Etapa aprobada y asignada exitosamente.' });
+    $q.notify({ type: 'positive', message: 'Etapa aprobada y asignada exitosamente.', position: 'top', timeout: 5000 });
     showReviewModal.value = false;
     fetchPendingEPs();
   } catch (error) {
     console.error(error);
     const msg = error.response?.data?.message || 'Error en el proceso de aprobación.';
-    $q.notify({ type: 'negative', message: msg });
+    $q.notify({ type: 'negative', message: msg, position: 'top', timeout: 5000 });
   } finally {
     processing.value = false;
   }
@@ -413,14 +415,14 @@ async function rejectEP() {
   if (!rejectReason.value) return;
   processing.value = true;
   try {
-    await productiveStageService.rejectEP(selectedEP.value._id, rejectReason.value);
-    $q.notify({ type: 'warning', message: 'Solicitud rechazada y notificada al aprendiz.' });
+    await productiveStageService.rejectEP(selectedEP.value._id, rejectReason.value.trim());
+    $q.notify({ type: 'warning', message: 'Solicitud rechazada y notificada al aprendiz.', position: 'top', timeout: 5000 });
     showReviewModal.value = false;
     fetchPendingEPs();
   } catch (error) {
     console.error(error);
     const msg = error.response?.data?.message || 'Error al rechazar solicitud.';
-    $q.notify({ type: 'negative', message: msg });
+    $q.notify({ type: 'negative', message: msg, position: 'top', timeout: 5000 });
   } finally {
     processing.value = false;
   }

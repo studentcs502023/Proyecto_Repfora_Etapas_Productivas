@@ -179,21 +179,21 @@ const passwordHints = computed(() => [
 
 async function changePassword() {
   if (passwordForm.value.newPassword !== passwordForm.value.confirmPassword) {
-    $q.notify({ type: 'warning', message: 'Las contraseñas no coinciden.' });
+    $q.notify({ type: 'warning', message: 'Las contraseñas no coinciden.', position: 'top', timeout: 5000 });
     return;
   }
   savingPassword.value = true;
   try {
     await authService.changePassword({
-      currentPassword: passwordForm.value.currentPassword,
-      newPassword: passwordForm.value.newPassword,
-      confirmPassword: passwordForm.value.confirmPassword
+      currentPassword: passwordForm.value.currentPassword.trim(),
+      newPassword: passwordForm.value.newPassword.trim(),
+      confirmPassword: passwordForm.value.confirmPassword.trim()
     });
-    $q.notify({ type: 'positive', message: '¡Contraseña actualizada correctamente!' });
+    $q.notify({ type: 'positive', message: '¡Contraseña actualizada correctamente!', position: 'top', timeout: 5000 });
     passwordForm.value = { currentPassword: '', newPassword: '', confirmPassword: '' };
   } catch (err) {
     console.error(err);
-    $q.notify({ type: 'negative', message: err.message || 'Error al cambiar la contraseña.' });
+    $q.notify({ type: 'negative', message: err.message || 'Error al cambiar la contraseña.', position: 'top', timeout: 5000 });
   } finally {
     savingPassword.value = false;
   }
