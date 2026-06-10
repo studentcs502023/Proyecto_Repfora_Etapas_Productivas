@@ -23,15 +23,15 @@
 
         <q-space />
 
-        <!-- Notification Bell -->
-        <q-btn flat round dense class="q-mr-sm" @click="openNotifications">
+        <!-- Notification Bell (solo instructores y admin) -->
+        <q-btn v-if="!authStore.isApprentice" flat round dense class="q-mr-sm" @click="openNotifications">
           <q-icon name="notifications" />
           <q-badge v-if="unreadCount > 0" color="red" floating>{{ unreadCount > 9 ? '9+' : unreadCount }}</q-badge>
           <q-tooltip>Notificaciones</q-tooltip>
         </q-btn>
 
-        <!-- Notification Drawer -->
-        <q-drawer v-model="notificationDrawer" side="right" bordered :width="360" :breakpoint="500" class="bg-white">
+        <!-- Notification Drawer (solo instructores y admin) -->
+        <q-drawer v-if="!authStore.isApprentice" v-model="notificationDrawer" side="right" bordered :width="360" :breakpoint="500" class="bg-white">
           <div class="q-pa-md">
             <div class="row items-center q-mb-sm">
               <div class="text-h6 text-black">Notificaciones</div>
@@ -115,6 +115,14 @@
 
           <!-- APPRENTICE MENU -->
           <template v-if="authStore.isApprentice">
+            <q-item clickable v-ripple to="/notificaciones">
+              <q-item-section avatar><q-icon name="notifications" /></q-item-section>
+              <q-item-section>Notificaciones</q-item-section>
+              <q-item-section side>
+                <q-badge v-if="unreadCount > 0" color="red" rounded floating>{{ unreadCount > 9 ? '9+' : unreadCount }}</q-badge>
+              </q-item-section>
+            </q-item>
+            <q-separator />
             <!-- Only show EP menu items after registering a productive stage -->
             <template v-if="showEpMenu">
               <q-item-label header>Mi Etapa Productiva</q-item-label>

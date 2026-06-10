@@ -156,8 +156,16 @@ class BitacoraService {
         }
         filter.productiveStage = productiveStageId;
       } else {
-        // No productiveStageId: return all bitacoras where instructor is assigned
-        filter.instructor = reqUser.id;
+        // Find all ProductiveStages where instructor is assigned in any role
+        const assignedEPs = await ProductiveStage.find({
+          $or: [
+            { followupInstructor: reqUser.id },
+            { technicalInstructor: reqUser.id },
+            { projectInstructor: reqUser.id }
+          ]
+        }).select('_id');
+        const epIds = assignedEPs.map(ep => ep._id);
+        filter.productiveStage = { $in: epIds.length > 0 ? epIds : [null] };
       }
     } else if (reqUser.role === 'ADMIN') {
       if (productiveStageId) filter.productiveStage = productiveStageId;
@@ -243,9 +251,15 @@ class BitacoraService {
     }
 
     const ep = await ProductiveStage.findById(bitacora.productiveStage);
-    if (ep.followupInstructor?.toString() !== reqUser.id.toString()) {
+    
+    const isAssigned = [
+      ep.followupInstructor?.toString(),
+      ep.technicalInstructor?.toString(),
+      ep.projectInstructor?.toString()
+    ].includes(reqUser.id.toString());
 
-        const error = new Error('Forbidden: Only the assigned followup instructor can approve logbooks');
+    if (!isAssigned) {
+        const error = new Error('Forbidden: You are not assigned to this ProductiveStage');
         error.statusCode = 403;
         throw error;
     }
@@ -331,9 +345,15 @@ class BitacoraService {
     }
 
     const ep = await ProductiveStage.findById(bitacora.productiveStage);
-    if (ep.followupInstructor?.toString() !== reqUser.id.toString()) {
+    
+    const isAssigned = [
+      ep.followupInstructor?.toString(),
+      ep.technicalInstructor?.toString(),
+      ep.projectInstructor?.toString()
+    ].includes(reqUser.id.toString());
 
-        const error = new Error('Forbidden: Only the assigned followup instructor can reject logbooks');
+    if (!isAssigned) {
+        const error = new Error('Forbidden: You are not assigned to this ProductiveStage');
         error.statusCode = 403;
         throw error;
     }

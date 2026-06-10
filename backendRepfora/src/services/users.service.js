@@ -82,11 +82,18 @@ class UserService {
             instructorType,
             knowledgeArea,
             search,
+            isActive,
             page = 1,
             limit = 20,
         } = filters;
 
-        const query = { role: "INSTRUCTOR", isActive: true };
+        const query = { role: "INSTRUCTOR" };
+
+        if (isActive !== undefined) {
+            query.isActive = isActive === 'true' || isActive === true;
+        } else {
+            query.isActive = true;
+        }
 
         if (status) query.status = status;
         if (instructorType) query.instructorType = instructorType;
@@ -354,12 +361,12 @@ class UserService {
         });
 
         console.log('[UserService] Disparando correo de bienvenida vía notificationService...');
-        await notificationService.send({
+        notificationService.send({
             type: "SYSTEM_WELCOME",
             recipients: [apprentice._id.toString()],
             title: buildWelcomeSubject(),
             message: buildWelcomeMessage(),
-        });
+        }).catch(err => console.error('[UserService] Error enviando notificación de bienvenida:', err.message));
         console.log('[UserService] Correo de bienvenida procesado.');
 
         return apprentice;
@@ -375,11 +382,18 @@ class UserService {
             trainingLevel,
             trainingCenter,
             search,
+            isActive,
             page = 1,
             limit = 20,
         } = filters;
 
-        const query = { role: "APPRENTICE", isActive: true };
+        const query = { role: "APPRENTICE" };
+
+        if (isActive !== undefined) {
+            query.isActive = isActive === 'true' || isActive === true;
+        } else {
+            query.isActive = true;
+        }
 
         if (enrollmentNumber) query.enrollmentNumber = enrollmentNumber;
         if (program) query.program = { $regex: program, $options: "i" };
@@ -552,6 +566,56 @@ class UserService {
         }
 
         return results;
+    }
+
+    // === DEACTIVATE (Soft Delete) ===
+
+    async deactivateInstructor(id, performedBy) {
+        const instructor = await User.findOneAndUpdate(
+            { _id: id, role: "INSTRUCTOR", isActive: true },
+            { $set: { isActive: false, status: "INACTIVE" } },
+            { returnDocument: 'after' }
+        ).select("-password");
+
+        if (!instructor) {
+            const error = new Error("Instructor no encontrado o ya desactivado");
+            error.statusCode = 404;
+            throw error;
+        }
+
+        await recordAuditLog({
+            action: "INSTRUCTOR_DEACTIVATED",
+            entity: "User",
+            entityId: id,
+            performedBy,
+            details: { nationalId: instructor.nationalId, fullName: instructor.fullName }
+        });
+
+        return instructor;
+    }
+
+    async deactivateApprentice(id, performedBy) {
+        const apprentice = await User.findOneAndUpdate(
+            { _id: id, role: "APPRENTICE", isActive: true },
+            { $set: { isActive: false } },
+            { returnDocument: 'after' }
+        ).select("-password");
+
+        if (!apprentice) {
+            const error = new Error("Aprendiz no encontrado o ya desactivado");
+            error.statusCode = 404;
+            throw error;
+        }
+
+        await recordAuditLog({
+            action: "APPRENTICE_DEACTIVATED",
+            entity: "User",
+            entityId: id,
+            performedBy,
+            details: { nationalId: apprentice.nationalId, fullName: apprentice.fullName }
+        });
+
+        return apprentice;
     }
 }
 

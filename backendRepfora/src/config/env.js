@@ -13,7 +13,17 @@ export const env = {
     MAX_LOGIN_ATTEMPTS: parseInt(process.env.MAX_LOGIN_ATTEMPTS) || 5,
     LOCK_TIME_MINUTES: parseInt(process.env.LOCK_TIME_MINUTES) || 2,
 
-    // Email (Brevo API)
+    // Email (SMTP via Nodemailer)
+    SMTP_HOST: process.env.SMTP_HOST || '',
+    SMTP_PORT: process.env.SMTP_PORT || '587',
+    SMTP_SECURE: process.env.SMTP_SECURE || 'false',
+    SMTP_USER: process.env.SMTP_USER || '',
+    SMTP_PASS: process.env.SMTP_PASS || '',
+    SMTP_FROM: process.env.SMTP_FROM || 'noreply@repfora-sena.com',
+    SMTP_FROM_NAME: process.env.SMTP_FROM_NAME || 'REPFORA E.P. - SENA',
+    SMTP_TLS_REJECT: process.env.SMTP_TLS_REJECT || 'true',
+
+    // Email (Brevo API - legacy, en desuso)
     BREVO_API_KEY: process.env.BREVO_API_KEY,
     BREVO_SENDER_EMAIL: process.env.BREVO_SENDER_EMAIL || "noreply@repfora-sena.com",
     BREVO_SENDER_NAME: process.env.BREVO_SENDER_NAME || "REPFORA E.P. - SENA",

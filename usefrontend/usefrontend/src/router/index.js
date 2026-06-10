@@ -56,6 +56,12 @@ const routes = [
         meta: { role: 'APPRENTICE' }
       },
       {
+        path: 'notificaciones',
+        name: 'notificaciones',
+        component: () => import('../pages/apprentice/NotificacionesPage.vue'),
+        meta: { role: 'APPRENTICE' }
+      },
+      {
         path: 'mi-perfil',
         name: 'mi-perfil',
         component: () => import('../pages/apprentice/MiPerfil.vue'),

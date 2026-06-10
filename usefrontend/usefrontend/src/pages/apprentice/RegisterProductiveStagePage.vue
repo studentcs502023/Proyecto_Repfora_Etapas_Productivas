@@ -1,7 +1,19 @@
 ﻿<template>
   <q-page padding class="register-ep-container">
     <div class="text-h4 text-black text-weight-bold q-mb-md">Registro de Etapa Productiva</div>
-    <p class="text-grey-7">Completa los siguientes pasos para registrar oficialmente tu etapa productiva.</p>
+    <p class="text-grey-7" v-if="!rejectReason">Completa los siguientes pasos para registrar oficialmente tu etapa productiva.</p>
+
+    <!-- Banner de rechazo previo -->
+    <q-banner v-if="rejectReason" class="bg-red-1 text-negative rounded-borders q-mb-lg" rounded>
+      <template v-slot:avatar><q-icon name="cancel" color="negative" size="md" /></template>
+      <div class="text-weight-bold">Tu solicitud anterior fue rechazada</div>
+      <p class="q-mt-xs q-mb-none">
+        <strong>Motivo del administrador:</strong> {{ rejectReason }}
+      </p>
+      <p class="q-mt-xs text-caption text-grey-8">
+        Los campos han sido pre-llenados con tus datos anteriores. Revisa el motivo, corrige lo necesario y vuelve a enviar.
+      </p>
+    </q-banner>
 
     <q-stepper
       v-model="step"
@@ -286,6 +298,8 @@ const submitting = ref(false);
 const companyMode = ref('existing');
 const companies = ref([]);
 const originalCompanies = ref([]);
+const rejectReason = ref('');
+const rejectedEP = ref(null);
 
 const form = ref({
   modality: '',
@@ -358,13 +372,59 @@ const modalityOptions = [
 
 onMounted(async () => {
   try {
-    const res = await companyService.getAll({ limit: 1000 });
-    const data = res.data?.data || res.data;
-    originalCompanies.value = data.companies || data || [];
+    const [compRes, epRes] = await Promise.all([
+      companyService.getAll({ limit: 1000 }),
+      productiveStageService.getMyEP()
+    ]);
+
+    const compData = compRes.data?.data || compRes.data;
+    originalCompanies.value = compData.companies || compData || [];
     companies.value = [...originalCompanies.value];
+
+    // Detectar EP rechazada para pre-llenar el formulario
+    const epData = epRes.data?.eps || epRes.data?.data?.eps || epRes.data?.data || epRes.data;
+    const epList = Array.isArray(epData) ? epData : (epData?.eps || []);
+    const rejected = epList.find(ep => ep.status === 'PENDING_REGISTRATION');
+
+    if (rejected) {
+      rejectedEP.value = rejected;
+      // Extraer motivo de rechazo del ultimo comentario
+      const lastComment = rejected.comments?.slice(-1)[0];
+      if (lastComment?.text?.startsWith('RECHAZO DE REGISTRO:')) {
+        rejectReason.value = lastComment.text.replace('RECHAZO DE REGISTRO:', '').trim();
+      } else if (lastComment?.text) {
+        rejectReason.value = lastComment.text.trim();
+      }
+
+      // Pre-llenar campos del formulario
+      form.value.modality = rejected.modality || '';
+      form.value.startDate = rejected.startDate ? new Date(rejected.startDate).toISOString().slice(0, 10) : '';
+      form.value.estimatedEndDate = rejected.estimatedEndDate ? new Date(rejected.estimatedEndDate).toISOString().slice(0, 10) : '';
+
+      if (rejected.companySnapshot) {
+        form.value.companySnapshot.apprenticeJobTitle = rejected.companySnapshot.apprenticeJobTitle || '';
+        form.value.companySnapshot.supervisorName = rejected.companySnapshot.supervisorName || '';
+        form.value.companySnapshot.supervisorPhone = rejected.companySnapshot.supervisorPhone || '';
+        form.value.companySnapshot.supervisorEmail = rejected.companySnapshot.supervisorEmail || '';
+      }
+
+      if (rejected.company) {
+        form.value.companyId = typeof rejected.company === 'object' ? rejected.company._id : rejected.company;
+        companyMode.value = 'existing';
+      } else if (rejected.companySnapshot?.companyName) {
+        companyMode.value = 'new';
+        newCompany.value = {
+          taxId: rejected.companySnapshot.taxId || '',
+          name: rejected.companySnapshot.companyName || '',
+          address: rejected.companySnapshot.address || '',
+          phone: rejected.companySnapshot.companyPhone || '',
+          email: rejected.companySnapshot.companyEmail || ''
+        };
+      }
+    }
   } catch (error) {
     console.error(error);
-    $q.notify({ type: 'negative', message: error.message || 'No se pudieron cargar las empresas.', position: 'top', timeout: 5000 });
+    $q.notify({ type: 'negative', message: error.message || 'No se pudieron cargar los datos.', position: 'top', timeout: 5000 });
   }
 });
 

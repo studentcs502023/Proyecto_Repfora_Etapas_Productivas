@@ -127,6 +127,26 @@ class UserController {
             return errorResponse(res, error.statusCode || 500, error.message);
         }
     }
+
+    // === DEACTIVATE (Soft Delete) ===
+
+    async deactivateInstructor(req, res) {
+        try {
+            const instructor = await userService.deactivateInstructor(req.params.id, req.user.id);
+            return successResponse(res, 200, "Instructor desactivado exitosamente", { instructor });
+        } catch (error) {
+            return errorResponse(res, error.statusCode || 500, error.message);
+        }
+    }
+
+    async deactivateApprentice(req, res) {
+        try {
+            const apprentice = await userService.deactivateApprentice(req.params.id, req.user.id);
+            return successResponse(res, 200, "Aprendiz desactivado exitosamente", { apprentice });
+        } catch (error) {
+            return errorResponse(res, error.statusCode || 500, error.message);
+        }
+    }
 }
 
 export default new UserController();

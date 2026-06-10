@@ -138,4 +138,16 @@ router.patch("/apprentices/:id",
     userController.updateApprentice
 );
 
+// === DEACTIVATE (Soft Delete) ===
+
+router.patch("/instructors/:id/deactivate",
+    checkRole("ADMIN"),
+    userController.deactivateInstructor
+);
+
+router.patch("/apprentices/:id/deactivate",
+    checkRole("ADMIN"),
+    userController.deactivateApprentice
+);
+
 export default router;

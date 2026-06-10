@@ -60,12 +60,40 @@
         <template v-slot:body-cell-status="props">
           <q-td :props="props">
             <q-chip
-              :color="props.row.isActive ? 'positive' : 'negative'"
+              v-if="!props.row.isActive"
+              color="negative"
               text-color="white"
               dense
               size="sm"
             >
-              {{ props.row.isActive ? 'ACTIVO' : 'INACTIVO' }}
+              ELIMINADO
+            </q-chip>
+            <q-chip
+              v-else-if="activeTab === 'INSTRUCTORS' && props.row.status === 'INACTIVE'"
+              color="warning"
+              text-color="white"
+              dense
+              size="sm"
+            >
+              INACTIVO
+            </q-chip>
+            <q-chip
+              v-else-if="activeTab === 'INSTRUCTORS' && props.row.status === 'CONTRACT_ENDED'"
+              color="orange"
+              text-color="white"
+              dense
+              size="sm"
+            >
+              CONTRATO FINALIZADO
+            </q-chip>
+            <q-chip
+              v-else
+              color="positive"
+              text-color="white"
+              dense
+              size="sm"
+            >
+              ACTIVO
             </q-chip>
           </q-td>
         </template>
@@ -78,6 +106,16 @@
 
             <q-btn v-if="activeTab === 'APPRENTICES'" size="sm" flat round color="accent" icon="assignment_ind" @click="openAssignModal(props.row)">
               <q-tooltip>Asignar instructor</q-tooltip>
+            </q-btn>
+
+            <!-- Deshabilitar (solo instructores) -->
+            <q-btn v-if="activeTab === 'INSTRUCTORS' && props.row.status === 'ACTIVE'" size="sm" flat round color="warning" icon="block" @click="confirmDisableInstructor(props.row)">
+              <q-tooltip>Deshabilitar instructor</q-tooltip>
+            </q-btn>
+
+            <!-- Eliminar (soft delete) -->
+            <q-btn size="sm" flat round color="negative" icon="delete" @click="confirmDeleteUser(props.row)">
+              <q-tooltip>Eliminar usuario</q-tooltip>
             </q-btn>
           </q-td>
         </template>
@@ -559,11 +597,11 @@ async function saveUser() {
         const idx = users.value.findIndex(u => u._id === userForm.value._id);
         if (idx !== -1) {
           const res = await userService.getInstructorById(userForm.value._id);
-          users.value[idx] = res.data.data?.instructor || res.data;
+          users.value[idx] = res.data?.instructor || res.data;
         }
       } else {
         const res = await userService.createInstructor(payload);
-        const created = res.data.data?.instructor || res.data;
+        const created = res.data?.instructor || res.data;
         users.value.unshift(created);
       }
     } else {
@@ -572,11 +610,11 @@ async function saveUser() {
         const idx = users.value.findIndex(u => u._id === userForm.value._id);
         if (idx !== -1) {
           const res = await userService.getApprenticeById(userForm.value._id);
-          users.value[idx] = res.data.data?.apprentice || res.data;
+          users.value[idx] = res.data?.apprentice || res.data;
         }
       } else {
         const res = await userService.createApprentice(payload);
-        const created = res.data.data?.apprentice || res.data;
+        const created = res.data?.apprentice || res.data;
         users.value.unshift(created);
       }
     }
@@ -643,6 +681,56 @@ async function submitQuickAssign() {
     $q.notify({ type: 'negative', message: msg, position: 'top', timeout: 5000 });
   } finally {
     assigning.value = false;
+  }
+}
+
+// --- Eliminar / Deshabilitar ---
+
+function confirmDisableInstructor(user) {
+  $q.dialog({
+    title: 'Deshabilitar Instructor',
+    message: `¿Está seguro de deshabilitar a ${user.fullName}? No podrá realizar nuevas acciones pero sus registros se conservan.`,
+    cancel: { label: 'Cancelar', flat: true },
+    ok: { label: 'Deshabilitar', color: 'warning' },
+    persistent: true
+  }).onOk(() => disableInstructor(user));
+}
+
+async function disableInstructor(user) {
+  try {
+    await userService.changeInstructorStatus(user._id, 'INACTIVE', 'Deshabilitado por administrador');
+    const idx = users.value.findIndex(u => u._id === user._id);
+    if (idx !== -1) users.value[idx] = { ...users.value[idx], status: 'INACTIVE' };
+    $q.notify({ type: 'warning', message: `${user.fullName} deshabilitado`, position: 'top', timeout: 3000 });
+  } catch (error) {
+    const msg = error.response?.data?.message || 'Error al deshabilitar instructor';
+    $q.notify({ type: 'negative', message: msg, position: 'top', timeout: 5000 });
+  }
+}
+
+function confirmDeleteUser(user) {
+  const rol = user.role === 'INSTRUCTOR' ? 'instructor' : 'aprendiz';
+  $q.dialog({
+    title: `Eliminar ${rol}`,
+    message: `¿Está seguro de eliminar a ${user.fullName}? Esta acción es reversible contactando al administrador del sistema.`,
+    cancel: { label: 'Cancelar', flat: true },
+    ok: { label: 'Eliminar', color: 'negative' },
+    persistent: true
+  }).onOk(() => deleteUser(user));
+}
+
+async function deleteUser(user) {
+  try {
+    if (user.role === 'INSTRUCTOR') {
+      await userService.deactivateInstructor(user._id);
+    } else {
+      await userService.deactivateApprentice(user._id);
+    }
+    users.value = users.value.filter(u => u._id !== user._id);
+    $q.notify({ type: 'positive', message: `${user.fullName} eliminado`, position: 'top', timeout: 3000 });
+  } catch (error) {
+    const msg = error.response?.data?.message || 'Error al eliminar usuario';
+    $q.notify({ type: 'negative', message: msg, position: 'top', timeout: 5000 });
   }
 }
 </script>

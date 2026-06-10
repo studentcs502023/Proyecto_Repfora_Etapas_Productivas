@@ -520,8 +520,20 @@ class TrackingService {
       filter.apprentice = reqUser.id;
       if (productiveStageId) filter.productiveStage = productiveStageId;
     } else if (reqUser.role === 'INSTRUCTOR') {
-      filter.instructor = reqUser.id;
-      if (productiveStageId) filter.productiveStage = productiveStageId;
+      if (productiveStageId) {
+        filter.productiveStage = productiveStageId;
+      } else {
+        // Find all ProductiveStages where instructor is assigned in any role
+        const assignedEPs = await ProductiveStage.find({
+          $or: [
+            { followupInstructor: reqUser.id },
+            { technicalInstructor: reqUser.id },
+            { projectInstructor: reqUser.id }
+          ]
+        }).select('_id');
+        const epIds = assignedEPs.map(ep => ep._id);
+        filter.productiveStage = { $in: epIds.length > 0 ? epIds : [null] };
+      }
     } else if (reqUser.role === 'ADMIN') {
       if (productiveStageId) filter.productiveStage = productiveStageId;
     }
@@ -565,10 +577,23 @@ class TrackingService {
       error.statusCode = 403;
       throw error;
     }
-    if (reqUser.role === 'INSTRUCTOR' && tracking.instructor._id.toString() !== reqUser.id.toString()) {
-      const error = new Error('Forbidden');
-      error.statusCode = 403;
-      throw error;
+    if (reqUser.role === 'INSTRUCTOR') {
+      const ep = await ProductiveStage.findById(tracking.productiveStage);
+      if (!ep) {
+        const error = new Error('ProductiveStage not found');
+        error.statusCode = 404;
+        throw error;
+      }
+      const isAssigned = [
+        ep.followupInstructor?.toString(),
+        ep.technicalInstructor?.toString(),
+        ep.projectInstructor?.toString()
+      ].includes(reqUser.id.toString());
+      if (!isAssigned) {
+        const error = new Error('Forbidden: You are not assigned to this ProductiveStage');
+        error.statusCode = 403;
+        throw error;
+      }
     }
 
     return tracking;

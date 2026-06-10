@@ -94,6 +94,54 @@
           </q-card>
         </div>
 
+        <!-- ─── Notificaciones ─── -->
+        <div class="col-12 col-md-6">
+          <q-card flat bordered>
+            <q-card-section class="bg-grey-2 row items-center justify-between">
+              <div class="text-subtitle1 text-weight-bold text-black">
+                <q-icon name="notifications" class="q-mr-sm" />Notificaciones
+              </div>
+              <div class="row items-center q-gutter-sm">
+                <q-badge v-if="unreadCount > 0" color="red" rounded>{{ unreadCount }} sin leer</q-badge>
+                <q-btn v-if="unreadCount > 0" flat dense size="sm" color="primary" label="Marcar todas" @click="markAllAsRead" :loading="loadingNotif" />
+                <q-btn flat dense size="sm" color="primary" icon="open_in_new" label="Ver todas" to="/notificaciones" />
+              </div>
+            </q-card-section>
+            <q-card-section class="q-pa-none">
+              <div v-if="loadingNotif" class="text-center q-pa-lg">
+                <q-spinner color="primary" size="2em" />
+              </div>
+              <div v-else-if="notifications.length === 0" class="text-center q-pa-lg text-grey-6">
+                <q-icon name="notifications_off" size="2em" class="q-mb-sm" />
+                <div>No tienes notificaciones</div>
+              </div>
+              <q-scroll-area v-else style="height: 250px;">
+                <q-list separator>
+                  <q-item
+                    v-for="n in notifications"
+                    :key="n._id"
+                    clickable
+                    :class="n.isRead ? '' : 'bg-blue-1'"
+                    @click="markAsRead(n)"
+                  >
+                    <q-item-section>
+                      <q-item-label class="text-weight-bold">{{ n.title }}</q-item-label>
+                      <q-item-label caption class="q-mt-xs">{{ n.message }}</q-item-label>
+                      <q-item-label caption class="text-caption text-grey-6 q-mt-xs">
+                        {{ formatNotifDate(n.createdAt) }}
+                      </q-item-label>
+                    </q-item-section>
+                    <q-item-section v-if="!n.isRead" side>
+                      <q-badge color="primary" rounded />
+                    </q-item-section>
+                    <q-tooltip v-if="!n.isRead">Clic para marcar como leída</q-tooltip>
+                  </q-item>
+                </q-list>
+              </q-scroll-area>
+            </q-card-section>
+          </q-card>
+        </div>
+
         <!-- ─── Detalle del Vínculo ─── -->
         <div class="col-12 col-md-6">
           <q-card flat bordered>
@@ -368,13 +416,16 @@
 <script setup>
 import { computed, ref, onMounted } from 'vue';
 import { useQuasar } from 'quasar';
+import { useRouter } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
 import productiveStageService from '../api/productiveStage.service';
 import bitacoraService from '../api/bitacora.service';
 import userService from '../api/user.service';
 import hourService from '../api/hours.service';
+import notificationService from '../api/notification.service';
 
 const $q = useQuasar();
+const router = useRouter();
 const authStore = useAuthStore();
 const loading = ref(true);
 
@@ -383,6 +434,9 @@ const ep = ref(null);
 const pendingBitacoras = ref([]);
 const newComment = ref('');
 const sendingComment = ref(false);
+const notifications = ref([]);
+const unreadCount = ref(0);
+const loadingNotif = ref(false);
 
 const stats = ref({
   instructor: { totalApprentices: 0, hoursThisMonth: 0, pendingHours: 0, pendingBitacoras: 0 },
@@ -477,6 +531,64 @@ const modalityMap = {
 };
 function getModalityLabel(v) { return modalityMap[v] || v; }
 
+// ─── Notificaciones ──────────────────────────────────────────────────────────
+async function loadNotifications() {
+  loadingNotif.value = true;
+  try {
+    const res = await notificationService.getNotifications({ limit: 10 });
+    const body = res.data || res;
+    notifications.value = body.notifications || body || [];
+    unreadCount.value = notifications.value.filter(n => !n.isRead).length;
+  } catch { /* silencioso */ }
+  finally { loadingNotif.value = false; }
+}
+
+function formatNotifDate(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  return d.toLocaleDateString('es-CO', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+}
+
+const notifRoutes = {
+  EP_APPROVED: '/register-ep',
+  EP_REJECTED: '/register-ep',
+  EP_COMMENT_ADDED: '/register-ep',
+  BITACORA_APPROVED: '/bitacoras',
+  BITACORA_REJECTED: '/bitacoras',
+  BITACORA_PENDING_REVIEW: '/bitacoras',
+  BITACORA_REMINDER: '/bitacoras',
+  TRACKING_REMINDER: '/trackings',
+  EXTRAORDINARY_TRACKING_APPROVED: '/trackings',
+  DOCUMENTS_APPROVED: '/certification',
+  DOCUMENTS_REJECTED: '/certification',
+  DOCUMENTS_REMINDER: '/certification',
+  ENROLLMENT_EXPIRY_ALERT: '/',
+  SYSTEM_WELCOME: '/mi-perfil',
+};
+
+async function markAsRead(n) {
+  const wasUnread = !n.isRead;
+  try {
+    await notificationService.markAsRead(n._id);
+    n.isRead = true;
+    if (wasUnread) unreadCount.value = Math.max(0, unreadCount.value - 1);
+  } catch { /* silencioso */ }
+  const route = notifRoutes[n.type];
+  if (route) {
+    router.push(route);
+  }
+}
+
+async function markAllAsRead() {
+  loadingNotif.value = true;
+  try {
+    await notificationService.markAllAsRead();
+    notifications.value.forEach(n => n.isRead = true);
+    unreadCount.value = 0;
+  } catch { /* silencioso */ }
+  finally { loadingNotif.value = false; }
+}
+
 // ─── Carga de datos ────────────────────────────────────────────────────────
 onMounted(loadData);
 
@@ -501,6 +613,7 @@ async function loadApprentice() {
     const list = Array.isArray(data) ? data : (data?.eps || []);
     ep.value = list[0] ?? null;
   } catch { ep.value = null; }
+  loadNotifications();
 }
 
 async function fetchEP() {
