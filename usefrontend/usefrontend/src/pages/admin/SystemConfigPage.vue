@@ -114,8 +114,8 @@ const wordDictionary = {
   'MIN': 'Mínimo de',
   'LOGBOOK': 'Bitácora',
   'LOGBOOKS': 'Bitácoras',
-  'TECHNICIAN': '(Técnico)',
-  'TECHNOLOGIST': '(Tecnólogo)',
+  'TECHNICIAN': 'Técnico',
+  'TECHNOLOGIST': 'Tecnólogo',
   'HOURS': 'Horas',
   'TRACKING': 'Seguimiento',
   'TRACKINGS': 'Seguimientos',
@@ -129,26 +129,57 @@ const wordDictionary = {
   'LIMIT': 'Límite',
   'ALERT': 'Alerta',
   'WARNING': 'Aviso',
-  'REQUIRED': 'Requerido'
+  'REQUIRED': 'Requerido',
+  'REVIEW': 'Revisión',
+  'PER': 'por',
+  'IN_PERSON': 'Presencial',
+  'VIRTUAL': 'Virtual',
+  'EXTRAORDINARY': 'Extraordinario',
+  'CERTIFICATION': 'Certificación',
+  'MONTHLY': 'Mensuales',
+  'INSTRUCTOR': 'Instructor',
+  'YELLOW': 'Amarilla',
+  'ORANGE': 'Naranja',
+  'RED': 'Roja',
+  'NOTIFICATION': 'Notificación',
+  'EMAIL': 'Correo',
+  'GOOGLE_DRIVE': 'Google Drive',
+  'ROOT': 'Raíz',
+  'FOLDER': 'Carpeta',
+  'ID': 'ID',
+  'NEW': 'Nuevos',
+  'OLD': 'Antiguos',
+  'YEAR': 'Año',
+  'YEARS': 'Años'
 };
 
 function formatKeyName(key) {
   // Traducciones exactas para claves conocidas
   const exactMatches = {
     'EP_REGISTRATION_DEADLINE_MONTHS': 'Meses Límite para Registro de EP',
-    'MAX_LOGBOOKS_TECHNICIAN': 'Máximo de Bitácoras (Técnico)',
-    'MAX_LOGBOOKS_TECHNOLOGIST': 'Máximo de Bitácoras (Tecnólogo)'
+    'MAX_LOGBOOKS_TECHNICIAN': 'Máximo de Bitácoras - Técnico',
+    'MAX_LOGBOOKS_TECHNOLOGIST': 'Máximo de Bitácoras - Tecnólogo',
+    'HOURS_PER_LOGBOOK_REVIEW': 'Horas por Revisión de Bitácora',
+    'HOURS_PER_IN_PERSON_TRACKING': 'Horas por Seguimiento Presencial',
+    'HOURS_PER_VIRTUAL_TRACKING': 'Horas por Seguimiento Virtual',
+    'HOURS_PER_EXTRAORDINARY_TRACKING': 'Horas por Seguimiento Extraordinario',
+    'HOURS_PER_CERTIFICATION': 'Horas por Certificación',
+    'REQUIRED_TRACKINGS_TECHNICIAN': 'Seguimientos Requeridos - Técnico',
+    'REQUIRED_TRACKINGS_TECHNOLOGIST': 'Seguimientos Requeridos - Tecnólogo',
+    'MAX_MONTHLY_HOURS_INSTRUCTOR': 'Máximo de Horas Mensuales por Instructor',
+    'EXPIRY_ALERT_DAYS_YELLOW': 'Días para Alerta Amarilla',
+    'EXPIRY_ALERT_DAYS_ORANGE': 'Días para Alerta Naranja',
+    'EXPIRY_ALERT_DAYS_RED': 'Días para Alerta Roja',
+    'NOTIFICATION_EMAIL': 'Correo para Notificaciones',
+    'GOOGLE_DRIVE_ROOT_FOLDER_ID': 'ID Carpeta Raíz Google Drive',
+    'EP_DEADLINE_MONTHS_NEW_ENROLLMENT': 'Meses Límite para Registrar EP (Matrícula Nueva)',
+    'EP_DEADLINE_YEARS_OLD_ENROLLMENT': 'Años Límite para Registrar EP (Matrícula Antigua)'
   };
   
   if (exactMatches[key]) return exactMatches[key];
 
-  // Si no hay traducción exacta, traducimos palabra por palabra (Fallback dinámico)
-  return key.split('_').map(word => {
-    const w = wordDictionary[word.toUpperCase()] || word;
-    // Evitamos transformar palabras con espacios como 'Máximo de' o '(Técnico)' de forma incorrecta
-    if (wordDictionary[word.toUpperCase()]) return w;
-    return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
-  }).join(' ');
+  // Fallback: reemplazar guiones bajos por espacios con capitalización
+  return key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }
 </script>
 

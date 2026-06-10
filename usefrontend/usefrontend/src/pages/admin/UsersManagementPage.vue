@@ -97,7 +97,7 @@
             <div class="text-subtitle2 text-grey-7 q-mb-xs">Datos Personales</div>
             <div class="row q-col-gutter-sm">
               <div class="col-12 col-md-6">
-                <q-input v-model="userForm.nationalId" label="Cédula / Documento" outlined dense :disable="isEditing" :rules="[val => !!val || 'Requerido', val => /^\d{5,15}$/.test(val) || 'Debe tener solo dígitos (5-15)']" />
+                <q-input v-model="userForm.nationalId" label="Cédula / Documento" outlined dense :disable="isEditing" :rules="[val => !!val || 'Requerido', val => /^\d{7,15}$/.test(val) || 'Debe tener solo dígitos (7-15)']" />
               </div>
               <div class="col-12 col-md-6">
                 <q-input v-model="userForm.fullName" label="Nombre Completo" outlined dense :rules="[val => !!val || 'Requerido', val => !val || !/\d/.test(val) || 'No se permiten números']" />

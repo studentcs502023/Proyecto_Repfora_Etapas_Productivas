@@ -69,7 +69,7 @@
             <div class="text-subtitle1 text-weight-bold text-black q-mb-md">
               <q-icon name="lock" class="q-mr-sm" />Cambiar Contraseña
             </div>
-            <q-form @submit.prevent="changePassword">
+            <q-form ref="passwordFormRef" @submit.prevent="changePassword">
               <div class="row q-col-gutter-md">
                 <div class="col-12">
                   <q-input
@@ -77,6 +77,7 @@
                     label="Contraseña Actual"
                     :type="showCurrent ? 'text' : 'password'"
                     outlined dense
+                    lazy-rules
                     :rules="[val => !!val || 'Campo requerido']"
                   >
                     <template v-slot:append>
@@ -90,6 +91,7 @@
                     label="Nueva Contraseña"
                     :type="showNew ? 'text' : 'password'"
                     outlined dense
+                    lazy-rules
                     :rules="[
                       val => !!val || 'Campo requerido',
                       val => val.length >= 8 || 'Mínimo 8 caracteres',
@@ -110,6 +112,7 @@
                     label="Confirmar Nueva Contraseña"
                     :type="showConfirm ? 'text' : 'password'"
                     outlined dense
+                    lazy-rules
                     :rules="[
                       val => !!val || 'Campo requerido',
                       val => val === passwordForm.newPassword || 'Las contraseñas no coinciden'
@@ -157,6 +160,7 @@ const savingPassword = ref(false);
 const showCurrent = ref(false);
 const showNew = ref(false);
 const showConfirm = ref(false);
+const passwordFormRef = ref(null);
 
 const passwordForm = ref({
   currentPassword: '',
@@ -178,22 +182,25 @@ const passwordHints = computed(() => [
 ]);
 
 async function changePassword() {
-  if (passwordForm.value.newPassword !== passwordForm.value.confirmPassword) {
-    $q.notify({ type: 'warning', message: 'Las contraseñas no coinciden.', position: 'top', timeout: 5000 });
-    return;
-  }
   savingPassword.value = true;
   try {
-    await authService.changePassword({
+    const payload = {
       currentPassword: passwordForm.value.currentPassword.trim(),
       newPassword: passwordForm.value.newPassword.trim(),
       confirmPassword: passwordForm.value.confirmPassword.trim()
-    });
+    };
+    await authService.changePassword(payload);
+    if (authStore.user) {
+      authStore.user.firstLogin = false;
+      localStorage.setItem('user', JSON.stringify(authStore.user));
+    }
     $q.notify({ type: 'positive', message: '¡Contraseña actualizada correctamente!', position: 'top', timeout: 5000 });
     passwordForm.value = { currentPassword: '', newPassword: '', confirmPassword: '' };
+    passwordFormRef.value?.resetValidation();
   } catch (err) {
     console.error(err);
-    $q.notify({ type: 'negative', message: err.message || 'Error al cambiar la contraseña.', position: 'top', timeout: 5000 });
+    const msg = err.response?.data?.message || err.message || 'Error al cambiar la contraseña';
+    $q.notify({ type: 'negative', message: msg, position: 'top', timeout: 5000 });
   } finally {
     savingPassword.value = false;
   }
