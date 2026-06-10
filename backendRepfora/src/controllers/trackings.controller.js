@@ -30,6 +30,15 @@ class TrackingController {
     }
   }
 
+  async rejectExtraordinaryTracking(req, res) {
+    try {
+      const tracking = await trackingService.rejectExtraordinaryTracking(req.user, req.params.id);
+      return successResponse(res, 200, 'Extraordinary tracking rejected', { tracking });
+    } catch (error) {
+      return errorResponse(res, error.statusCode || 500, error.message);
+    }
+  }
+
   async uploadPDF(req, res) {
     try {
       if (!req.file) {

@@ -3,6 +3,7 @@ import ProductiveStage from '../models/ProductiveStage.model.js';
 import User from '../models/User.model.js';
 import HourRecord from '../models/HourRecord.model.js';
 import hourService from './hours.service.js';
+import notificationService from './notifications.service.js';
 import { recordAuditLog } from '../utils/auditLog.util.js';
 import { getConfig } from '../utils/configHelper.util.js';
 import productiveStagesService from './productiveStages.service.js';
@@ -13,11 +14,6 @@ const mockDriveUpload = async (file, folderPath) => {
     driveFileId: `mock_drive_id_${Date.now()}`,
     driveFileUrl: `https://drive.google.com/file/d/mock_drive_id_${Date.now()}/view`
   };
-};
-
-// MOCK: Notifications integration
-const mockSendNotification = async (type, payload) => {
-  console.log(`[MOCK NOTIFICATION] ${type}:`, payload);
 };
 
 class TrackingService {
@@ -104,11 +100,12 @@ class TrackingService {
 
     await tracking.save();
 
-    // Notify apprentice
-    await mockSendNotification('TRACKING_REMINDER', {
-      recipient: ep.apprentice,
-      scheduledDate,
-      type
+    await notificationService.send({
+      type: 'TRACKING_REMINDER',
+      recipients: [ep.apprentice.toString()],
+      title: 'Nuevo Seguimiento Programado',
+      message: `Se ha programado un seguimiento ${type === 'IN_PERSON' ? 'presencial' : 'virtual'} para el ${new Date(scheduledDate).toLocaleDateString('es-CO')}. Instructor asignado: ${reqUser.fullName}.`,
+      metadata: { entity: 'Tracking', entityId: tracking._id }
     });
 
     // Audit Log
@@ -175,13 +172,16 @@ class TrackingService {
 
     await tracking.save();
 
-    // Notify ADMIN
-    await mockSendNotification('NEW_CRITICAL_NOVELTY', {
-      message: 'New extraordinary tracking request',
-      instructorId: reqUser.id,
-      apprenticeId: ep.apprentice,
-      reason: extraordinaryReason
-    });
+    const admins = await User.find({ role: 'ADMIN', isActive: true }).select('_id');
+    if (admins.length > 0) {
+      await notificationService.send({
+        type: 'NEW_CRITICAL_NOVELTY',
+        recipients: admins.map(a => a._id.toString()),
+        title: 'Solicitud de Seguimiento Extraordinario',
+        message: `El instructor ${reqUser.fullName} solicita un seguimiento extraordinario para el aprendiz ${ep.apprentice?.fullName || 'N/D'}. Motivo: ${extraordinaryReason}`,
+        metadata: { entity: 'Tracking', entityId: tracking._id }
+      });
+    }
 
     // Audit Log
     await recordAuditLog({
@@ -222,15 +222,59 @@ class TrackingService {
     tracking.approvedBy = reqUser.id;
     await tracking.save();
 
-    // Notify instructor
-    await mockSendNotification('EXTRAORDINARY_TRACKING_APPROVED', {
-      recipient: tracking.instructor,
-      trackingId: tracking._id
+    await notificationService.send({
+      type: 'EXTRAORDINARY_TRACKING_APPROVED',
+      recipients: [tracking.instructor.toString()],
+      title: 'Seguimiento Extraordinario Aprobado',
+      message: `Tu solicitud de seguimiento extraordinario ha sido aprobada por la coordinación. Ya puedes ejecutarlo y cargar el acta firmada.`,
+      metadata: { entity: 'Tracking', entityId: tracking._id }
     });
 
     // Audit Log
     await recordAuditLog({
       action: 'TRACKING_EXTRAORDINARY_APPROVED',
+      entity: 'Tracking',
+      entityId: tracking._id,
+      performedBy: reqUser.id
+    });
+
+    return tracking;
+  }
+
+  async rejectExtraordinaryTracking(reqUser, id) {
+    const tracking = await Tracking.findById(id);
+    if (!tracking || !tracking.isActive) {
+      const error = new Error('Tracking not found');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    if (!tracking.isExtraordinary) {
+      const error = new Error('This is not an extraordinary tracking');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    if (tracking.approvedByAdmin) {
+      const error = new Error('This tracking is already approved');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    tracking.isActive = false;
+    tracking.status = 'CANCELLED';
+    await tracking.save();
+
+    await notificationService.send({
+      type: 'EXTRAORDINARY_TRACKING_REJECTED',
+      recipients: [tracking.instructor.toString()],
+      title: 'Seguimiento Extraordinario Rechazado',
+      message: `Tu solicitud de seguimiento extraordinario ha sido rechazada por la coordinación.`,
+      metadata: { entity: 'Tracking', entityId: tracking._id }
+    });
+
+    await recordAuditLog({
+      action: 'TRACKING_EXTRAORDINARY_REJECTED',
       entity: 'Tracking',
       entityId: tracking._id,
       performedBy: reqUser.id
@@ -465,11 +509,12 @@ class TrackingService {
    * List trackings
    */
   async getTrackings(reqUser, query) {
-    const { productiveStageId, status, isExtraordinary, page = 1, limit = 20 } = query;
+    const { productiveStageId, status, isExtraordinary, approvedByAdmin, page = 1, limit = 20 } = query;
     let filter = { isActive: true };
 
     if (status) filter.status = status;
     if (isExtraordinary !== undefined) filter.isExtraordinary = isExtraordinary === 'true';
+    if (approvedByAdmin !== undefined) filter.approvedByAdmin = approvedByAdmin === 'true';
 
     if (reqUser.role === 'APPRENTICE') {
       filter.apprentice = reqUser.id;

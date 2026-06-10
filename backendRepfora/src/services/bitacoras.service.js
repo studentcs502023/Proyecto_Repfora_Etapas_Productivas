@@ -6,6 +6,7 @@ import hourService from './hours.service.js';
 import { recordAuditLog } from '../utils/auditLog.util.js';
 import { getConfig } from '../utils/configHelper.util.js';
 import productiveStagesService from './productiveStages.service.js';
+import notificationService from './notifications.service.js';
 import { AUDIT_ACTIONS } from '../utils/enums.js';
 
 // MOCK: Google Drive integration
@@ -14,11 +15,6 @@ const mockDriveUpload = async (file, folderPath) => {
     driveFileId: `mock_drive_id_${Date.now()}`,
     driveFileUrl: `https://drive.google.com/file/d/mock_drive_id_${Date.now()}/view`
   };
-};
-
-// MOCK: Notifications integration
-const mockSendNotification = async (type, payload) => {
-  console.log(`[MOCK NOTIFICATION] ${type}:`, payload);
 };
 
 class BitacoraService {
@@ -102,10 +98,12 @@ class BitacoraService {
 
     // 8. Notify instructor
     if (ep.followupInstructor) {
-      await mockSendNotification('BITACORA_PENDING_REVIEW', {
-        recipient: ep.followupInstructor,
-        apprenticeId: reqUser.id,
-        bitacoraId: bitacora._id
+      await notificationService.send({
+        type: 'BITACORA_PENDING_REVIEW',
+        recipients: [ep.followupInstructor.toString()],
+        title: 'Nueva Bitácora Pendiente de Revisión',
+        message: `El aprendiz ${reqUser.fullName || 'ha subido'} una nueva bitácora para revisión.`,
+        metadata: { entity: 'Bitacora', entityId: bitacora._id }
       });
     }
 
@@ -289,9 +287,12 @@ class BitacoraService {
     await productiveStagesService.checkAndAdvanceStatus(ep._id);
 
     // 8. Notify apprentice
-    await mockSendNotification('BITACORA_APPROVED', {
-      recipient: bitacora.apprentice,
-      bitacoraId: bitacora._id
+    await notificationService.send({
+      type: 'BITACORA_APPROVED',
+      recipients: [bitacora.apprentice.toString()],
+      title: 'Bitácora Aprobada',
+      message: `Tu bitácora #${bitacora.logbookNumber} ha sido aprobada.`,
+      metadata: { entity: 'Bitacora', entityId: bitacora._id }
     });
 
     // 9. Audit Log
@@ -349,10 +350,12 @@ class BitacoraService {
     await bitacora.save();
 
     // Notify apprentice
-    await mockSendNotification('BITACORA_REJECTED', {
-      recipient: bitacora.apprentice,
-      bitacoraId: bitacora._id,
-      comment
+    await notificationService.send({
+      type: 'BITACORA_REJECTED',
+      recipients: [bitacora.apprentice.toString()],
+      title: 'Bitácora Rechazada',
+      message: `Tu bitácora #${bitacora.logbookNumber} ha sido rechazada. Motivo: ${comment.substring(0, 200)}`,
+      metadata: { entity: 'Bitacora', entityId: bitacora._id }
     });
 
     // Audit Log
@@ -405,11 +408,12 @@ class BitacoraService {
     // Notify instructor
     const ep = await ProductiveStage.findById(bitacora.productiveStage);
     if (ep.followupInstructor) {
-      await mockSendNotification('BITACORA_PENDING_REVIEW', {
-        recipient: ep.followupInstructor,
-        apprenticeId: reqUser.id,
-        bitacoraId: bitacora._id,
-        isResubmission: true
+      await notificationService.send({
+        type: 'BITACORA_PENDING_REVIEW',
+        recipients: [ep.followupInstructor.toString()],
+        title: 'Bitácora Corregida Pendiente de Revisión',
+        message: `El aprendiz ha re-enviado la bitácora #${bitacora.logbookNumber} corregida.`,
+        metadata: { entity: 'Bitacora', entityId: bitacora._id }
       });
     }
 
@@ -466,10 +470,12 @@ class BitacoraService {
     await bitacora.save();
 
     // Notify apprentice
-    await mockSendNotification('BITACORA_REMINDER', {
-      recipient: ep.apprentice,
-      message: 'Instructor requested an additional logbook. Please upload the PDF.',
-      reason
+    await notificationService.send({
+      type: 'BITACORA_REMINDER',
+      recipients: [ep.apprentice.toString()],
+      title: 'Bitácora Extra Solicitada',
+      message: `Tu instructor ha solicitado una bitácora adicional. Motivo: ${reason.substring(0, 200)}`,
+      metadata: { entity: 'Bitacora', entityId: bitacora._id }
     });
 
     return bitacora;

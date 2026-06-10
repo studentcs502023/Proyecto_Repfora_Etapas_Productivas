@@ -3,12 +3,18 @@
     <div class="row items-center q-mb-md">
       <div class="col">
         <h2 class="text-h4 text-black text-weight-bold q-my-none">Bandeja de Aprobaciones</h2>
-        <p class="text-grey-7 q-my-sm">Solicitudes de etapa productiva pendientes de revisión y asignación de instructores.</p>
+        <p class="text-grey-7 q-my-sm">Solicitudes pendientes de revisión.</p>
       </div>
     </div>
 
-    <!-- Table -->
-    <q-card flat bordered>
+    <q-tabs v-model="activeTab" dense class="text-grey" active-color="primary" indicator-color="primary" align="left" narrow-indicator>
+      <q-tab name="ep" label="Etapas Productivas" />
+      <q-tab name="trackings" label="Seguimientos Extraordinarios" />
+    </q-tabs>
+    <q-separator class="q-mb-md" />
+
+    <!-- Tab: EP Approvals -->
+    <q-card flat bordered v-if="activeTab === 'ep'">
       <q-table
         :rows="pendingEPs"
         :columns="columns"
@@ -41,6 +47,46 @@
           <div class="full-width row flex-center text-grey q-pa-lg">
             <q-icon size="2em" name="check_circle" class="q-mr-sm" />
             No hay solicitudes pendientes de aprobación.
+          </div>
+        </template>
+      </q-table>
+    </q-card>
+
+    <!-- Tab: Extraordinary Trackings -->
+    <q-card flat bordered v-if="activeTab === 'trackings'">
+      <q-table
+        :rows="pendingExtraordinary"
+        :columns="extraColumns"
+        :loading="loadingExtra"
+        row-key="_id"
+        flat
+      >
+        <template v-slot:body-cell-instructor="props">
+          <q-td :props="props">
+            <div class="text-weight-bold">{{ props.row.instructor?.fullName }}</div>
+          </q-td>
+        </template>
+        <template v-slot:body-cell-apprentice="props">
+          <q-td :props="props">
+            <div class="text-weight-bold">{{ props.row.apprentice?.fullName }}</div>
+            <div class="text-caption text-grey-7">Ficha: {{ props.row.apprentice?.enrollmentNumber }}</div>
+          </q-td>
+        </template>
+        <template v-slot:body-cell-reason="props">
+          <q-td :props="props" class="text-caption" style="max-width: 300px;">{{ props.row.extraordinaryReason }}</q-td>
+        </template>
+        <template v-slot:body-cell-scheduledDate="props">
+          <q-td :props="props">{{ formatDate(props.value) }}</q-td>
+        </template>
+        <template v-slot:body-cell-actions="props">
+          <q-td :props="props" class="q-gutter-xs">
+            <q-btn size="sm" color="positive" icon="check" label="Aprobar" @click="approveExtraordinary(props.row)" :loading="props.row._loading" />
+            <q-btn size="sm" color="negative" icon="close" outline label="Rechazar" @click="rejectExtraordinary(props.row)" />
+          </q-td>
+        </template>
+        <template v-slot:no-data>
+          <div class="full-width row flex-center text-grey q-pa-lg">
+            No hay solicitudes de seguimiento extraordinario pendientes.
           </div>
         </template>
       </q-table>
@@ -208,18 +254,34 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import productiveStageService from '../../api/productiveStage.service';
 import userService from '../../api/user.service';
 import documentService from '../../api/document.service';
+import trackingService from '../../api/tracking.service';
 import { useQuasar } from 'quasar';
 
 const $q = useQuasar();
 
-// State
+// Tabs
+const activeTab = ref('ep');
+
+// State — EP approvals
 const pendingEPs = ref([]);
 const loading = ref(false);
 const pagination = ref({ page: 1, rowsPerPage: 10, rowsNumber: 0 });
+
+// State — Extraordinary trackings
+const pendingExtraordinary = ref([]);
+const loadingExtra = ref(false);
+
+const extraColumns = [
+  { name: 'instructor', label: 'Instructor', field: 'instructor', align: 'left' },
+  { name: 'apprentice', label: 'Aprendiz', field: 'apprentice', align: 'left' },
+  { name: 'reason', label: 'Motivo', field: 'extraordinaryReason', align: 'left' },
+  { name: 'scheduledDate', label: 'Fecha Programada', field: 'scheduledDate', align: 'left' },
+  { name: 'actions', label: 'Acciones', align: 'center' }
+];
 
 const showReviewModal = ref(false);
 const selectedEP = ref(null);
@@ -260,6 +322,11 @@ const modalityOptions = [
 onMounted(() => {
   fetchPendingEPs();
   preloadInstructors();
+  fetchPendingExtraordinary();
+});
+
+watch(activeTab, (tab) => {
+  if (tab === 'trackings') fetchPendingExtraordinary();
 });
 
 // Computed properties for dynamic assignment rules
@@ -379,6 +446,46 @@ function docStatusLabel(status) {
 function docStatusColor(status) {
   const map = { SUBMITTED: 'orange', IN_VALIDATION: 'blue', APPROVED: 'positive', REJECTED: 'negative' };
   return map[status] || 'grey';
+}
+
+async function fetchPendingExtraordinary() {
+  loadingExtra.value = true;
+  try {
+    const res = await trackingService.getTrackings({ isExtraordinary: true, approvedByAdmin: false });
+    const body = res.data || res;
+    pendingExtraordinary.value = body.trackings || body || [];
+  } catch (error) {
+    console.error(error);
+    $q.notify({ type: 'negative', message: error.message || 'Error al cargar seguimientos extraordinarios.', position: 'top', timeout: 5000 });
+  } finally {
+    loadingExtra.value = false;
+  }
+}
+
+async function approveExtraordinary(tracking) {
+  tracking._loading = true;
+  try {
+    await trackingService.approveExtraordinary(tracking._id);
+    $q.notify({ type: 'positive', message: 'Seguimiento extraordinario aprobado.', position: 'top', timeout: 5000 });
+    pendingExtraordinary.value = pendingExtraordinary.value.filter(t => t._id !== tracking._id);
+  } catch (error) {
+    $q.notify({ type: 'negative', message: error.response?.data?.message || 'Error al aprobar.', position: 'top', timeout: 5000 });
+  } finally {
+    tracking._loading = false;
+  }
+}
+
+async function rejectExtraordinary(tracking) {
+  tracking._loading = true;
+  try {
+    await trackingService.rejectExtraordinary(tracking._id);
+    $q.notify({ type: 'warning', message: 'Seguimiento extraordinario rechazado.', position: 'top', timeout: 5000 });
+    pendingExtraordinary.value = pendingExtraordinary.value.filter(t => t._id !== tracking._id);
+  } catch (error) {
+    $q.notify({ type: 'negative', message: error.response?.data?.message || 'Error al rechazar.', position: 'top', timeout: 5000 });
+  } finally {
+    tracking._loading = false;
+  }
 }
 
 async function approveAndAssign() {

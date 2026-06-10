@@ -72,6 +72,8 @@
           <q-td :props="props" class="q-gutter-xs">
             <q-btn v-if="props.row.status === 'SCHEDULED' && (!props.row.isExtraordinary || props.row.approvedByAdmin)" 
                    size="sm" color="primary" label="Ejecutar" @click="openExecuteModal(props.row)" />
+            <q-btn v-if="props.row.status === 'EXECUTED'" 
+                   size="sm" color="purple" outline label="Cobrar" @click="markAsPaid(props.row)" />
             <q-btn v-if="props.row.status === 'EXECUTED' || props.row.status === 'PAID'" 
                    size="sm" outline color="primary" icon="visibility" @click="viewDetails(props.row)">
               <q-tooltip>Ver Detalles</q-tooltip>
@@ -503,8 +505,27 @@ async function executeTracking() {
   }
 }
 
+async function markAsPaid(tracking) {
+  $q.dialog({
+    title: 'Confirmar pago',
+    message: `¿Está seguro de marcar el Seguimiento #${tracking.trackingNumber} de ${tracking.apprentice?.fullName} como pagado? Esta acción no se puede deshacer.`,
+    cancel: 'Cancelar',
+    ok: 'Sí, marcar como pagado',
+    persistent: true,
+    color: 'purple'
+  }).onOk(async () => {
+    try {
+      await trackingService.markPaid(tracking._id);
+      $q.notify({ type: 'positive', message: 'Seguimiento marcado como pagado.', position: 'top', timeout: 5000 });
+      fetchTrackings();
+    } catch (error) {
+      console.error(error);
+      $q.notify({ type: 'negative', message: error.message || 'Error al marcar como pagado.', position: 'top', timeout: 5000 });
+    }
+  });
+}
+
 function viewDetails(tracking) {
-  // Simple view - could open a read-only modal similar to the execution one
   if (tracking.driveFileUrl) {
     window.open(tracking.driveFileUrl, '_blank');
   } else {

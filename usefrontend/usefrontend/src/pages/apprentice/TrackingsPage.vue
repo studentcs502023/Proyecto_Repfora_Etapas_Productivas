@@ -17,7 +17,7 @@
       <q-icon name="warning" size="4em" color="primary" class="q-mb-md" />
       <div class="text-h6 text-primary">Seguimientos no disponibles</div>
       <p class="text-grey-8">Tu etapa productiva debe estar activa o en seguimiento para ver tus evaluaciones.</p>
-      <q-btn color="primary" outline label="Ver mi Etapa" to="/apprentice/my-ep" class="q-mt-md" />
+      <q-btn color="primary" outline label="Registrar Etapa" to="/register-ep" class="q-mt-md" />
     </q-card>
 
     <div v-else>

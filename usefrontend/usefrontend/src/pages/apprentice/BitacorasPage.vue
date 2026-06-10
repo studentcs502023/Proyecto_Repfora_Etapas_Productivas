@@ -20,7 +20,7 @@
       <q-icon name="warning" size="4em" color="primary" class="q-mb-md" />
       <div class="text-h6 text-primary">No puedes subir bitácoras en este momento</div>
       <p class="text-grey-8">Tu etapa productiva debe estar activa o en seguimiento para poder cargar bitácoras.</p>
-      <q-btn color="primary" outline label="Ver mi Etapa" to="/apprentice/my-ep" class="q-mt-md" />
+      <q-btn color="primary" outline label="Registrar Etapa" to="/register-ep" class="q-mt-md" />
     </q-card>
 
     <!-- Bitacoras List -->
@@ -257,12 +257,8 @@ const columns = [
 ];
 
 const isActiveEP = computed(() => {
-  // Habilitación preventiva: si la API tarda en traer la Etapa, asumimos true para no congelar la UI
-  if (!ep.value) return true; 
-  // En lugar de ser restrictivos buscando estados exactos, somos permisivos.
-  // Solo bloqueamos si el proceso está explícitamente sin registrar o archivado.
-  const inactiveStatuses = ['PENDING_REGISTRATION', 'ARCHIVED'];
-  return !inactiveStatuses.includes(ep.value.status);
+  if (!ep.value) return false;
+  return ['ACTIVE', 'IN_FOLLOWUP', 'CERTIFICATION'].includes(ep.value.status);
 });
 
 const canSubmit = computed(() => {

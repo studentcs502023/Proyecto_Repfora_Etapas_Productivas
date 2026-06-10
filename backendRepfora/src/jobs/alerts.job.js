@@ -9,7 +9,8 @@ import { getConfig } from '../utils/configHelper.util.js';
 import {
   buildBitacoraSubject, buildBitacoraMessage,
   buildBitacoraOverdueSubject, buildBitacoraOverdueMessage,
-  buildTrackingSubject, buildTrackingMessage
+  buildTrackingSubject, buildTrackingMessage,
+  buildTrackingDeadlineSubject, buildTrackingDeadlineMessage
 } from '../templates/calendarReminderEmail.template.js';
 import { buildExpirySubject, buildExpiryMessage } from '../templates/enrollmentExpiryEmail.template.js';
 
@@ -292,6 +293,93 @@ const checkCriticalDesertion = async () => {
 };
 
 /**
+ * Check tracking deadlines and send YELLOW/ORANGE/RED alerts (RF-004 Escenario 2)
+ * - YELLOW: tracking scheduled in 7 days
+ * - ORANGE: tracking scheduled in 3 days
+ * - RED: tracking scheduled date has passed and not executed
+ * Runs daily at 8:00 AM.
+ */
+const checkTrackingDeadlines = async () => {
+  console.log('[Cron] Verificando plazos de seguimientos...');
+
+  const now = new Date();
+  const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+  const threeDaysFromNow = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
+
+  const pendingTrackings = await Tracking.find({
+    status: 'SCHEDULED',
+    isActive: true
+  }).populate('apprentice instructor');
+
+  let yellowSent = 0, orangeSent = 0, redSent = 0;
+
+  for (const tracking of pendingTrackings) {
+    if (!tracking.apprentice) continue;
+    const scheduled = new Date(tracking.scheduledDate);
+    const daysUntil = Math.ceil((scheduled.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    const recipients = [tracking.apprentice._id.toString()];
+
+    // RED: passed deadline
+    if (daysUntil < 0) {
+      const admins = await User.find({ role: 'ADMIN', isActive: true }).select('_id');
+      const adminIds = admins.map(a => a._id.toString());
+
+      await notificationService.send({
+        type: 'TRACKING_DEADLINE_APPROACHING',
+        recipients: [...recipients, ...adminIds],
+        title: buildTrackingDeadlineSubject('RED'),
+        message: buildTrackingDeadlineMessage({
+          fullName: tracking.apprentice.fullName,
+          trackingNumber: tracking.trackingNumber,
+          scheduledDate: tracking.scheduledDate,
+          level: 'RED'
+        }),
+        metadata: { entity: 'Tracking', entityId: tracking._id }
+      });
+      redSent++;
+      continue;
+    }
+
+    // ORANGE: within 3 days
+    if (daysUntil <= 3) {
+      await notificationService.send({
+        type: 'TRACKING_DEADLINE_APPROACHING',
+        recipients,
+        title: buildTrackingDeadlineSubject('ORANGE'),
+        message: buildTrackingDeadlineMessage({
+          fullName: tracking.apprentice.fullName,
+          trackingNumber: tracking.trackingNumber,
+          scheduledDate: tracking.scheduledDate,
+          level: 'ORANGE'
+        }),
+        metadata: { entity: 'Tracking', entityId: tracking._id }
+      });
+      orangeSent++;
+      continue;
+    }
+
+    // YELLOW: within 7 days
+    if (daysUntil <= 7) {
+      await notificationService.send({
+        type: 'TRACKING_DEADLINE_APPROACHING',
+        recipients,
+        title: buildTrackingDeadlineSubject('YELLOW'),
+        message: buildTrackingDeadlineMessage({
+          fullName: tracking.apprentice.fullName,
+          trackingNumber: tracking.trackingNumber,
+          scheduledDate: tracking.scheduledDate,
+          level: 'YELLOW'
+        }),
+        metadata: { entity: 'Tracking', entityId: tracking._id }
+      });
+      yellowSent++;
+    }
+  }
+
+  console.log(`[Cron] Alertas de seguimiento - Amarillas: ${yellowSent} | Naranjas: ${orangeSent} | Rojas: ${redSent}`);
+};
+
+/**
  * Start all scheduled jobs
  */
 export const initJobs = () => {
@@ -300,6 +388,7 @@ export const initJobs = () => {
     await checkOverdueReviews();
     await checkBitacoraSchedule();
     await checkUpcomingTrackings();
+    await checkTrackingDeadlines();
     await checkEnrollmentExpiry();
     await checkCriticalDesertion();
   });

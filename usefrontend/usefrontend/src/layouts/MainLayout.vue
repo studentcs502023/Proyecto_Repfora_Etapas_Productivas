@@ -23,6 +23,45 @@
 
         <q-space />
 
+        <!-- Notification Bell -->
+        <q-btn flat round dense class="q-mr-sm" @click="openNotifications">
+          <q-icon name="notifications" />
+          <q-badge v-if="unreadCount > 0" color="red" floating>{{ unreadCount > 9 ? '9+' : unreadCount }}</q-badge>
+          <q-tooltip>Notificaciones</q-tooltip>
+        </q-btn>
+
+        <!-- Notification Drawer -->
+        <q-drawer v-model="notificationDrawer" side="right" bordered :width="360" :breakpoint="500" class="bg-white">
+          <div class="q-pa-md">
+            <div class="row items-center q-mb-sm">
+              <div class="text-h6 text-black">Notificaciones</div>
+              <q-space />
+              <q-btn v-if="unreadCount > 0" flat dense color="primary" size="sm" label="Leer todas" @click="markAllAsRead" />
+              <q-btn flat dense icon="close" round v-close-popup />
+            </div>
+            <q-separator class="q-mb-sm" />
+            <div v-if="loadingNotif" class="text-center q-pa-lg">
+              <q-spinner color="primary" size="2em" />
+            </div>
+            <div v-else-if="notifications.length === 0" class="text-center text-grey q-pa-lg">
+              <q-icon name="notifications_off" size="2em" class="q-mb-sm" />
+              <div>No tienes notificaciones</div>
+            </div>
+            <q-list v-else separator>
+              <q-item v-for="n in notifications" :key="n._id" clickable :class="n.isRead ? '' : 'bg-blue-1'" @click="markAsRead(n)">
+                <q-item-section>
+                  <q-item-label class="text-weight-bold">{{ n.title }}</q-item-label>
+                  <q-item-label caption>{{ n.message }}</q-item-label>
+                  <q-item-label caption class="text-caption text-grey-6">{{ formatNotifDate(n.createdAt) }}</q-item-label>
+                </q-item-section>
+                <q-item-section v-if="!n.isRead" side>
+                  <q-badge color="primary" rounded />
+                </q-item-section>
+              </q-item>
+            </q-list>
+          </div>
+        </q-drawer>
+
         <!-- User Profile Dropdown -->
         <q-btn-dropdown flat no-caps stretch>
           <template v-slot:label>
@@ -76,23 +115,26 @@
 
           <!-- APPRENTICE MENU -->
           <template v-if="authStore.isApprentice">
-            <q-item-label header>Mi Etapa Productiva</q-item-label>
-            <q-item clickable v-ripple to="/bitacoras">
-              <q-item-section avatar><q-icon name="history_edu" /></q-item-section>
-              <q-item-section>Mis Bitácoras</q-item-section>
-            </q-item>
-            <q-item clickable v-ripple to="/trackings">
-              <q-item-section avatar><q-icon name="video_camera_front" /></q-item-section>
-              <q-item-section>Mis Seguimientos</q-item-section>
-            </q-item>
-            <q-item clickable v-ripple to="/certification">
-              <q-item-section avatar><q-icon name="workspace_premium" /></q-item-section>
-              <q-item-section>Certificaci&oacute;n Final</q-item-section>
-              <q-item-section side v-if="showCertBadge">
-                <q-badge :color="certBadgeColor" floating>{{ certBadgeLabel }}</q-badge>
-              </q-item-section>
-            </q-item>
-            <q-separator />
+            <!-- Only show EP menu items after registering a productive stage -->
+            <template v-if="showEpMenu">
+              <q-item-label header>Mi Etapa Productiva</q-item-label>
+              <q-item clickable v-ripple to="/bitacoras">
+                <q-item-section avatar><q-icon name="history_edu" /></q-item-section>
+                <q-item-section>Mis Bitácoras</q-item-section>
+              </q-item>
+              <q-item clickable v-ripple to="/trackings">
+                <q-item-section avatar><q-icon name="video_camera_front" /></q-item-section>
+                <q-item-section>Mis Seguimientos</q-item-section>
+              </q-item>
+              <q-item clickable v-ripple to="/certification">
+                <q-item-section avatar><q-icon name="workspace_premium" /></q-item-section>
+                <q-item-section>Certificaci&oacute;n Final</q-item-section>
+                <q-item-section side v-if="showCertBadge">
+                  <q-badge :color="certBadgeColor" floating>{{ certBadgeLabel }}</q-badge>
+                </q-item-section>
+              </q-item>
+              <q-separator />
+            </template>
             <q-item clickable v-ripple to="/mi-perfil">
               <q-item-section avatar><q-icon name="person" /></q-item-section>
               <q-item-section>Mi Perfil</q-item-section>
@@ -170,22 +212,97 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useAuthStore } from '../stores/auth';
 import { useRouter } from 'vue-router';
 import productiveStageService from '../api/productiveStage.service';
 import documentService from '../api/document.service';
+import notificationServiceApi from '../api/notification.service';
+import { useQuasar } from 'quasar';
 
+const $q = useQuasar();
 const authStore = useAuthStore();
 const router = useRouter();
 const leftDrawerOpen = ref(false);
 
+const notificationDrawer = ref(false);
+const notifications = ref([]);
+const unreadCount = ref(0);
+const loadingNotif = ref(false);
+let notifInterval = null;
+
+function formatNotifDate(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  return d.toLocaleDateString('es-CO', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+}
+
+async function fetchNotifications() {
+  loadingNotif.value = true;
+  try {
+    const res = await notificationServiceApi.getNotifications({ limit: 20 });
+    const body = res.data || res;
+    notifications.value = body.notifications || body || [];
+  } catch { /* silencioso */ }
+  finally { loadingNotif.value = false; }
+}
+
+async function fetchUnreadCount() {
+  try {
+    const res = await notificationServiceApi.getUnreadCount();
+    const body = res.data || res;
+    unreadCount.value = body.unreadCount ?? 0;
+  } catch { /* silencioso */ }
+}
+
+const notifRoutes = {
+  EP_APPROVED: '/register-ep',
+  EP_REJECTED: '/register-ep',
+  EP_COMMENT_ADDED: '/register-ep',
+  BITACORA_APPROVED: '/bitacoras',
+  BITACORA_REJECTED: '/bitacoras',
+  BITACORA_PENDING_REVIEW: '/bitacoras',
+  BITACORA_REMINDER: '/bitacoras',
+  TRACKING_REMINDER: '/trackings',
+  EXTRAORDINARY_TRACKING_APPROVED: '/trackings',
+  DOCUMENTS_APPROVED: '/certification',
+  DOCUMENTS_REJECTED: '/certification',
+  DOCUMENTS_REMINDER: '/certification',
+  ENROLLMENT_EXPIRY_ALERT: '/',
+  SYSTEM_WELCOME: '/mi-perfil',
+};
+
+async function markAsRead(n) {
+  const wasUnread = !n.isRead;
+  try {
+    await notificationServiceApi.markAsRead(n._id);
+    n.isRead = true;
+    if (wasUnread) unreadCount.value = Math.max(0, unreadCount.value - 1);
+  } catch { /* silencioso */ }
+  const route = notifRoutes[n.type];
+  if (route) router.push(route);
+}
+
+async function markAllAsRead() {
+  try {
+    await notificationServiceApi.markAllAsRead();
+    notifications.value.forEach(n => n.isRead = true);
+    unreadCount.value = 0;
+  } catch { /* silencioso */ }
+}
+
 const certBadgeLabel = ref('');
 const certBadgeColor = ref('negative');
+const hasRegisteredEP = ref(false);
 
 const showCertBadge = computed(() => {
   if (!authStore.isApprentice) return false;
   return certBadgeLabel.value !== '';
+});
+
+const showEpMenu = computed(() => {
+  if (!authStore.isApprentice) return false;
+  return hasRegisteredEP.value;
 });
 
 const roleLabel = computed(() => {
@@ -202,6 +319,32 @@ function toggleLeftDrawer() {
   leftDrawerOpen.value = !leftDrawerOpen.value;
 }
 
+function openNotifications() {
+  const unread = unreadCount.value;
+  if (unread > 0) {
+    const latest = notifications.value.find(n => !n.isRead);
+    $q.notify({
+      icon: 'notifications',
+      color: 'primary',
+      message: latest
+        ? `${unread} notificación(es) — ${latest.title}`
+        : `${unread} notificación(es) sin leer`,
+      position: 'top-right',
+      timeout: 3000,
+      actions: [{ icon: 'close', color: 'white', round: true, dense: true }]
+    });
+  } else {
+    $q.notify({
+      icon: 'notifications_off',
+      color: 'grey-7',
+      message: 'No tienes notificaciones nuevas',
+      position: 'top-right',
+      timeout: 2000
+    });
+  }
+  notificationDrawer.value = !notificationDrawer.value;
+}
+
 function handleLogout() {
   authStore.logout();
   router.push('/login');
@@ -213,6 +356,7 @@ async function checkCertNotification() {
     const epRes = await productiveStageService.getMyEP();
     const epList = epRes.data?.eps || [];
     const ep = epList.length > 0 ? epList[0] : null;
+    hasRegisteredEP.value = !!ep && ep.status !== 'PENDING_REGISTRATION';
     if (!ep || ep.status !== 'CERTIFICATION') return;
 
     const TWO_MONTHS_MS = 60 * 24 * 60 * 60 * 1000;
@@ -251,6 +395,13 @@ async function checkCertNotification() {
 
 onMounted(() => {
   checkCertNotification();
+  fetchNotifications();
+  fetchUnreadCount();
+  notifInterval = setInterval(fetchUnreadCount, 30000);
+});
+
+onUnmounted(() => {
+  if (notifInterval) clearInterval(notifInterval);
 });
 </script>
 

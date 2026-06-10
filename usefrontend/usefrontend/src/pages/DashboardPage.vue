@@ -41,6 +41,20 @@
         </q-banner>
       </div>
 
+      <!-- EP Rechazada -->
+      <div v-else-if="ep.status === 'PENDING_REGISTRATION'" class="col-12">
+        <q-banner class="bg-red-1 text-negative rounded-borders" rounded>
+          <template v-slot:avatar><q-icon name="cancel" color="negative" /></template>
+          <div class="text-weight-bold">Tu solicitud fue rechazada</div>
+          <p class="q-mt-xs q-mb-none">
+            {{ latestRejectComment || 'El administrador rechazó tu solicitud. Revisa los comentarios y vuelve a registrar tu etapa productiva.' }}
+          </p>
+          <template v-slot:action>
+            <q-btn flat color="negative" label="Volver a Registrar" to="/register-ep" />
+          </template>
+        </q-banner>
+      </div>
+
       <template v-else>
 
         <!-- ─── Progreso General ─── -->
@@ -373,6 +387,12 @@ const sendingComment = ref(false);
 const stats = ref({
   instructor: { totalApprentices: 0, hoursThisMonth: 0, pendingHours: 0, pendingBitacoras: 0 },
   admin: { activeEPs: 0, totalInstructors: 0, totalApprentices: 0, pendingApprovals: 0 }
+});
+
+const latestRejectComment = computed(() => {
+  if (!ep.value?.comments?.length) return '';
+  const last = ep.value.comments[ep.value.comments.length - 1];
+  return last.text?.startsWith('RECHAZO DE REGISTRO:') ? last.text.replace('RECHAZO DE REGISTRO:', '').trim() : '';
 });
 
 // ─── Computed generales ────────────────────────────────────────────────────

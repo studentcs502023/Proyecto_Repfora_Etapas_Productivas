@@ -16,6 +16,7 @@ router.get('/',
     [
         query('status').optional().isIn(TRACKING_STATUSES),
         query('isExtraordinary').optional().isBoolean(),
+        query('approvedByAdmin').optional().isBoolean(),
         query('page').optional().isInt({ min: 1 }),
         query('limit').optional().isInt({ min: 1, max: 100 }),
         validateFields
@@ -81,6 +82,11 @@ router.patch('/:id/mark-paid',
 router.patch('/:id/approve-extraordinary',
     checkRole('ADMIN'),
     trackingController.approveExtraordinaryTracking
+);
+
+router.patch('/:id/reject-extraordinary',
+    checkRole('ADMIN'),
+    trackingController.rejectExtraordinaryTracking
 );
 
 export default router;

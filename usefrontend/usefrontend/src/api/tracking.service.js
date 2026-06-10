@@ -25,7 +25,11 @@ export const trackingService = {
 
   execute: (id) => api.patch(`/trackings/${id}/execute`),
 
-  approveExtraordinary: (id) => api.patch(`/trackings/${id}/approve-extraordinary`)
+  approveExtraordinary: (id) => api.patch(`/trackings/${id}/approve-extraordinary`),
+
+  rejectExtraordinary: (id) => api.patch(`/trackings/${id}/reject-extraordinary`),
+
+  markPaid: (id) => api.patch(`/trackings/${id}/mark-paid`)
 };
 
 export default trackingService;

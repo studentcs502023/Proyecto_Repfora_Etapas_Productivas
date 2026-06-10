@@ -5,6 +5,7 @@ import { getConfig } from "../utils/configHelper.util.js";
 import { calculateEpDeadline, daysUntil } from "../utils/dateHelper.util.js";
 import { recordAuditLog } from "../utils/auditLog.util.js";
 import { AUDIT_ACTIONS, EP_STATUSES } from "../utils/enums.js";
+import notificationService from "./notifications.service.js";
 
 class ProductiveStageService {
     /**
@@ -19,10 +20,10 @@ class ProductiveStageService {
             throw error;
         }
 
-        // 2. Verificar que no tenga EP activa
+        // 2. Verificar que no tenga EP activa (permitir re-registro si fue rechazada)
         const existingEP = await ProductiveStage.findOne({
             apprentice: apprenticeId,
-            status: { $nin: ["COMPLETED", "ARCHIVED"] },
+            status: { $nin: ["COMPLETED", "ARCHIVED", "PENDING_REGISTRATION"] },
             isActive: true
         });
         if (existingEP) {
@@ -30,6 +31,12 @@ class ProductiveStageService {
             error.statusCode = 409;
             throw error;
         }
+
+        // Si existe una EP rechazada (PENDING_REGISTRATION), la archivamos como histórico
+        await ProductiveStage.updateMany(
+            { apprentice: apprenticeId, status: "PENDING_REGISTRATION", isActive: true },
+            { $set: { isActive: false, isHistorical: true } }
+        );
 
         // 3. Verificar elegibilidad de matrícula
         if (!apprentice.enrollmentExpiryDate) {
@@ -238,7 +245,13 @@ class ProductiveStageService {
             details: { maxBitacoras, requiredTrackings }
         });
 
-        // TODO: Notificar al aprendiz
+        notificationService.send({
+            type: "EP_APPROVED",
+            recipients: [ep.apprentice.toString()],
+            title: "Etapa Productiva Aprobada",
+            message: `Tu etapa productiva ha sido aprobada. Ya puedes consultar los detalles y continuar con el proceso.`,
+            metadata: { entity: "ProductiveStage", entityId: ep._id }
+        });
 
         return ep;
     }
@@ -415,6 +428,14 @@ class ProductiveStageService {
             details: { reason }
         });
 
+        notificationService.send({
+            type: "EP_REJECTED",
+            recipients: [ep.apprentice.toString()],
+            title: "Etapa Productiva Rechazada",
+            message: `Tu solicitud de etapa productiva ha sido rechazada. Motivo: ${reason}. Ingresa para corregir y volver a enviar.`,
+            metadata: { entity: "ProductiveStage", entityId: ep._id }
+        });
+
         return ep;
     }
 
@@ -435,6 +456,15 @@ class ProductiveStageService {
         });
 
         await ep.save();
+
+        notificationService.send({
+            type: "EP_COMMENT_ADDED",
+            recipients: [ep.apprentice.toString()],
+            title: "Nuevo Comentario en tu Etapa",
+            message: `Has recibido un nuevo comentario en tu etapa productiva: "${text.substring(0, 120)}"`,
+            metadata: { entity: "ProductiveStage", entityId: ep._id }
+        });
+
         return ep;
     }
 
