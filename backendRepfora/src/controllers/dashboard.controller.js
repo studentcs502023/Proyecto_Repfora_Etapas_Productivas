@@ -64,9 +64,13 @@ class DashboardController {
     try {
       const instructorId = req.user.id;
 
-      // 1. Aprendices Asignados (Active Productive Stages with this instructor)
+      // 1. Aprendices Asignados (Active Productive Stages with this instructor in any role)
       const assignedApprentices = await ProductiveStage.countDocuments({
-        followupInstructor: instructorId,
+        $or: [
+          { followupInstructor: instructorId },
+          { technicalInstructor: instructorId },
+          { projectInstructor: instructorId }
+        ],
         isActive: true,
         isHistorical: false,
         status: { $in: ['ACTIVE', 'IN_FOLLOWUP', 'CERTIFICATION'] }

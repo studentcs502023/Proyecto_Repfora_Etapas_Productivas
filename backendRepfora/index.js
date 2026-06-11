@@ -74,6 +74,18 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use(express.static('dist'));
 // Ahora sí, path y __dirname estarán definidos
 app.use(express.static(path.join(__dirname, 'public')));
+// Error handler global (incluye errores de multer)
+app.use((err, req, res, next) => {
+  if (err.code === 'LIMIT_FILE_SIZE') {
+    return res.status(400).json({ success: false, message: 'El archivo excede el tamaño máximo permitido (10MB).' });
+  }
+  if (err.message?.includes('Tipo de archivo no permitido')) {
+    return res.status(400).json({ success: false, message: err.message });
+  }
+  console.error('[Server] Error no manejado:', err);
+  return res.status(500).json({ success: false, message: 'Error interno del servidor.' });
+});
+
 // Puerto y Listen (Solo si no estamos en test)
 if (process.env.NODE_ENV !== 'test') {
     const PORT = env.PORT || 3000;

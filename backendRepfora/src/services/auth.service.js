@@ -214,6 +214,7 @@ const changePassword = async (userId, currentPassword, newPassword, ip = null) =
 
     const salt = await bcrypt.genSalt(10);
     user.password = await bcrypt.hash(newPassword, salt);
+    user.firstLogin = false;
     await user.save();
 
     await recordAuditLog({

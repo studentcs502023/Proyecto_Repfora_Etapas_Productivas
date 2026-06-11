@@ -9,11 +9,10 @@ import { getConfig } from '../utils/configHelper.util.js';
 import {
   buildBitacoraSubject, buildBitacoraMessage,
   buildBitacoraOverdueSubject, buildBitacoraOverdueMessage,
-  buildTrackingSubject, buildTrackingMessage
+  buildTrackingSubject, buildTrackingMessage,
+  buildTrackingDeadlineSubject, buildTrackingDeadlineMessage
 } from '../templates/calendarReminderEmail.template.js';
 import { buildExpirySubject, buildExpiryMessage } from '../templates/enrollmentExpiryEmail.template.js';
-import { buildCertificationSubject, buildCertificationMessage } from '../templates/certificationReminderEmail.template.js';
-import Document from '../models/Document.model.js';
 
 /**
  * Find PENDING bitacoras older than 7 days and notify ADMIN
@@ -252,87 +251,6 @@ const checkUpcomingTrackings = async () => {
 };
 
 /**
- * Certification document reminders (RF-006 - Flujo 3)
- * Notifies apprentices whose EP is in CERTIFICATION status but haven't uploaded
- * their CERTIFICATION_DOSSIER document yet.
- * - Sends first reminder ~60 days before estimatedEndDate
- * - Escalates at YELLOW (30d), ORANGE (15d), RED (7d)
- * Runs daily at 8 AM.
- */
-const checkCertificationReminders = async () => {
-  console.log('[Cron] Verificando recordatorios de certificación...');
-
-  const now = new Date();
-  const sixtyDaysFromNow = new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000);
-
-  const certEPs = await ProductiveStage.find({
-    status: 'CERTIFICATION',
-    isActive: true,
-    estimatedEndDate: { $lte: sixtyDaysFromNow }
-  }).populate('apprentice');
-
-  let remindersSent = 0;
-
-  for (const ep of certEPs) {
-    if (!ep.apprentice || !ep.estimatedEndDate) continue;
-
-    const daysRemaining = Math.ceil(
-      (new Date(ep.estimatedEndDate).getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
-    );
-
-    if (daysRemaining <= 0) continue;
-
-    const existingDossier = await Document.findOne({
-      productiveStage: ep._id,
-      documentType: 'CERTIFICATION_DOSSIER',
-      status: { $ne: 'REJECTED' },
-      isActive: true
-    });
-
-    if (existingDossier) {
-      console.log(`[Cron] Certificación - ${ep.apprentice.fullName}: ya subió documento, omitiendo.`);
-      continue;
-    }
-
-    let level = null;
-    let shouldNotify = false;
-
-    if (daysRemaining <= 7) {
-      level = 'RED';
-      shouldNotify = true;
-    } else if (daysRemaining <= 15) {
-      level = 'ORANGE';
-      shouldNotify = true;
-    } else if (daysRemaining <= 30) {
-      level = 'YELLOW';
-      shouldNotify = true;
-    } else if (daysRemaining <= 60 && daysRemaining % 7 === 0) {
-      shouldNotify = true;
-    }
-
-    if (shouldNotify) {
-      await notificationService.send({
-        type: 'DOCUMENTS_REMINDER',
-        recipients: [ep.apprentice._id.toString()],
-        title: buildCertificationSubject(level),
-        message: buildCertificationMessage({
-          fullName: ep.apprentice.fullName,
-          daysRemaining,
-          level,
-          estimatedEndDate: ep.estimatedEndDate
-        }),
-        metadata: { entity: 'ProductiveStage', entityId: ep._id }
-      });
-
-      console.log(`[Cron] Recordatorio certificación enviado a ${ep.apprentice.fullName}: ${daysRemaining}d restantes, nivel: ${level || 'INICIAL'}`);
-      remindersSent++;
-    }
-  }
-
-  console.log(`[Cron] Certificación - Recordatorios enviados: ${remindersSent}`);
-};
-
-/**
  * Check for critical desertion (3 months without bitacoras) - RF-005
  */
 const checkCriticalDesertion = async () => {
@@ -375,6 +293,93 @@ const checkCriticalDesertion = async () => {
 };
 
 /**
+ * Check tracking deadlines and send YELLOW/ORANGE/RED alerts (RF-004 Escenario 2)
+ * - YELLOW: tracking scheduled in 7 days
+ * - ORANGE: tracking scheduled in 3 days
+ * - RED: tracking scheduled date has passed and not executed
+ * Runs daily at 8:00 AM.
+ */
+const checkTrackingDeadlines = async () => {
+  console.log('[Cron] Verificando plazos de seguimientos...');
+
+  const now = new Date();
+  const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+  const threeDaysFromNow = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
+
+  const pendingTrackings = await Tracking.find({
+    status: 'SCHEDULED',
+    isActive: true
+  }).populate('apprentice instructor');
+
+  let yellowSent = 0, orangeSent = 0, redSent = 0;
+
+  for (const tracking of pendingTrackings) {
+    if (!tracking.apprentice) continue;
+    const scheduled = new Date(tracking.scheduledDate);
+    const daysUntil = Math.ceil((scheduled.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    const recipients = [tracking.apprentice._id.toString()];
+
+    // RED: passed deadline
+    if (daysUntil < 0) {
+      const admins = await User.find({ role: 'ADMIN', isActive: true }).select('_id');
+      const adminIds = admins.map(a => a._id.toString());
+
+      await notificationService.send({
+        type: 'TRACKING_DEADLINE_APPROACHING',
+        recipients: [...recipients, ...adminIds],
+        title: buildTrackingDeadlineSubject('RED'),
+        message: buildTrackingDeadlineMessage({
+          fullName: tracking.apprentice.fullName,
+          trackingNumber: tracking.trackingNumber,
+          scheduledDate: tracking.scheduledDate,
+          level: 'RED'
+        }),
+        metadata: { entity: 'Tracking', entityId: tracking._id }
+      });
+      redSent++;
+      continue;
+    }
+
+    // ORANGE: within 3 days
+    if (daysUntil <= 3) {
+      await notificationService.send({
+        type: 'TRACKING_DEADLINE_APPROACHING',
+        recipients,
+        title: buildTrackingDeadlineSubject('ORANGE'),
+        message: buildTrackingDeadlineMessage({
+          fullName: tracking.apprentice.fullName,
+          trackingNumber: tracking.trackingNumber,
+          scheduledDate: tracking.scheduledDate,
+          level: 'ORANGE'
+        }),
+        metadata: { entity: 'Tracking', entityId: tracking._id }
+      });
+      orangeSent++;
+      continue;
+    }
+
+    // YELLOW: within 7 days
+    if (daysUntil <= 7) {
+      await notificationService.send({
+        type: 'TRACKING_DEADLINE_APPROACHING',
+        recipients,
+        title: buildTrackingDeadlineSubject('YELLOW'),
+        message: buildTrackingDeadlineMessage({
+          fullName: tracking.apprentice.fullName,
+          trackingNumber: tracking.trackingNumber,
+          scheduledDate: tracking.scheduledDate,
+          level: 'YELLOW'
+        }),
+        metadata: { entity: 'Tracking', entityId: tracking._id }
+      });
+      yellowSent++;
+    }
+  }
+
+  console.log(`[Cron] Alertas de seguimiento - Amarillas: ${yellowSent} | Naranjas: ${orangeSent} | Rojas: ${redSent}`);
+};
+
+/**
  * Start all scheduled jobs
  */
 export const initJobs = () => {
@@ -383,8 +388,8 @@ export const initJobs = () => {
     await checkOverdueReviews();
     await checkBitacoraSchedule();
     await checkUpcomingTrackings();
+    await checkTrackingDeadlines();
     await checkEnrollmentExpiry();
-    await checkCertificationReminders();
     await checkCriticalDesertion();
   });
   
