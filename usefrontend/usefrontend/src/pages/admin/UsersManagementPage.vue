@@ -108,13 +108,23 @@
               <q-tooltip>Asignar instructor</q-tooltip>
             </q-btn>
 
-            <!-- Deshabilitar (solo instructores) -->
-            <q-btn v-if="activeTab === 'INSTRUCTORS' && props.row.status === 'ACTIVE'" size="sm" flat round color="warning" icon="block" @click="confirmDisableInstructor(props.row)">
+            <!-- Deshabilitar (solo instructores activos) -->
+            <q-btn v-if="activeTab === 'INSTRUCTORS' && props.row.isActive && props.row.status === 'ACTIVE'" size="sm" flat round color="warning" icon="block" @click="confirmDisableInstructor(props.row)">
               <q-tooltip>Deshabilitar instructor</q-tooltip>
             </q-btn>
 
+            <!-- Habilitar (solo instructores inactivos por estado) -->
+            <q-btn v-if="activeTab === 'INSTRUCTORS' && props.row.isActive && props.row.status === 'INACTIVE'" size="sm" flat round color="positive" icon="check_circle" @click="confirmEnableInstructor(props.row)">
+              <q-tooltip>Habilitar instructor</q-tooltip>
+            </q-btn>
+
+            <!-- Activar (si está eliminado / isActive = false) -->
+            <q-btn v-if="!props.row.isActive" size="sm" flat round color="positive" icon="restore_from_trash" @click="confirmActivateUser(props.row)">
+              <q-tooltip>Restaurar usuario eliminado</q-tooltip>
+            </q-btn>
+
             <!-- Eliminar (soft delete) -->
-            <q-btn size="sm" flat round color="negative" icon="delete" @click="confirmDeleteUser(props.row)">
+            <q-btn v-if="props.row.isActive" size="sm" flat round color="negative" icon="delete" @click="confirmDeleteUser(props.row)">
               <q-tooltip>Eliminar usuario</q-tooltip>
             </q-btn>
           </q-td>
@@ -708,13 +718,35 @@ async function disableInstructor(user) {
   }
 }
 
+function confirmEnableInstructor(user) {
+  $q.dialog({
+    title: 'Activar Instructor',
+    message: `¿Está seguro de activar nuevamente a ${user.fullName}? Podrá acceder al sistema y tener aprendices.`,
+    cancel: { label: 'Cancelar', flat: true },
+    ok: { label: 'Activar', color: 'positive' },
+    persistent: true
+  }).onOk(() => enableInstructor(user));
+}
+
+async function enableInstructor(user) {
+  try {
+    await userService.changeInstructorStatus(user._id, 'ACTIVE', 'Activado por administrador');
+    const idx = users.value.findIndex(u => u._id === user._id);
+    if (idx !== -1) users.value[idx] = { ...users.value[idx], status: 'ACTIVE' };
+    $q.notify({ type: 'positive', message: `${user.fullName} activado`, position: 'top', timeout: 3000 });
+  } catch (error) {
+    const msg = error.response?.data?.message || 'Error al activar instructor';
+    $q.notify({ type: 'negative', message: msg, position: 'top', timeout: 5000 });
+  }
+}
+
 function confirmDeleteUser(user) {
   const rol = user.role === 'INSTRUCTOR' ? 'instructor' : 'aprendiz';
   $q.dialog({
-    title: `Eliminar ${rol}`,
-    message: `¿Está seguro de eliminar a ${user.fullName}? Esta acción es reversible contactando al administrador del sistema.`,
+    title: `Inactivar ${rol}`,
+    message: `¿Está seguro de inactivar a ${user.fullName}? Podrá reactivarlo luego seleccionando "Mostrar Inactivos".`,
     cancel: { label: 'Cancelar', flat: true },
-    ok: { label: 'Eliminar', color: 'negative' },
+    ok: { label: 'Inactivar', color: 'negative' },
     persistent: true
   }).onOk(() => deleteUser(user));
 }
@@ -727,9 +759,40 @@ async function deleteUser(user) {
       await userService.deactivateApprentice(user._id);
     }
     users.value = users.value.filter(u => u._id !== user._id);
-    $q.notify({ type: 'positive', message: `${user.fullName} eliminado`, position: 'top', timeout: 3000 });
+    if (showInactive.value) fetchUsers(); // Si está viendo inactivos, recargamos
+    $q.notify({ type: 'positive', message: `${user.fullName} inactivado`, position: 'top', timeout: 3000 });
   } catch (error) {
-    const msg = error.response?.data?.message || 'Error al eliminar usuario';
+    const msg = error.response?.data?.message || 'Error al inactivar usuario';
+    $q.notify({ type: 'negative', message: msg, position: 'top', timeout: 5000 });
+  }
+}
+
+function confirmActivateUser(user) {
+  const rol = user.role === 'INSTRUCTOR' ? 'instructor' : 'aprendiz';
+  $q.dialog({
+    title: `Activar ${rol}`,
+    message: `¿Está seguro de activar nuevamente a ${user.fullName}? Podrá acceder al sistema y realizar acciones.`,
+    cancel: { label: 'Cancelar', flat: true },
+    ok: { label: 'Activar', color: 'positive' },
+    persistent: true
+  }).onOk(() => activateUser(user));
+}
+
+async function activateUser(user) {
+  try {
+    if (user.role === 'INSTRUCTOR') {
+      await userService.activateInstructor(user._id);
+    } else {
+      await userService.activateApprentice(user._id);
+    }
+    
+    // Si no estamos mostrando inactivos, al activarlo debería desaparecer si no hacemos fetch, 
+    // pero si lo acabamos de activar y estamos en "Mostrar Inactivos", se debe actualizar la vista.
+    fetchUsers();
+    
+    $q.notify({ type: 'positive', message: `${user.fullName} activado correctamente`, position: 'top', timeout: 3000 });
+  } catch (error) {
+    const msg = error.response?.data?.message || 'Error al activar usuario';
     $q.notify({ type: 'negative', message: msg, position: 'top', timeout: 5000 });
   }
 }

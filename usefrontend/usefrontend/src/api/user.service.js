@@ -12,6 +12,7 @@ export const userService = {
   updateInstructor: (id, data) => api.patch(`/users/instructors/${id}`, data),
   changeInstructorStatus: (id, status, reason) => api.patch(`/users/instructors/${id}/status`, { status, reason }),
   deactivateInstructor: (id) => api.patch(`/users/instructors/${id}/deactivate`),
+  activateInstructor: (id) => api.patch(`/users/instructors/${id}/activate`),
 
   // --- Apprentices ---
   getApprentices: (params) => api.get('/users/apprentices', { params }),
@@ -19,6 +20,7 @@ export const userService = {
   createApprentice: (data) => api.post('/users/apprentices', data),
   updateApprentice: (id, data) => api.patch(`/users/apprentices/${id}`, data),
   deactivateApprentice: (id) => api.patch(`/users/apprentices/${id}/deactivate`),
+  activateApprentice: (id) => api.patch(`/users/apprentices/${id}/activate`),
   importApprentices: (formData) => {
     return api.post('/users/apprentices/import', formData);
   }

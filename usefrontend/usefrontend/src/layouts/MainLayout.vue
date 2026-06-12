@@ -23,44 +23,81 @@
 
         <q-space />
 
-        <!-- Notification Bell (solo instructores y admin) -->
-        <q-btn v-if="!authStore.isApprentice" flat round dense class="q-mr-sm" @click="openNotifications">
-          <q-icon name="notifications" />
-          <q-badge v-if="unreadCount > 0" color="red" floating>{{ unreadCount > 9 ? '9+' : unreadCount }}</q-badge>
-          <q-tooltip>Notificaciones</q-tooltip>
-        </q-btn>
+        <!-- Notification Bell con Popup Dropdown (instructores y admin) -->
+        <q-btn v-if="!authStore.isApprentice" flat round dense class="q-mr-sm notif-bell-btn" id="notif-bell-btn">
+          <q-icon name="notifications" size="22px" />
+          <q-badge v-if="unreadCount > 0" color="red" floating class="notif-badge">{{ unreadCount > 9 ? '9+' : unreadCount }}</q-badge>
+          <q-tooltip anchor="bottom middle" self="top middle">Notificaciones</q-tooltip>
 
-        <!-- Notification Drawer (solo instructores y admin) -->
-        <q-drawer v-if="!authStore.isApprentice" v-model="notificationDrawer" side="right" bordered :width="360" :breakpoint="500" class="bg-white">
-          <div class="q-pa-md">
-            <div class="row items-center q-mb-sm">
-              <div class="text-h6 text-black">Notificaciones</div>
-              <q-space />
-              <q-btn v-if="unreadCount > 0" flat dense color="primary" size="sm" label="Leer todas" @click="markAllAsRead" />
-              <q-btn flat dense icon="close" round v-close-popup />
+          <!-- Popup Panel de Notificaciones -->
+          <q-menu
+            v-model="notificationDropdown"
+            anchor="bottom right"
+            self="top right"
+            :offset="[0, 8]"
+            class="notif-dropdown-menu"
+            transition-show="jump-down"
+            transition-hide="jump-up"
+            @before-show="fetchNotifications"
+            square
+          >
+            <div class="notif-panel">
+              <!-- Header -->
+              <div class="notif-header">
+                <div class="notif-header-left">
+                  <q-icon name="notifications" size="18px" class="notif-header-icon" />
+                  <span class="notif-header-title">Notificaciones</span>
+                  <q-badge v-if="unreadCount > 0" color="red" class="notif-count-badge">{{ unreadCount }}</q-badge>
+                </div>
+                <div class="notif-header-actions">
+                  <button v-if="unreadCount > 0" class="notif-read-all-btn" @click.stop="markAllAsRead">Leer todas</button>
+                  <q-btn flat round dense icon="close" size="sm" color="grey-7" v-close-popup class="notif-close-btn" />
+                </div>
+              </div>
+
+              <q-separator />
+
+              <!-- Loading -->
+              <div v-if="loadingNotif" class="notif-loading">
+                <q-spinner color="primary" size="28px" />
+                <span>Cargando...</span>
+              </div>
+
+              <!-- Empty State -->
+              <div v-else-if="notifications.length === 0" class="notif-empty">
+                <div class="notif-empty-icon">
+                  <q-icon name="notifications_off" size="36px" />
+                </div>
+                <div class="notif-empty-title">Sin notificaciones</div>
+                <div class="notif-empty-sub">Estás al día con todo</div>
+              </div>
+
+              <!-- Lista -->
+              <div v-else class="notif-list">
+                <div
+                  v-for="n in notifications"
+                  :key="n._id"
+                  class="notif-item"
+                  :class="{ 'notif-item--unread': !n.isRead }"
+                  @click="markAsReadAndClose(n)"
+                >
+                  <div class="notif-item-icon-wrap" :class="getNotifIconClass(n.type)">
+                    <q-icon :name="getNotifIcon(n.type)" size="18px" />
+                  </div>
+                  <div class="notif-item-body">
+                    <div class="notif-item-title">{{ n.title }}</div>
+                    <div class="notif-item-msg">{{ n.message }}</div>
+                    <div class="notif-item-time">
+                      <q-icon name="schedule" size="11px" />
+                      {{ formatNotifDate(n.createdAt) }}
+                    </div>
+                  </div>
+                  <div v-if="!n.isRead" class="notif-item-dot"></div>
+                </div>
+              </div>
             </div>
-            <q-separator class="q-mb-sm" />
-            <div v-if="loadingNotif" class="text-center q-pa-lg">
-              <q-spinner color="primary" size="2em" />
-            </div>
-            <div v-else-if="notifications.length === 0" class="text-center text-grey q-pa-lg">
-              <q-icon name="notifications_off" size="2em" class="q-mb-sm" />
-              <div>No tienes notificaciones</div>
-            </div>
-            <q-list v-else separator>
-              <q-item v-for="n in notifications" :key="n._id" clickable :class="n.isRead ? '' : 'bg-blue-1'" @click="markAsRead(n)">
-                <q-item-section>
-                  <q-item-label class="text-weight-bold">{{ n.title }}</q-item-label>
-                  <q-item-label caption>{{ n.message }}</q-item-label>
-                  <q-item-label caption class="text-caption text-grey-6">{{ formatNotifDate(n.createdAt) }}</q-item-label>
-                </q-item-section>
-                <q-item-section v-if="!n.isRead" side>
-                  <q-badge color="primary" rounded />
-                </q-item-section>
-              </q-item>
-            </q-list>
-          </div>
-        </q-drawer>
+          </q-menu>
+        </q-btn>
 
         <!-- User Profile Dropdown -->
         <q-btn-dropdown flat no-caps stretch>
@@ -150,7 +187,7 @@
           </template>
 
           <!-- INSTRUCTOR MENU -->
-          <template v-if="authStore.isInstructor">
+          <template v-if="authStore.isInstructor && authStore.user?.status !== 'INACTIVE'">
             <q-item-label header>Gestión de Aprendices</q-item-label>
             <q-item clickable v-ripple to="/my-apprentices">
               <q-item-section avatar><q-icon name="group" /></q-item-section>
@@ -212,8 +249,26 @@
 
     <!-- Not using q-page as requested, just a container -->
     <q-page-container>
-      <div class="content-container">
-        <router-view />
+      <!-- Banner for Inactive Users -->
+      <div v-if="authStore.user?.status === 'INACTIVE' || authStore.user?.isActive === false" class="q-pa-md">
+        <q-banner inline-actions rounded class="bg-red-1 text-negative border-negative">
+          <template v-slot:avatar>
+            <q-icon name="warning" color="negative" size="md" />
+          </template>
+          <div class="text-h6 q-mb-xs">Tu cuenta se encuentra Inactiva</div>
+          <div>Has sido bloqueado temporalmente por un administrador del sistema. No podrás realizar gestiones, revisar bitácoras ni agregar seguimientos hasta nueva orden. Para más información comunícate con la coordinación.</div>
+        </q-banner>
+      </div>
+
+      <div class="content-container" :class="{'q-pt-none': authStore.user?.status === 'INACTIVE'}">
+        <router-view v-if="authStore.user?.status !== 'INACTIVE'" />
+        <!-- Si está inactivo, ocultamos el router-view para que no vea dashboards y quede bloqueado -->
+        <div v-else class="flex flex-center" style="height: 60vh;">
+          <div class="text-center text-grey-6">
+            <q-icon name="block" size="4rem" class="q-mb-md" />
+            <div class="text-h6">Acceso Restringido</div>
+          </div>
+        </div>
       </div>
     </q-page-container>
   </q-layout>
@@ -234,6 +289,7 @@ const router = useRouter();
 const leftDrawerOpen = ref(false);
 
 const notificationDrawer = ref(false);
+const notificationDropdown = ref(false);
 const notifications = ref([]);
 const unreadCount = ref(0);
 const loadingNotif = ref(false);
@@ -327,30 +383,44 @@ function toggleLeftDrawer() {
   leftDrawerOpen.value = !leftDrawerOpen.value;
 }
 
+// Función ya no necesaria: el q-menu se abre solo al hacer click
+// Se mantiene para compatibilidad
 function openNotifications() {
-  const unread = unreadCount.value;
-  if (unread > 0) {
-    const latest = notifications.value.find(n => !n.isRead);
-    $q.notify({
-      icon: 'notifications',
-      color: 'primary',
-      message: latest
-        ? `${unread} notificación(es) — ${latest.title}`
-        : `${unread} notificación(es) sin leer`,
-      position: 'top-right',
-      timeout: 3000,
-      actions: [{ icon: 'close', color: 'white', round: true, dense: true }]
-    });
-  } else {
-    $q.notify({
-      icon: 'notifications_off',
-      color: 'grey-7',
-      message: 'No tienes notificaciones nuevas',
-      position: 'top-right',
-      timeout: 2000
-    });
-  }
-  notificationDrawer.value = !notificationDrawer.value;
+  notificationDropdown.value = !notificationDropdown.value;
+}
+
+function markAsReadAndClose(n) {
+  markAsRead(n);
+  notificationDropdown.value = false;
+}
+
+function getNotifIcon(type) {
+  const icons = {
+    EP_APPROVED: 'check_circle',
+    EP_REJECTED: 'cancel',
+    EP_COMMENT_ADDED: 'comment',
+    BITACORA_APPROVED: 'check_circle',
+    BITACORA_REJECTED: 'cancel',
+    BITACORA_PENDING_REVIEW: 'pending',
+    BITACORA_REMINDER: 'alarm',
+    TRACKING_REMINDER: 'alarm',
+    EXTRAORDINARY_TRACKING_APPROVED: 'event_available',
+    DOCUMENTS_APPROVED: 'verified',
+    DOCUMENTS_REJECTED: 'cancel',
+    DOCUMENTS_REMINDER: 'alarm',
+    ENROLLMENT_EXPIRY_ALERT: 'warning',
+    SYSTEM_WELCOME: 'waving_hand',
+  };
+  return icons[type] || 'notifications';
+}
+
+function getNotifIconClass(type) {
+  if (!type) return 'notif-icon--info';
+  if (type.includes('APPROVED') || type.includes('WELCOME')) return 'notif-icon--success';
+  if (type.includes('REJECTED')) return 'notif-icon--danger';
+  if (type.includes('REMINDER') || type.includes('ALERT')) return 'notif-icon--warning';
+  if (type.includes('COMMENT') || type.includes('PENDING')) return 'notif-icon--info';
+  return 'notif-icon--info';
 }
 
 function handleLogout() {
@@ -416,5 +486,228 @@ onUnmounted(() => {
 <style scoped>
 .content-container {
   min-height: calc(100vh - 50px);
+}
+
+/* ─── Campana ─────────────────────────────────────────── */
+.notif-bell-btn {
+  transition: transform 0.15s ease;
+}
+.notif-bell-btn:hover {
+  transform: scale(1.1);
+}
+.notif-badge {
+  font-size: 10px;
+  font-weight: 700;
+}
+
+/* ─── Panel Dropdown ──────────────────────────────────── */
+.notif-panel {
+  width: 380px;
+  max-height: 520px;
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.16);
+}
+
+/* Header */
+.notif-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px 10px 16px;
+  background: #f8faf8;
+}
+.notif-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.notif-header-icon {
+  color: #2e7d32;
+}
+.notif-header-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1a1a1a;
+  letter-spacing: 0.01em;
+}
+.notif-count-badge {
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: 20px;
+  padding: 2px 6px;
+}
+.notif-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.notif-read-all-btn {
+  background: transparent;
+  border: 1px solid #2e7d32;
+  color: #2e7d32;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  cursor: pointer;
+  transition: all 0.18s;
+}
+.notif-read-all-btn:hover {
+  background: #2e7d32;
+  color: #fff;
+}
+.notif-close-btn {
+  margin-left: 2px;
+}
+
+/* Loading */
+.notif-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 40px 20px;
+  color: #888;
+  font-size: 13px;
+}
+
+/* Empty */
+.notif-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 20px;
+  text-align: center;
+}
+.notif-empty-icon {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: #f0f4f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 14px;
+  color: #aaa;
+}
+.notif-empty-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #555;
+  margin-bottom: 4px;
+}
+.notif-empty-sub {
+  font-size: 12px;
+  color: #aaa;
+}
+
+/* Lista */
+.notif-list {
+  overflow-y: auto;
+  flex: 1;
+  max-height: 420px;
+}
+.notif-list::-webkit-scrollbar {
+  width: 4px;
+}
+.notif-list::-webkit-scrollbar-track {
+  background: #f0f0f0;
+}
+.notif-list::-webkit-scrollbar-thumb {
+  background: #c5c5c5;
+  border-radius: 4px;
+}
+
+/* Item */
+.notif-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 16px;
+  cursor: pointer;
+  border-bottom: 1px solid #f2f2f2;
+  transition: background 0.15s ease;
+  position: relative;
+}
+.notif-item:last-child {
+  border-bottom: none;
+}
+.notif-item:hover {
+  background: #f4f9f4;
+}
+.notif-item--unread {
+  background: #edf7ee;
+}
+.notif-item--unread:hover {
+  background: #dff0e0;
+}
+
+/* Ícono de item */
+.notif-item-icon-wrap {
+  min-width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 2px;
+}
+.notif-icon--success { background: #e8f5e9; color: #2e7d32; }
+.notif-icon--danger  { background: #fdecea; color: #c62828; }
+.notif-icon--warning { background: #fff8e1; color: #f57f17; }
+.notif-icon--info    { background: #e3f2fd; color: #1565c0; }
+
+/* Contenido del item */
+.notif-item-body {
+  flex: 1;
+  min-width: 0;
+}
+.notif-item-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1a1a1a;
+  line-height: 1.35;
+  margin-bottom: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.notif-item-msg {
+  font-size: 12px;
+  color: #555;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+.notif-item-time {
+  font-size: 10px;
+  color: #9e9e9e;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+/* Dot de no leído */
+.notif-item-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #2e7d32;
+  margin-top: 6px;
+  flex-shrink: 0;
+  animation: pulse-dot 2s infinite;
+}
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(0.8); }
 }
 </style>

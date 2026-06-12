@@ -66,7 +66,14 @@ const login = async (nationalId, password, ip = null) => {
 
     return {
         token,
-        user: { id: user._id, fullName: user.fullName, email: user.email, role: user.role }
+        user: { 
+            id: user._id, 
+            fullName: user.fullName, 
+            email: user.email, 
+            role: user.role, 
+            status: user.status, 
+            isActive: user.isActive 
+        }
     };
 };
 

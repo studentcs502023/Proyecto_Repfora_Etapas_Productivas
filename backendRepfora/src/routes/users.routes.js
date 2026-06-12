@@ -145,9 +145,19 @@ router.patch("/instructors/:id/deactivate",
     userController.deactivateInstructor
 );
 
+router.patch("/instructors/:id/activate",
+    checkRole("ADMIN"),
+    userController.activateInstructor
+);
+
 router.patch("/apprentices/:id/deactivate",
     checkRole("ADMIN"),
     userController.deactivateApprentice
+);
+
+router.patch("/apprentices/:id/activate",
+    checkRole("ADMIN"),
+    userController.activateApprentice
 );
 
 export default router;
