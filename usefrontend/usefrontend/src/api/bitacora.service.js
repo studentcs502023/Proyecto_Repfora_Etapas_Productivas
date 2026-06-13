@@ -18,9 +18,11 @@ export const bitacoraService = {
   getById: (id) => api.get(`/bitacoras/${id}`),
 
   // --- Instructor Actions ---
-  getPendingReview: () => api.get('/bitacoras', { params: { status: 'PENDING' } }),
+  getPendingReview: (params = {}) => api.get('/bitacoras', { params: { status: 'PENDING', ...params } }),
+  getByStatus: (status, params = {}) => api.get('/bitacoras', { params: { status, ...params } }),
   approve: (id) => api.patch(`/bitacoras/${id}/approve`),
   reject: (id, comment) => api.patch(`/bitacoras/${id}/reject`, { comment }),
+  addComment: (id, text) => api.patch(`/bitacoras/${id}/comment`, { text }),
 };
 
 export default bitacoraService;

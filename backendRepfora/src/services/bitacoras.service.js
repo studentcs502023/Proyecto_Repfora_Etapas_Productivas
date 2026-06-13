@@ -45,20 +45,25 @@ class BitacoraService {
         throw error;
     }
 
-    // 3. Count existing non-rejected bitacoras
-    const existingCount = await Bitacora.countDocuments({
+    // 3. Count existing non-rejected bitacoras for limit check
+    const nonRejectedCount = await Bitacora.countDocuments({
       productiveStage: productiveStageId,
       status: { $ne: 'REJECTED' },
       isActive: true
     });
 
-    if (ep.maxBitacoras !== null && existingCount >= ep.maxBitacoras) {
+    if (ep.maxBitacoras !== null && nonRejectedCount >= ep.maxBitacoras) {
         const error = new Error(`Maximum logbooks reached (${ep.maxBitacoras})`);
         error.statusCode = 400;
         throw error;
     }
 
-    // 4. Check for duplicate period
+    // 4. Count all active bitacoras for logbook numbering
+    const totalCount = await Bitacora.countDocuments({
+      productiveStage: productiveStageId,
+      isActive: true
+    });
+    const logbookNumber = totalCount + 1;
     const duplicatePeriod = await Bitacora.findOne({
       productiveStage: productiveStageId,
       periodStart: new Date(periodStart),
@@ -73,13 +78,10 @@ class BitacoraService {
         throw error;
     }
 
-    // 5. Determine logbookNumber
-    const logbookNumber = existingCount + 1;
-
-    // 6. Upload PDF to Drive (Mock)
+    // 5. Upload PDF to Drive (Mock)
     const driveRes = await mockDriveUpload(file, `bitacoras/${ep._id}`);
 
-    // 7. Create bitacora
+    // 6. Create bitacora
     const bitacora = new Bitacora({
       productiveStage: productiveStageId,
       apprentice: reqUser.id,
@@ -176,6 +178,7 @@ class BitacoraService {
       Bitacora.find(filter)
         .populate('apprentice', 'fullName enrollmentNumber')
         .populate('instructor', 'fullName')
+        .populate('reviewComments.author', 'fullName')
         .sort({ logbookNumber: 1 })
         .skip(skip)
         .limit(Number(limit)),
@@ -499,6 +502,67 @@ class BitacoraService {
     });
 
     return bitacora;
+  }
+
+  async addComment(reqUser, id, text) {
+    if (!text || text.trim().length < 5) {
+        const error = new Error('Validation error: comment must be at least 5 characters');
+        error.statusCode = 400;
+        throw error;
+    }
+
+    const bitacora = await Bitacora.findOne({ _id: id, isActive: true });
+    if (!bitacora) {
+        const error = new Error('Bitacora not found');
+        error.statusCode = 404;
+        throw error;
+    }
+
+    if (reqUser.role === 'APPRENTICE') {
+      if (bitacora.apprentice.toString() !== reqUser.id.toString()) {
+        const error = new Error('Forbidden: Document belongs to another apprentice');
+        error.statusCode = 403;
+        throw error;
+      }
+    } else if (reqUser.role === 'INSTRUCTOR') {
+      const ep = await ProductiveStage.findById(bitacora.productiveStage);
+      const isAssigned = [
+        ep.followupInstructor?.toString(),
+        ep.technicalInstructor?.toString(),
+        ep.projectInstructor?.toString()
+      ].includes(reqUser.id.toString());
+      if (!isAssigned) {
+        const error = new Error('Forbidden: You are not assigned to this ProductiveStage');
+        error.statusCode = 403;
+        throw error;
+      }
+    }
+
+    bitacora.reviewComments.push({
+      text: text.trim(),
+      author: reqUser.id,
+      createdAt: new Date()
+    });
+
+    await bitacora.save();
+
+    const populated = await Bitacora.findById(bitacora._id)
+      .populate('reviewComments.author', 'fullName');
+
+    const otherRole = reqUser.role === 'INSTRUCTOR' ? 'APPRENTICE' : 'INSTRUCTOR';
+    const otherUserId = reqUser.role === 'INSTRUCTOR' ? bitacora.apprentice : bitacora.instructor;
+
+    if (otherUserId) {
+      await notificationService.send({
+        type: 'BITACORA_REJECTED',
+        recipients: [otherUserId.toString()],
+        title: 'Nuevo comentario en bitácora',
+        message: `${reqUser.fullName || 'Alguien'} ha comentado en la bitácora #${bitacora.logbookNumber}`,
+        metadata: { entity: 'Bitacora', entityId: bitacora._id }
+      });
+    }
+
+    return populated;
   }
 }
 

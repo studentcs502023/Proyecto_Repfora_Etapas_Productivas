@@ -92,7 +92,9 @@
 
           <template v-slot:body-cell-actions="props">
             <q-td :props="props" class="q-gutter-xs">
-              <q-btn size="sm" flat color="primary" label="Ver Detalles" @click="viewDetails(props.row)" />
+              <q-btn size="sm" flat color="primary" label="Ver Detalles" @click="viewDetails(props.row)">
+                <q-badge v-if="props.row.reviewComments?.length" color="red" floating>{{ props.row.reviewComments.length }}</q-badge>
+              </q-btn>
               <q-btn 
                 v-if="props.row.status === 'REJECTED'" 
                 size="sm" color="warning" label="Re-subir" 
@@ -203,17 +205,25 @@
           </div>
 
           <q-separator class="q-my-md" />
-          <div class="text-subtitle2 text-black q-mb-sm">Comentarios del Instructor</div>
+          <div class="text-subtitle2 text-black q-mb-sm">Comentarios</div>
           
           <q-list bordered separator v-if="selectedBitacora?.reviewComments?.length > 0">
-            <q-item v-for="(comment, idx) in selectedBitacora.reviewComments" :key="idx">
+            <q-item v-for="(comment, idx) in selectedBitacora.reviewComments" :key="idx" class="q-py-sm">
+              <q-item-section avatar top>
+                <q-icon name="person" color="primary" size="sm" />
+              </q-item-section>
               <q-item-section>
-                <q-item-label class="text-body2">{{ comment.text }}</q-item-label>
-                <q-item-label caption>{{ formatDateTime(comment.createdAt) }}</q-item-label>
+                <q-item-label caption>{{ comment.author?.fullName || 'Usuario' }} - {{ formatDateTime(comment.createdAt) }}</q-item-label>
+                <q-item-label class="text-body2 q-mt-xs">{{ comment.text }}</q-item-label>
               </q-item-section>
             </q-item>
           </q-list>
           <div v-else class="text-grey-6 text-italic">No hay comentarios.</div>
+
+          <q-separator class="q-my-md" />
+          <div class="text-subtitle2 text-black q-mb-sm">Responder</div>
+          <q-input v-model="commentText" type="textarea" outlined dense rows="3" placeholder="Escribe tu respuesta o consulta sobre esta bitácora..." class="q-mb-sm" />
+          <q-btn color="primary" icon="send" label="Enviar respuesta" :loading="sendingComment" :disable="!commentText.trim() || commentText.trim().length < 5" @click="sendComment" />
         </q-card-section>
       </q-card>
     </q-dialog>
@@ -221,7 +231,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import bitacoraService from '../../api/bitacora.service';
 import productiveStageService from '../../api/productiveStage.service';
 import { useQuasar } from 'quasar';
@@ -246,6 +256,8 @@ const resubmitFile = ref(null);
 
 const showDetailsModal = ref(false);
 const selectedBitacora = ref(null);
+const commentText = ref('');
+const sendingComment = ref(false);
 
 const columns = [
   { name: 'logbookNumber', label: 'Número', field: 'logbookNumber', align: 'left' },
@@ -280,8 +292,15 @@ const latestRejectComment = computed(() => {
   return comments[comments.length - 1].text;
 });
 
+let pollInterval = null;
+
 onMounted(() => {
   loadData();
+  pollInterval = setInterval(loadData, 30000);
+});
+
+onUnmounted(() => {
+  if (pollInterval) clearInterval(pollInterval);
 });
 
 async function loadData() {
@@ -344,15 +363,28 @@ function getStatusLabel(status) {
   }
 }
 
-function viewDetails(bitacora) {
-  selectedBitacora.value = bitacora;
+async function viewDetails(bitacora) {
+  selectedBitacora.value = null;
   showDetailsModal.value = true;
+  try {
+    const res = await bitacoraService.getById(bitacora._id);
+    selectedBitacora.value = res.data?.bitacora || res.data;
+  } catch {
+    selectedBitacora.value = bitacora;
+  }
+  commentText.value = '';
 }
 
-function openResubmitModal(bitacora) {
-  selectedBitacora.value = bitacora;
-  resubmitFile.value = null;
+async function openResubmitModal(bitacora) {
+  selectedBitacora.value = null;
   showResubmitModal.value = true;
+  try {
+    const res = await bitacoraService.getById(bitacora._id);
+    selectedBitacora.value = res.data?.bitacora || res.data;
+  } catch {
+    selectedBitacora.value = bitacora;
+  }
+  resubmitFile.value = null;
 }
 
 async function submitBitacora() {
@@ -423,6 +455,23 @@ async function resubmitBitacora() {
     $q.notify({ position: 'top', timeout: 5000, type: 'negative', message: msg });
   } finally {
     submitting.value = false;
+  }
+}
+
+async function sendComment() {
+  if (!commentText.value.trim() || commentText.value.trim().length < 5) return;
+  sendingComment.value = true;
+  try {
+    const res = await bitacoraService.addComment(selectedBitacora.value._id, commentText.value.trim());
+    selectedBitacora.value = res.data?.bitacora || res.data;
+    commentText.value = '';
+    $q.notify({ position: 'top', timeout: 3000, type: 'positive', message: 'Respuesta enviada.' });
+    await loadData();
+  } catch (error) {
+    console.error(error);
+    $q.notify({ position: 'top', timeout: 5000, type: 'negative', message: error.message || 'Error al enviar respuesta.' });
+  } finally {
+    sendingComment.value = false;
   }
 }
 </script>

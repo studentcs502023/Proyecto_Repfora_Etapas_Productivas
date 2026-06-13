@@ -240,7 +240,7 @@
           </q-card>
         </div>
 
-        <!-- ─── Hilo de Comentarios ─── -->
+        <!-- ─── Hilo de Comentarios ───
         <div class="col-12">
           <q-card flat bordered>
             <q-card-section class="bg-grey-2">
@@ -283,7 +283,7 @@
               </div>
             </q-card-section>
           </q-card>
-        </div>
+        </div> -->
 
       </template>
     </div>
@@ -447,6 +447,16 @@ const latestRejectComment = computed(() => {
   if (!ep.value?.comments?.length) return '';
   const last = ep.value.comments[ep.value.comments.length - 1];
   return last.text?.startsWith('RECHAZO DE REGISTRO:') ? last.text.replace('RECHAZO DE REGISTRO:', '').trim() : '';
+});
+
+const bitacoraPercent = computed(() => {
+  if (!ep.value || !ep.value.maxBitacoras) return 0;
+  return Math.min((ep.value.completedBitacoras || 0) / ep.value.maxBitacoras, 1);
+});
+
+const trackingPercent = computed(() => {
+  if (!ep.value || !ep.value.requiredTrackings) return 0;
+  return Math.min((ep.value.completedTrackings || 0) / ep.value.requiredTrackings, 1);
 });
 
 // ─── Computed generales ────────────────────────────────────────────────────

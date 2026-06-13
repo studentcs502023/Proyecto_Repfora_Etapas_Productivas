@@ -3,14 +3,28 @@
     <div class="row items-center q-mb-md">
       <div class="col">
         <h2 class="text-h4 text-black text-weight-bold q-my-none">Revisión de Bitácoras</h2>
-        <p class="text-grey-7 q-my-sm">Bandeja de bitácoras pendientes de evaluación.</p>
+        <p class="text-grey-7 q-my-sm">Bandeja de bitácoras y su historial de revisión.</p>
       </div>
     </div>
+
+    <q-tabs
+      v-model="activeTab"
+      dense
+      class="text-grey q-mb-md"
+      active-color="primary"
+      indicator-color="primary"
+      align="left"
+      narrow-indicator
+    >
+      <q-tab name="PENDING" label="Pendientes" />
+      <q-tab name="APPROVED" label="Aprobadas" />
+      <q-tab name="REJECTED" label="Rechazadas" />
+    </q-tabs>
 
     <!-- Table -->
     <q-card flat bordered>
       <q-table
-        :rows="pendingBitacoras"
+        :rows="bitacoras"
         :columns="columns"
         :loading="loading"
         row-key="_id"
@@ -38,16 +52,39 @@
           </q-td>
         </template>
 
+        <template v-slot:body-cell-assignedHours="props">
+          <q-td :props="props" class="text-center">
+            <q-badge v-if="props.value" color="positive" :label="props.value + ' hrs'" />
+            <span v-else class="text-grey">-</span>
+          </q-td>
+        </template>
+
+        <template v-slot:body-cell-comments="props">
+          <q-td :props="props" class="text-center">
+            <q-badge v-if="props.row.reviewComments?.length" color="info" :label="props.row.reviewComments.length" />
+            <span v-else class="text-grey">-</span>
+          </q-td>
+        </template>
+
+        <template v-slot:body-cell-reviewedAt="props">
+          <q-td :props="props">
+            {{ formatDateTime(props.value) }}
+          </q-td>
+        </template>
+
         <template v-slot:body-cell-actions="props">
           <q-td :props="props" class="q-gutter-xs">
-            <q-btn size="sm" color="primary" label="Evaluar" @click="openReviewModal(props.row)" />
+            <q-btn v-if="activeTab === 'PENDING'" size="sm" color="primary" label="Evaluar" @click="openReviewModal(props.row)" />
+            <q-btn size="sm" flat color="grey" icon="visibility" @click="viewHistory(props.row)">
+              <q-tooltip>Ver historial</q-tooltip>
+            </q-btn>
           </q-td>
         </template>
         
         <template v-slot:no-data>
           <div class="full-width row flex-center text-grey q-pa-lg">
             <q-icon size="2em" name="check_circle" class="q-mr-sm" />
-            No hay bitácoras pendientes de revisión.
+            No hay bitácoras {{ activeTab === 'PENDING' ? 'pendientes de revisión' : activeTab === 'APPROVED' ? 'aprobadas' : 'rechazadas' }}.
           </div>
         </template>
       </q-table>
@@ -57,7 +94,9 @@
     <q-dialog v-model="showReviewModal" persistent maximized>
       <q-card v-if="selectedBitacora" class="column">
         <q-card-section class="bg-primary text-white row items-center q-pb-none">
-          <div class="text-h6">Evaluar Bitácora #{{ selectedBitacora.logbookNumber }} - {{ selectedBitacora.apprentice?.fullName }}</div>
+          <div class="text-h6">
+            {{ readonlyMode ? 'Historial' : 'Evaluar' }} Bitácora #{{ selectedBitacora.logbookNumber }} - {{ selectedBitacora.apprentice?.fullName }}
+          </div>
           <q-space />
           <q-btn icon="close" flat round dense v-close-popup>
           <q-tooltip>Cerrar</q-tooltip>
@@ -89,10 +128,18 @@
               </q-card>
             </div>
 
-            <!-- Right Column: Decision -->
+            <!-- Right Column -->
             <div class="col-12 col-md-5">
               <div class="text-h4 text-black q-mb-md">Información del Periodo</div>
               <q-list bordered separator class="rounded-borders q-mb-lg">
+                <q-item>
+                  <q-item-section>
+                    <q-item-label caption>Estado</q-item-label>
+                    <q-item-label>
+                      <q-badge :color="getStatusColor(selectedBitacora.status)" :label="getStatusLabel(selectedBitacora.status)" />
+                    </q-item-label>
+                  </q-item-section>
+                </q-item>
                 <q-item>
                   <q-item-section>
                     <q-item-label caption>Enviada el</q-item-label>
@@ -105,30 +152,54 @@
                     <q-item-label>{{ formatDate(selectedBitacora.periodStart) }} al {{ formatDate(selectedBitacora.periodEnd) }}</q-item-label>
                   </q-item-section>
                 </q-item>
+                <q-item v-if="selectedBitacora.reviewedAt">
+                  <q-item-section>
+                    <q-item-label caption>Revisada el</q-item-label>
+                    <q-item-label>{{ formatDateTime(selectedBitacora.reviewedAt) }}</q-item-label>
+                  </q-item-section>
+                </q-item>
+                <q-item v-if="selectedBitacora.assignedHours">
+                  <q-item-section>
+                    <q-item-label caption>Horas Asignadas</q-item-label>
+                    <q-item-label>{{ selectedBitacora.assignedHours }} hrs</q-item-label>
+                  </q-item-section>
+                </q-item>
               </q-list>
 
-              <div class="text-h4 text-black q-mb-md">Decisión de Evaluación</div>
-              
-              <div class="q-gutter-md">
-                <!-- Approve -->
-                <q-card flat bordered class="bg-green-1 border-green">
-                  <q-card-section>
-                    <div class="text-subtitle1 text-positive text-weight-bold q-mb-sm">Aprobar Bitácora</div>
-                    <p class="text-caption">Al aprobar, esta bitácora contará para el progreso del aprendiz y se asignarán las horas de revisión a tu cuenta.</p>
-                    <q-btn color="positive" icon="check_circle" label="Aprobar" @click="approveBitacora" class="full-width" :loading="processing" />
-                  </q-card-section>
-                </q-card>
-
-                <!-- Reject -->
-                <q-card flat bordered class="bg-red-1 border-red">
-                  <q-card-section>
-                    <div class="text-subtitle1 text-negative text-weight-bold q-mb-sm">Rechazar y Solicitar Corrección</div>
-                    <p class="text-caption">Indica exactamente qué debe corregir el aprendiz en el documento.</p>
-                    <q-input v-model="rejectReason" type="textarea" outlined dense rows="4" placeholder="Ej: Faltan las firmas en la sección 3..." class="q-mb-sm bg-white" :rules="[val => !val || val.trim().length >= 10 || 'Mínimo 10 caracteres']" />
-                    <q-btn color="negative" icon="cancel" label="Rechazar" @click="rejectBitacora" class="full-width" :disable="!rejectReason.trim()" :loading="processing" />
-                  </q-card-section>
-                </q-card>
+              <div v-if="selectedBitacora?.reviewComments?.length" class="q-mb-lg">
+                <div class="text-h4 text-black q-mb-sm">Historial de Comentarios</div>
+                <q-list bordered separator class="rounded-borders">
+                  <q-item v-for="(c, idx) in selectedBitacora.reviewComments" :key="idx" class="q-py-sm">
+                    <q-item-section>
+                      <q-item-label caption>{{ c.author?.fullName || 'Usuario' }} - {{ formatDateTime(c.createdAt) }}</q-item-label>
+                      <q-item-label class="text-body2 q-mt-xs">{{ c.text }}</q-item-label>
+                    </q-item-section>
+                  </q-item>
+                </q-list>
               </div>
+
+              <template v-if="!readonlyMode">
+                <div class="text-h4 text-black q-mb-md">Decisión de Evaluación</div>
+                
+                <div class="q-gutter-md">
+                  <q-card flat bordered class="bg-green-1 border-green">
+                    <q-card-section>
+                      <div class="text-subtitle1 text-positive text-weight-bold q-mb-sm">Aprobar Bitácora</div>
+                      <p class="text-caption">Al aprobar, esta bitácora contará para el progreso del aprendiz y se asignarán las horas de revisión a tu cuenta.</p>
+                      <q-btn color="positive" icon="check_circle" label="Aprobar" @click="approveBitacora" class="full-width" :loading="processing" />
+                    </q-card-section>
+                  </q-card>
+
+                  <q-card flat bordered class="bg-red-1 border-red">
+                    <q-card-section>
+                      <div class="text-subtitle1 text-negative text-weight-bold q-mb-sm">Rechazar y Solicitar Corrección</div>
+                      <p class="text-caption">Indica exactamente qué debe corregir el aprendiz en el documento.</p>
+                      <q-input v-model="rejectReason" type="textarea" outlined dense rows="4" placeholder="Ej: Faltan las firmas en la sección 3..." class="q-mb-sm bg-white" :rules="[val => !val || val.trim().length >= 10 || 'Mínimo 10 caracteres']" />
+                      <q-btn color="negative" icon="cancel" label="Rechazar" @click="rejectBitacora" class="full-width" :disable="!rejectReason.trim()" :loading="processing" />
+                    </q-card-section>
+                  </q-card>
+                </div>
+              </template>
 
             </div>
           </div>
@@ -139,14 +210,14 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import bitacoraService from '../../api/bitacora.service';
 import { useQuasar } from 'quasar';
 
 const $q = useQuasar();
 
-// State
-const pendingBitacoras = ref([]);
+const activeTab = ref('PENDING');
+const bitacoras = ref([]);
 const loading = ref(false);
 const pagination = ref({ page: 1, rowsPerPage: 10, rowsNumber: 0 });
 
@@ -154,38 +225,61 @@ const showReviewModal = ref(false);
 const selectedBitacora = ref(null);
 const processing = ref(false);
 const rejectReason = ref('');
+const readonlyMode = ref(false);
 
-const columns = [
+const baseColumns = [
   { name: 'apprentice', label: 'Aprendiz', field: 'apprentice', align: 'left' },
   { name: 'logbookNumber', label: 'Número', field: 'logbookNumber', align: 'left' },
   { name: 'period', label: 'Periodo', align: 'left' },
   { name: 'submittedAt', label: 'Enviada El', field: row => formatDateTime(row.submittedAt), align: 'left' },
-  { name: 'actions', label: 'Acciones', align: 'center' }
 ];
 
-onMounted(() => {
-  fetchPendingBitacoras();
+const reviewedColumns = [
+  { name: 'assignedHours', label: 'Horas', field: 'assignedHours', align: 'center' },
+  { name: 'reviewedAt', label: 'Revisada El', field: row => formatDateTime(row.reviewedAt), align: 'left' },
+  { name: 'comments', label: 'Coment.', field: 'comments', align: 'center' },
+];
+
+const columns = computed(() => {
+  if (activeTab.value === 'PENDING') {
+    return [...baseColumns, { name: 'actions', label: 'Acciones', align: 'center' }];
+  }
+  return [...baseColumns, ...reviewedColumns, { name: 'actions', label: 'Acciones', align: 'center' }];
 });
 
-async function fetchPendingBitacoras() {
+onMounted(() => {
+  fetchBitacoras();
+});
+
+watch(activeTab, () => {
+  pagination.value.page = 1;
+  fetchBitacoras();
+});
+
+async function fetchBitacoras() {
   loading.value = true;
   try {
-    // El interceptor de Axios devuelve el body JSON: { success, message, data: { bitacoras, pagination } }
-    const body = await bitacoraService.getPendingReview();
-    pendingBitacoras.value = body.data?.bitacoras || body.data || [];
+    const body = await bitacoraService.getByStatus(activeTab.value, {
+      page: pagination.value.page,
+      limit: pagination.value.rowsPerPage
+    });
+    bitacoras.value = body.data?.bitacoras || body.data || [];
+    if (body.data?.pagination) {
+      pagination.value.rowsNumber = body.data.pagination.total;
+    }
   } catch (error) {
     console.error(error);
-    $q.notify({ type: 'negative', message: error.message || 'Error al cargar bitácoras pendientes.', position: 'top', timeout: 5000 });
+    $q.notify({ type: 'negative', message: error.message || 'Error al cargar bitácoras.', position: 'top', timeout: 5000 });
   } finally {
     loading.value = false;
   }
 }
 
 function onRequest(props) {
-  pagination.value.page = props.pagination.page;
-  pagination.value.rowsPerPage = props.pagination.rowsPerPage;
-  // If we had server-side pagination for this endpoint, we'd pass these as params
-  fetchPendingBitacoras();
+  const { page, rowsPerPage } = props.pagination;
+  pagination.value.page = page;
+  pagination.value.rowsPerPage = rowsPerPage;
+  fetchBitacoras();
 }
 
 function formatDate(dateStr) {
@@ -200,9 +294,26 @@ function formatDateTime(dateStr) {
   });
 }
 
-function openReviewModal(bitacora) {
-  selectedBitacora.value = bitacora;
+async function openReviewModal(bitacora) {
+  try {
+    const res = await bitacoraService.getById(bitacora._id);
+    selectedBitacora.value = res.data?.bitacora || res.data;
+  } catch {
+    selectedBitacora.value = bitacora;
+  }
   rejectReason.value = '';
+  readonlyMode.value = false;
+  showReviewModal.value = true;
+}
+
+async function viewHistory(bitacora) {
+  try {
+    const res = await bitacoraService.getById(bitacora._id);
+    selectedBitacora.value = res.data?.bitacora || res.data;
+  } catch {
+    selectedBitacora.value = bitacora;
+  }
+  readonlyMode.value = true;
   showReviewModal.value = true;
 }
 
@@ -218,10 +329,9 @@ async function approveBitacora() {
       await bitacoraService.approve(selectedBitacora.value._id);
       $q.notify({ type: 'positive', message: 'Bitácora aprobada exitosamente. Horas asignadas.', position: 'top', timeout: 5000 });
       showReviewModal.value = false;
-      fetchPendingBitacoras();
+      fetchBitacoras();
     } catch (error) {
       console.error(error);
-      // El interceptor transforma el error: { message, status, errors }
       $q.notify({ type: 'negative', message: error.message || 'Error al aprobar la bitácora.', position: 'top', timeout: 5000 });
     } finally {
       processing.value = false;
@@ -236,13 +346,32 @@ async function rejectBitacora() {
     await bitacoraService.reject(selectedBitacora.value._id, rejectReason.value.trim());
     $q.notify({ type: 'warning', message: 'Bitácora rechazada y devuelta al aprendiz.', position: 'top', timeout: 5000 });
     showReviewModal.value = false;
-    fetchPendingBitacoras();
+    fetchBitacoras();
   } catch (error) {
     console.error(error);
-    // El interceptor transforma el error: { message, status, errors }
     $q.notify({ type: 'negative', message: error.message || 'Error al rechazar la bitácora.', position: 'top', timeout: 5000 });
   } finally {
     processing.value = false;
+  }
+}
+
+function getStatusColor(status) {
+  switch(status) {
+    case 'PENDING': return 'orange';
+    case 'IN_REVIEW': return 'info';
+    case 'APPROVED': return 'positive';
+    case 'REJECTED': return 'negative';
+    default: return 'grey';
+  }
+}
+
+function getStatusLabel(status) {
+  switch(status) {
+    case 'PENDING': return 'Pendiente';
+    case 'IN_REVIEW': return 'En Revisión';
+    case 'APPROVED': return 'Aprobada';
+    case 'REJECTED': return 'Rechazada';
+    default: return status;
   }
 }
 </script>
