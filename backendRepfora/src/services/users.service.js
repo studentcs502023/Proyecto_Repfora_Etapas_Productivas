@@ -90,10 +90,8 @@ class UserService {
 
         const query = { role: "INSTRUCTOR" };
 
-        if (isActive !== undefined) {
+        if (isActive !== undefined && isActive !== 'all') {
             query.isActive = isActive === 'true' || isActive === true;
-        } else {
-            query.isActive = true;
         }
 
         if (status) query.status = status;
@@ -414,10 +412,8 @@ class UserService {
 
         const query = { role: "APPRENTICE" };
 
-        if (isActive !== undefined) {
+        if (isActive !== undefined && isActive !== 'all') {
             query.isActive = isActive === 'true' || isActive === true;
-        } else {
-            query.isActive = true;
         }
 
         if (enrollmentNumber) query.enrollmentNumber = enrollmentNumber;

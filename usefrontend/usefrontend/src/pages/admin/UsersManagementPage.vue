@@ -500,7 +500,7 @@ async function fetchUsers() {
       page: pagination.value.page,
       limit: pagination.value.rowsPerPage,
       search: filter.value || undefined,
-      isActive: showInactive.value ? undefined : true
+      isActive: showInactive.value ? 'all' : true
     };
 
     let response;
