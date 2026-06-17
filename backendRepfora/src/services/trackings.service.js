@@ -323,6 +323,57 @@ class TrackingService {
   }
 
   /**
+   * Apprentice uploads project advances PDF for a tracking (project modalities)
+   */
+  async uploadApprenticeAdvances(reqUser, id, file) {
+    const tracking = await Tracking.findById(id);
+    if (!tracking || !tracking.isActive) {
+      const error = new Error('Tracking not found');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    if (tracking.apprentice.toString() !== reqUser.id.toString()) {
+      const error = new Error('Forbidden: You can only upload advances for your own trackings');
+      error.statusCode = 403;
+      throw error;
+    }
+
+    if (tracking.status !== 'SCHEDULED') {
+      const error = new Error('Cannot upload advances for a tracking that is already executed');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const ep = await ProductiveStage.findById(tracking.productiveStage);
+    if (!['INDIVIDUAL_PRODUCTIVE_PROJECT', 'GROUP_PRODUCTIVE_PROJECT'].includes(ep.modality)) {
+      const error = new Error('Project advances upload is only available for project modalities');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const driveRes = await mockDriveUpload(file, `trackings/${tracking.productiveStage}_advances`);
+
+    tracking.apprenticeFileName = file.originalname;
+    tracking.apprenticeDriveFileId = driveRes.driveFileId;
+    tracking.apprenticeDriveFileUrl = driveRes.driveFileUrl;
+    tracking.apprenticeFileUploadedAt = new Date();
+    await tracking.save();
+
+    if (tracking.instructor) {
+      await notificationService.send({
+        type: 'BITACORA_PENDING_REVIEW',
+        recipients: [tracking.instructor.toString()],
+        title: 'Avances de Proyecto Cargados',
+        message: `El aprendiz ha cargado sus avances para el seguimiento #${tracking.trackingNumber}.`,
+        metadata: { entity: 'Tracking', entityId: tracking._id }
+      });
+    }
+
+    return tracking;
+  }
+
+  /**
    * Validate signatures
    */
   async validateSignature(reqUser, id, data) {

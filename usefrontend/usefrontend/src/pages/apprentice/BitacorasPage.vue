@@ -23,6 +23,20 @@
       <q-btn color="primary" outline label="Registrar Etapa" to="/register-ep" class="q-mt-md" />
     </q-card>
 
+    <!-- Project Modality - Use Trackings instead -->
+    <q-card flat bordered v-else-if="isProjectModality" class="bg-amber-1 text-center q-pa-xl">
+      <q-icon name="engineering" size="4em" color="warning" class="q-mb-md" />
+      <div class="text-h6 text-warning text-weight-bold">Modalidad de Proyecto</div>
+      <p class="text-grey-8 q-mt-sm">
+        En las modalidades de Proyecto Productivo, los avances se registran mediante <strong>seguimientos</strong> programados por tu instructor. 
+        No se utilizan bitácoras quincenales.
+      </p>
+      <p class="text-grey-7 text-caption">
+        Dirígete a la sección de <strong>Seguimientos</strong> para cargar tus avances de proyecto en cada reunión programada.
+      </p>
+      <q-btn color="warning" text-color="black" icon="co_present" label="Ir a Mis Seguimientos" to="/seguimientos" class="q-mt-md" />
+    </q-card>
+
     <!-- Bitacoras List -->
     <div v-else>
       <!-- EP Progress Summary -->
@@ -271,6 +285,11 @@ const columns = [
 const isActiveEP = computed(() => {
   if (!ep.value) return false;
   return ['ACTIVE', 'IN_FOLLOWUP', 'CERTIFICATION'].includes(ep.value.status);
+});
+
+const isProjectModality = computed(() => {
+  if (!ep.value) return false;
+  return ['INDIVIDUAL_PRODUCTIVE_PROJECT', 'GROUP_PRODUCTIVE_PROJECT'].includes(ep.value.modality);
 });
 
 const canSubmit = computed(() => {

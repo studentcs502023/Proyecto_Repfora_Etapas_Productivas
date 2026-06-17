@@ -50,17 +50,6 @@
           </q-td>
         </template>
 
-        <template v-slot:body-cell-progress="props">
-          <q-td :props="props">
-            <div class="text-caption q-mb-xs">
-              Bitácoras: <strong>{{ props.row.completedBitacoras || 0 }} / {{ props.row.maxBitacoras || '?' }}</strong>
-            </div>
-            <div class="text-caption">
-              Seguimientos: <strong>{{ props.row.completedTrackings || 0 }} / {{ props.row.requiredTrackings || '?' }}</strong>
-            </div>
-          </q-td>
-        </template>
-
         <template v-slot:body-cell-actions="props">
           <q-td :props="props" class="q-gutter-xs text-center">
             <q-btn size="sm" color="primary" outline label="Ver Progreso" @click="viewProgress(props.row)" />
@@ -163,7 +152,6 @@ const columns = [
   { name: 'apprentice', label: 'Aprendiz', field: 'apprentice', align: 'left' },
   { name: 'company', label: 'Empresa / Modalidad', field: 'company', align: 'left' },
   { name: 'status', label: 'Estado', field: 'status', align: 'left' },
-  { name: 'progress', label: 'Cumplimiento', align: 'left' },
   { name: 'actions', label: 'Acciones', align: 'center' }
 ];
 

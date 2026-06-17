@@ -167,6 +167,10 @@
                 <q-item-section avatar><q-icon name="history_edu" /></q-item-section>
                 <q-item-section>Mis Bitácoras</q-item-section>
               </q-item>
+              <q-item clickable v-ripple to="/seguimientos">
+                <q-item-section avatar><q-icon name="co_present" /></q-item-section>
+                <q-item-section>Mis Seguimientos</q-item-section>
+              </q-item>
               <q-item clickable v-ripple to="/certification">
                 <q-item-section avatar><q-icon name="workspace_premium" /></q-item-section>
                 <q-item-section>Certificaci&oacute;n Final</q-item-section>
@@ -323,6 +327,8 @@ const notifRoutes = {
   BITACORA_REJECTED: '/bitacoras',
   BITACORA_PENDING_REVIEW: '/bitacoras',
   BITACORA_REMINDER: '/bitacoras',
+  TRACKING_REMINDER: '/seguimientos',
+  EXTRAORDINARY_TRACKING_APPROVED: '/seguimientos',
   DOCUMENTS_APPROVED: '/certification',
   DOCUMENTS_REJECTED: '/certification',
   DOCUMENTS_REMINDER: '/certification',

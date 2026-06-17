@@ -44,6 +44,12 @@ const routes = [
         meta: { role: 'APPRENTICE' }
       },
       {
+        path: 'seguimientos',
+        name: 'my-trackings',
+        component: () => import('../pages/apprentice/TrackingsPage.vue'),
+        meta: { role: 'APPRENTICE' }
+      },
+      {
         path: 'certification',
         name: 'certification',
         component: () => import('../pages/apprentice/CertificationPage.vue'),

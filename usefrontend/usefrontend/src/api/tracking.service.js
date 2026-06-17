@@ -21,6 +21,10 @@ export const trackingService = {
     return api.patch(`/trackings/${id}/upload-pdf`, fileData);
   },
 
+  uploadAdvances: (id, formData) => {
+    return api.patch(`/trackings/${id}/upload-advances`, formData);
+  },
+
   validateSignature: (id, data) => api.patch(`/trackings/${id}/validate-signature`, data),
 
   execute: (id) => api.patch(`/trackings/${id}/execute`),

@@ -404,7 +404,7 @@ class BitacoraService {
         throw error;
     }
 
-    if (bitacora.apprentice.toString() !== reqUser.id) {
+    if (bitacora.apprentice.toString() !== reqUser.id.toString()) {
         const error = new Error('Forbidden: You can only resubmit your own logbooks');
         error.statusCode = 403;
         throw error;
