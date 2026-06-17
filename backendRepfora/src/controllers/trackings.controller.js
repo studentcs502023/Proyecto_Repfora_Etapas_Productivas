@@ -51,6 +51,18 @@ class TrackingController {
     }
   }
 
+  async uploadApprenticeAdvances(req, res) {
+    try {
+      if (!req.file) {
+        return errorResponse(res, 400, 'File is required');
+      }
+      const tracking = await trackingService.uploadApprenticeAdvances(req.user, req.params.id, req.file);
+      return successResponse(res, 200, 'Project advances uploaded successfully', { tracking });
+    } catch (error) {
+      return errorResponse(res, error.statusCode || 500, error.message);
+    }
+  }
+
   async validateSignature(req, res) {
     try {
       const tracking = await trackingService.validateSignature(req.user, req.params.id, req.body);

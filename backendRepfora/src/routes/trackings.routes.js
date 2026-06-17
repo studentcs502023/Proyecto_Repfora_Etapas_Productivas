@@ -58,6 +58,12 @@ router.patch('/:id/upload-pdf',
     trackingController.uploadPDF
 );
 
+router.patch('/:id/upload-advances',
+    checkRole('APPRENTICE'),
+    upload.single('file'),
+    trackingController.uploadApprenticeAdvances
+);
+
 router.patch('/:id/validate-signature',
     checkRole('INSTRUCTOR'),
     [

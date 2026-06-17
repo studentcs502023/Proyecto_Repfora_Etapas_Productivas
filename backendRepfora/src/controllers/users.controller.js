@@ -147,6 +147,23 @@ class UserController {
             return errorResponse(res, error.statusCode || 500, error.message);
         }
     }
+    async activateInstructor(req, res) {
+        try {
+            const instructor = await userService.activateInstructor(req.params.id, req.user.id);
+            return successResponse(res, 200, "Instructor activado exitosamente", { instructor });
+        } catch (error) {
+            return errorResponse(res, error.statusCode || 500, error.message);
+        }
+    }
+
+    async activateApprentice(req, res) {
+        try {
+            const apprentice = await userService.activateApprentice(req.params.id, req.user.id);
+            return successResponse(res, 200, "Aprendiz activado exitosamente", { apprentice });
+        } catch (error) {
+            return errorResponse(res, error.statusCode || 500, error.message);
+        }
+    }
 }
 
 export default new UserController();

@@ -11,7 +11,13 @@
  * @returns {Date}
  */
 export const calculateEpDeadline = (enrollmentExpiryDate, isPreNov2024, monthsNew, yearsOld) => {
-    const base = new Date(enrollmentExpiryDate);
+    let base = new Date(enrollmentExpiryDate);
+    const now = new Date();
+
+    if (base < now) {
+        base = now;
+    }
+
     if (isPreNov2024) {
         base.setFullYear(base.getFullYear() + Number(yearsOld));
     } else {

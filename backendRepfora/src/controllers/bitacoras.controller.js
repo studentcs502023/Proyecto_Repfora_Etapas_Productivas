@@ -80,6 +80,15 @@ class BitacoraController {
       return errorResponse(res, error.statusCode || 500, error.message);
     }
   }
+
+  async addComment(req, res) {
+    try {
+      const bitacora = await bitacoraService.addComment(req.user, req.params.id, req.body.text);
+      return successResponse(res, 200, 'Comment added', { bitacora });
+    } catch (error) {
+      return errorResponse(res, error.statusCode || 500, error.message);
+    }
+  }
 }
 
 export default new BitacoraController();

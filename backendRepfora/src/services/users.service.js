@@ -3,6 +3,7 @@ import User from "../models/User.model.js";
 import ProductiveStage from "../models/ProductiveStage.model.js";
 import { recordAuditLog } from "../utils/auditLog.util.js";
 import { AUDIT_ACTIONS } from "../utils/enums.js";
+import emailService from "./email.service.js";
 
 import { parseCSV, validateApprenticeRow } from "../utils/importParser.util.js";
 import notificationService from "./notifications.service.js";
@@ -89,10 +90,8 @@ class UserService {
 
         const query = { role: "INSTRUCTOR" };
 
-        if (isActive !== undefined) {
+        if (isActive !== undefined && isActive !== 'all') {
             query.isActive = isActive === 'true' || isActive === true;
-        } else {
-            query.isActive = true;
         }
 
         if (status) query.status = status;
@@ -259,6 +258,30 @@ class UserService {
             details: { previousStatus, newStatus: status, reason },
         });
 
+        // Enviar correo de notificación
+        const estadoLabel = status === 'ACTIVE' ? 'Activada' : (status === 'INACTIVE' ? 'Inactivada' : 'Finalizada');
+        try {
+            await emailService.send({
+                to: instructor.email,
+                subject: `Estado de cuenta actualizado a ${estadoLabel} - REPFORA E.P.`,
+                body: `
+                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #eee; padding: 20px; border-radius: 8px;">
+                        <h2 style="color: #39a900; text-align: center;">REPFORA E.P. — SENA</h2>
+                        <p>Estimado/a <strong>${instructor.fullName}</strong>,</p>
+                        <p>El estado de tu cuenta en el sistema ha sido cambiado a: <strong>${estadoLabel}</strong>.</p>
+                        ${status === 'INACTIVE' ? '<p>Tu cuenta ha sido bloqueada temporalmente y no podrás acceder a tus funciones hasta nueva orden.</p>' : ''}
+                        ${status === 'ACTIVE' ? '<p>Ya puedes acceder nuevamente a la plataforma y continuar con tus labores.</p>' : ''}
+                        <p><strong>Motivo:</strong> ${reason}</p>
+                        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; text-align: center;">
+                            <p style="font-size: 12px; color: #666;">Este es un mensaje automático. Por favor no respondas a este correo.</p>
+                        </div>
+                    </div>
+                `
+            });
+        } catch (emailErr) {
+            console.error('[UserService] Error enviando correo de cambio de estado:', emailErr.message);
+        }
+
         return { instructor, affectedApprentices };
     }
 
@@ -389,10 +412,8 @@ class UserService {
 
         const query = { role: "APPRENTICE" };
 
-        if (isActive !== undefined) {
+        if (isActive !== undefined && isActive !== 'all') {
             query.isActive = isActive === 'true' || isActive === true;
-        } else {
-            query.isActive = true;
         }
 
         if (enrollmentNumber) query.enrollmentNumber = enrollmentNumber;
@@ -591,6 +612,27 @@ class UserService {
             details: { nationalId: instructor.nationalId, fullName: instructor.fullName }
         });
 
+        // Enviar correo de notificación
+        try {
+            await emailService.send({
+                to: instructor.email,
+                subject: 'Cuenta Eliminada - REPFORA E.P.',
+                body: `
+                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #eee; padding: 20px; border-radius: 8px;">
+                        <h2 style="color: #39a900; text-align: center;">REPFORA E.P. — SENA</h2>
+                        <p>Estimado/a <strong>${instructor.fullName}</strong>,</p>
+                        <p>Tu cuenta en el sistema REPFORA E.P. ha sido <strong>inactivada/eliminada</strong>.</p>
+                        <p>Ya no tienes acceso a la plataforma. Para cualquier duda, comunícate con el administrador del sistema o tu coordinador.</p>
+                        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; text-align: center;">
+                            <p style="font-size: 12px; color: #666;">Este es un mensaje automático. Por favor no respondas a este correo.</p>
+                        </div>
+                    </div>
+                `
+            });
+        } catch (emailErr) {
+            console.error('[UserService] Error enviando correo de deactivación:', emailErr.message);
+        }
+
         return instructor;
     }
 
@@ -614,6 +656,117 @@ class UserService {
             performedBy,
             details: { nationalId: apprentice.nationalId, fullName: apprentice.fullName }
         });
+
+        // Enviar correo de notificación
+        try {
+            await emailService.send({
+                to: apprentice.email,
+                subject: 'Cuenta Eliminada - REPFORA E.P.',
+                body: `
+                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #eee; padding: 20px; border-radius: 8px;">
+                        <h2 style="color: #39a900; text-align: center;">REPFORA E.P. — SENA</h2>
+                        <p>Estimado/a <strong>${apprentice.fullName}</strong>,</p>
+                        <p>Tu cuenta en el sistema REPFORA E.P. ha sido <strong>inactivada/eliminada</strong>.</p>
+                        <p>Ya no tienes acceso a la plataforma. Para cualquier duda, comunícate con tu instructor o coordinador.</p>
+                        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; text-align: center;">
+                            <p style="font-size: 12px; color: #666;">Este es un mensaje automático. Por favor no respondas a este correo.</p>
+                        </div>
+                    </div>
+                `
+            });
+        } catch (emailErr) {
+            console.error('[UserService] Error enviando correo de deactivación de aprendiz:', emailErr.message);
+        }
+
+        return apprentice;
+    }
+
+    async activateInstructor(id, performedBy) {
+        const instructor = await User.findOneAndUpdate(
+            { _id: id, role: "INSTRUCTOR", isActive: false },
+            { $set: { isActive: true, status: "ACTIVE" } },
+            { returnDocument: 'after' }
+        ).select("-password");
+
+        if (!instructor) {
+            const error = new Error("Instructor no encontrado o ya está activo");
+            error.statusCode = 404;
+            throw error;
+        }
+
+        await recordAuditLog({
+            action: "INSTRUCTOR_ACTIVATED",
+            entity: "User",
+            entityId: id,
+            performedBy,
+            details: { nationalId: instructor.nationalId, fullName: instructor.fullName }
+        });
+
+        // Enviar correo de notificación
+        try {
+            await emailService.send({
+                to: instructor.email,
+                subject: 'Cuenta Restaurada - REPFORA E.P.',
+                body: `
+                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #eee; padding: 20px; border-radius: 8px;">
+                        <h2 style="color: #39a900; text-align: center;">REPFORA E.P. — SENA</h2>
+                        <p>Estimado/a <strong>${instructor.fullName}</strong>,</p>
+                        <p>Tu cuenta en el sistema REPFORA E.P. ha sido <strong>restaurada y activada</strong> nuevamente.</p>
+                        <p>Ya puedes acceder al sistema y continuar con tus funciones regulares.</p>
+                        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; text-align: center;">
+                            <p style="font-size: 12px; color: #666;">Este es un mensaje automático. Por favor no respondas a este correo.</p>
+                        </div>
+                    </div>
+                `
+            });
+        } catch (emailErr) {
+            console.error('[UserService] Error enviando correo de activación de instructor:', emailErr.message);
+        }
+
+        return instructor;
+    }
+
+    async activateApprentice(id, performedBy) {
+        const apprentice = await User.findOneAndUpdate(
+            { _id: id, role: "APPRENTICE", isActive: false },
+            { $set: { isActive: true } },
+            { returnDocument: 'after' }
+        ).select("-password");
+
+        if (!apprentice) {
+            const error = new Error("Aprendiz no encontrado o ya está activo");
+            error.statusCode = 404;
+            throw error;
+        }
+
+        await recordAuditLog({
+            action: "APPRENTICE_ACTIVATED",
+            entity: "User",
+            entityId: id,
+            performedBy,
+            details: { nationalId: apprentice.nationalId, fullName: apprentice.fullName }
+        });
+
+        // Enviar correo de notificación
+        try {
+            await emailService.send({
+                to: apprentice.email,
+                subject: 'Cuenta Restaurada - REPFORA E.P.',
+                body: `
+                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #eee; padding: 20px; border-radius: 8px;">
+                        <h2 style="color: #39a900; text-align: center;">REPFORA E.P. — SENA</h2>
+                        <p>Estimado/a <strong>${apprentice.fullName}</strong>,</p>
+                        <p>Tu cuenta en el sistema REPFORA E.P. ha sido <strong>restaurada y activada</strong> nuevamente.</p>
+                        <p>Ya puedes acceder al sistema y continuar con tu proceso.</p>
+                        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; text-align: center;">
+                            <p style="font-size: 12px; color: #666;">Este es un mensaje automático. Por favor no respondas a este correo.</p>
+                        </div>
+                    </div>
+                `
+            });
+        } catch (emailErr) {
+            console.error('[UserService] Error enviando correo de activación de aprendiz:', emailErr.message);
+        }
 
         return apprentice;
     }
