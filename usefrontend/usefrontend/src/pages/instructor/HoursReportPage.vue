@@ -11,7 +11,7 @@
     <q-card flat bordered class="q-mb-md">
       <q-card-section class="row q-col-gutter-sm items-center">
         <div class="col-12 col-sm-3">
-          <q-input v-model.number="selectedYear" type="number" label="Año" outlined dense @change="fetchData" />
+          <q-input v-model.number="selectedYear" type="number" label="Año" outlined dense @update:model-value="fetchData" />
         </div>
         <div class="col-12 col-sm-4">
           <q-select 
@@ -123,7 +123,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted, onActivated } from 'vue';
 import hourService from '../../api/hours.service';
 import { useAuthStore } from '../../stores/auth';
 import { useQuasar } from 'quasar';
@@ -156,10 +156,23 @@ const columns = [
   { name: 'actions', label: 'Exportar', align: 'center' }
 ];
 
+let pollInterval = null;
+
 onMounted(() => {
   if (authStore.user?.id) {
     fetchData();
+  } else {
+    loading.value = false;
   }
+  pollInterval = setInterval(fetchData, 120000);
+});
+
+onUnmounted(() => {
+  if (pollInterval) clearInterval(pollInterval);
+});
+
+onActivated(() => {
+  fetchData();
 });
 
 async function fetchData() {
@@ -233,4 +246,3 @@ async function downloadReport(year, month) {
 .border-orange { border-color: #ffe0b2; }
 .border-green { border-color: #c8e6c9; }
 </style>
-rm -rf .git

@@ -133,7 +133,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted, onActivated } from 'vue';
 import productiveStageService from '../../api/productiveStage.service';
 import { useQuasar } from 'quasar';
 import { useRouter } from 'vue-router';
@@ -155,7 +155,26 @@ const columns = [
   { name: 'actions', label: 'Acciones', align: 'center' }
 ];
 
+let pollInterval = null;
+
+function onVisibilityChange() {
+  if (document.visibilityState === 'visible') {
+    fetchApprentices();
+  }
+}
+
 onMounted(() => {
+  fetchApprentices();
+  pollInterval = setInterval(fetchApprentices, 30000);
+  document.addEventListener('visibilitychange', onVisibilityChange);
+});
+
+onUnmounted(() => {
+  if (pollInterval) clearInterval(pollInterval);
+  document.removeEventListener('visibilitychange', onVisibilityChange);
+});
+
+onActivated(() => {
   fetchApprentices();
 });
 

@@ -252,7 +252,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onUnmounted, onActivated } from 'vue';
 import trackingService from '../../api/tracking.service';
 import productiveStageService from '../../api/productiveStage.service'; // Needed to fetch EPs for dropdown
 import { useQuasar } from 'quasar';
@@ -305,7 +305,19 @@ const executeForm = ref({
   signaturesSavedLocal: false
 });
 
+let pollInterval = null;
+
 onMounted(() => {
+  fetchTrackings();
+  fetchMyEPs();
+  pollInterval = setInterval(fetchTrackings, 60000);
+});
+
+onUnmounted(() => {
+  if (pollInterval) clearInterval(pollInterval);
+});
+
+onActivated(() => {
   fetchTrackings();
   fetchMyEPs();
 });
@@ -386,12 +398,14 @@ function resetForm() {
 function openCreateModal() {
   resetForm();
   form.value.type = 'IN_PERSON';
+  fetchMyEPs();
   showCreateModal.value = true;
 }
 
 function openExtraordinaryModal() {
   resetForm();
   form.value.type = 'EXTRAORDINARY';
+  fetchMyEPs();
   showExtraordinaryModal.value = true;
 }
 

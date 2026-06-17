@@ -250,7 +250,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onUnmounted, onActivated } from 'vue';
 import noveltyService from '../../api/novelty.service';
 import productiveStageService from '../../api/productiveStage.service';
 import { useQuasar } from 'quasar';
@@ -294,7 +294,19 @@ const selectedNovelty = ref(null);
 const showAttachModal = ref(false);
 const attachFiles = ref(null);
 
+let pollInterval = null;
+
 onMounted(() => {
+  fetchNovelties();
+  fetchMyEPs();
+  pollInterval = setInterval(fetchNovelties, 60000);
+});
+
+onUnmounted(() => {
+  if (pollInterval) clearInterval(pollInterval);
+});
+
+onActivated(() => {
   fetchNovelties();
   fetchMyEPs();
 });
@@ -373,6 +385,7 @@ function getStatusLabel(status) {
 }
 
 function openCreateModal() {
+  fetchMyEPs();
   form.value = {
     productiveStageId: '',
     type: '',

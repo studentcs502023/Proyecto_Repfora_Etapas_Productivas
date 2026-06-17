@@ -210,7 +210,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, onUnmounted, onActivated, watch } from 'vue';
 import bitacoraService from '../../api/bitacora.service';
 import { useQuasar } from 'quasar';
 
@@ -247,7 +247,18 @@ const columns = computed(() => {
   return [...baseColumns, ...reviewedColumns, { name: 'actions', label: 'Acciones', align: 'center' }];
 });
 
+let pollInterval = null;
+
 onMounted(() => {
+  fetchBitacoras();
+  pollInterval = setInterval(fetchBitacoras, 60000);
+});
+
+onUnmounted(() => {
+  if (pollInterval) clearInterval(pollInterval);
+});
+
+onActivated(() => {
   fetchBitacoras();
 });
 
