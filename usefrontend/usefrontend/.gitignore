@@ -1,9 +1,0 @@
-# Variables de Entorno (SEGURIDAD CRÍTICA)
-.env
-.env.local
-.env.*.local
-*.env
-
-
-# Dependencias
-node_modules/
