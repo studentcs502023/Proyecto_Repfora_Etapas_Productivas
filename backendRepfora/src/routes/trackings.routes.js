@@ -74,6 +74,12 @@ router.patch('/:id/validate-signature',
     trackingController.validateSignature
 );
 
+router.post('/validate-pdf',
+    checkRole('INSTRUCTOR'),
+    upload.single('file'),
+    trackingController.validatePDF
+);
+
 router.patch('/:id/execute',
     checkRole('INSTRUCTOR'),
     trackingController.executeTracking

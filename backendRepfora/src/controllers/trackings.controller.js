@@ -117,6 +117,18 @@ class TrackingController {
     }
   }
 
+  async validatePDF(req, res) {
+    try {
+      if (!req.file) {
+        return errorResponse(res, 400, 'File is required');
+      }
+      const result = await trackingService.validatePDF(req.user, req.file);
+      return successResponse(res, 200, 'PDF validation completed', result);
+    } catch (error) {
+      return errorResponse(res, error.statusCode || 500, error.message);
+    }
+  }
+
   async getTemplate(req, res) {
     try {
       const templateUrl = await getConfig('TRACKING_TEMPLATE_DRIVE_URL');

@@ -380,11 +380,84 @@ const checkTrackingDeadlines = async () => {
 };
 
 /**
+ * Alerta de bitacora proxima a vencer para instructores (RF-003.0)
+ * Notifica a instructores 7 dias antes de que una bitacora este programada.
+ * Runs daily at 8 AM.
+ */
+const checkPendingBitacoraAlerts = async () => {
+  console.log('[Cron] Verificando alertas de bitacoras proximas para instructores...');
+
+  const now = new Date();
+  const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+  const activeEPs = await ProductiveStage.find({
+    status: { $in: ['ACTIVE', 'IN_FOLLOWUP'] },
+    isActive: true
+  }).populate('apprentice followupInstructor technicalInstructor projectInstructor');
+
+  let alertsSent = 0;
+
+  for (const ep of activeEPs) {
+    if (!ep.startDate || !ep.apprentice) continue;
+
+    const completedBitacoras = ep.completedBitacoras || 0;
+    const nextBitacoraNumber = completedBitacoras + 1;
+
+    // Skip if all bitacoras completed
+    if (ep.maxBitacoras && completedBitacoras >= ep.maxBitacoras) continue;
+
+    const nextDueMs = new Date(ep.startDate).getTime() + (nextBitacoraNumber * 14 * 24 * 60 * 60 * 1000);
+    const daysUntilDue = Math.ceil((nextDueMs - now.getTime()) / (1000 * 60 * 60 * 24));
+
+    // Alert if due within 7 days (not overdue)
+    if (daysUntilDue < 0 || daysUntilDue > 7) continue;
+
+    // Check if this bitacora has already been submitted
+    const existingBitacora = await Bitacora.findOne({
+      productiveStage: ep._id,
+      logbookNumber: nextBitacoraNumber,
+      isActive: true
+    });
+
+    if (existingBitacora && existingBitacora.status !== 'PENDING') continue;
+
+    // Collect instructor recipients
+    const instructorIds = [];
+    if (ep.followupInstructor) instructorIds.push(ep.followupInstructor._id.toString());
+    if (ep.technicalInstructor) instructorIds.push(ep.technicalInstructor._id.toString());
+    if (ep.projectInstructor) instructorIds.push(ep.projectInstructor._id.toString());
+
+    if (instructorIds.length === 0) continue;
+
+    const periodStart = new Date(nextDueMs - (14 * 24 * 60 * 60 * 1000));
+    const periodEnd = new Date(nextDueMs);
+    const periodStartStr = periodStart.toLocaleDateString('es-CO');
+    const periodEndStr = periodEnd.toLocaleDateString('es-CO');
+
+    const urgencyLabel = daysUntilDue <= 3 ? 'URGENTE' : daysUntilDue <= 5 ? 'PROXIMA' : 'RECORDATORIO';
+
+    await notificationService.send({
+      type: 'BITACORA_PENDING_REVIEW',
+      recipients: instructorIds,
+      title: `[${urgencyLabel}] Bitacora #${nextBitacoraNumber} proxima a vencer`,
+      message: `La bitacora #${nextBitacoraNumber} del aprendiz ${ep.apprentice.fullName} (Ficha: ${ep.apprentice.enrollmentNumber || 'N/D'}, Programa: ${ep.apprentice.program || 'N/D'}) vence en ${daysUntilDue} dia(s). Periodo correspondiente: ${periodStartStr} - ${periodEndStr}.`,
+      metadata: { entity: 'ProductiveStage', entityId: ep._id.toString() }
+    });
+
+    console.log(`[Cron] Alerta bitacora #${nextBitacoraNumber}: ${ep.apprentice.fullName} (en ${daysUntilDue}d, instructores: ${instructorIds.length})`);
+    alertsSent++;
+  }
+
+  console.log(`[Cron] Alertas de bitacoras proximas enviadas: ${alertsSent}`);
+};
+
+/**
  * Start all scheduled jobs
  */
 export const initJobs = () => {
   // Run daily at 8:00 AM
   cron.schedule('0 8 * * *', async () => {
+    await checkPendingBitacoraAlerts();
     await checkOverdueReviews();
     await checkBitacoraSchedule();
     await checkUpcomingTrackings();

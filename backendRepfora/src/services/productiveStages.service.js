@@ -143,7 +143,7 @@ class ProductiveStageService {
         // Búsqueda por texto (requiere populate previo o agregación, por simplicidad usamos regex en path)
         let populateQuery = {
             path: "apprentice",
-            select: "fullName nationalId enrollmentNumber email"
+            select: "fullName nationalId enrollmentNumber email program"
         };
 
         if (search) {
@@ -324,6 +324,42 @@ class ProductiveStageService {
             performedBy,
             details: updates
         });
+
+        // Notificar a cada instructor asignado
+        await ep.populate("apprentice", "fullName enrollmentNumber program");
+        const apprenticeName = ep.apprentice?.fullName || "N/D";
+        const apprenticeFicha = ep.apprentice?.enrollmentNumber || "N/D";
+        const apprenticeProgram = ep.apprentice?.program || "N/D";
+
+        for (const instructorId of instructorIds) {
+            const instructor = instructors.find(i => i._id.toString() === instructorId.toString());
+            const roleLabel = instructorId.toString() === followupInstructorId?.toString()
+                ? "Seguimiento"
+                : instructorId.toString() === technicalInstructorId?.toString()
+                    ? "Tecnico"
+                    : "Proyecto";
+
+            notificationService.send({
+                type: "APPRENTICE_ASSIGNED",
+                recipients: [instructorId.toString()],
+                title: "Nuevo Aprendiz Asignado",
+                message: `Se te ha asignado un nuevo aprendiz como instructor ${roleLabel.toLowerCase()}: ${apprenticeName} | Programa: ${apprenticeProgram} | Ficha: ${apprenticeFicha}. Revisa tu lista de aprendices para mas detalles.`,
+                metadata: { entity: "ProductiveStage", entityId: ep._id.toString() }
+            });
+        }
+
+        // Notificar a los administradores sobre la asignacion
+        const admins = await User.find({ role: "ADMIN", isActive: true }).select("_id");
+        if (admins.length > 0) {
+            const instructorNames = instructors.map(i => `${i.fullName} (${i.email})`).join(", ");
+            notificationService.send({
+                type: "APPRENTICE_ASSIGNED",
+                recipients: admins.map(a => a._id.toString()),
+                title: "Instructores Asignados a Aprendiz",
+                message: `Se han asignado instructores al aprendiz ${apprenticeName} | Programa: ${apprenticeProgram} | Ficha: ${apprenticeFicha}. Instructores: ${instructorNames}.`,
+                metadata: { entity: "ProductiveStage", entityId: ep._id.toString() }
+            });
+        }
 
         return ep;
     }
@@ -610,6 +646,26 @@ class ProductiveStageService {
             performedBy,
             details: { followupInstructor: instructorId }
         });
+
+        notificationService.send({
+            type: "APPRENTICE_ASSIGNED",
+            recipients: [instructorId.toString()],
+            title: "Nuevo Aprendiz Asignado",
+            message: `Se te ha asignado un nuevo aprendiz como instructor de seguimiento: ${apprentice.fullName} | Programa: ${apprentice.program || 'N/D'} | Ficha: ${apprentice.enrollmentNumber || 'N/D'}. Revisa tu lista de aprendices para mas detalles.`,
+            metadata: { entity: "ProductiveStage", entityId: ep._id.toString() }
+        });
+
+        // Notificar a los administradores
+        const admins = await User.find({ role: "ADMIN", isActive: true }).select("_id");
+        if (admins.length > 0) {
+            notificationService.send({
+                type: "APPRENTICE_ASSIGNED",
+                recipients: admins.map(a => a._id.toString()),
+                title: "Instructor Asignado a Aprendiz",
+                message: `El instructor ${instructor.fullName} (${instructor.email}) ha sido asignado al aprendiz ${apprentice.fullName} | Programa: ${apprentice.program || 'N/D'} | Ficha: ${apprentice.enrollmentNumber || 'N/D'} como instructor de seguimiento.`,
+                metadata: { entity: "ProductiveStage", entityId: ep._id.toString() }
+            });
+        }
 
         return ep;
     }

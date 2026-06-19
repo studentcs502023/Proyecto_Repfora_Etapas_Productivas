@@ -7,6 +7,15 @@ import notificationService from './notifications.service.js';
 import { recordAuditLog } from '../utils/auditLog.util.js';
 import { getConfig } from '../utils/configHelper.util.js';
 import productiveStagesService from './productiveStages.service.js';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
+
+const execAsync = promisify(exec);
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // MOCK: Google Drive integration
 const mockDriveUpload = async (file, folderPath) => {
@@ -554,6 +563,89 @@ class TrackingService {
     });
 
     return tracking;
+  }
+
+  /**
+   * AI-based PDF validation for tracking documents
+   * Uses Python agent for intelligent validation, falls back to basic checks.
+   */
+  async validatePDF(reqUser, file) {
+    const MAX_SIZE_MB = 10;
+    const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024;
+
+    // 1. Validate file type
+    if (file.mimetype !== 'application/pdf') {
+      return {
+        valid: false,
+        message: 'El archivo debe ser un PDF.',
+        details: { fileType: file.mimetype }
+      };
+    }
+
+    // 2. Validate file size
+    if (file.size > MAX_SIZE_BYTES) {
+      return {
+        valid: false,
+        message: `El archivo excede el peso maximo de ${MAX_SIZE_MB} MB. Tamano actual: ${(file.size / (1024 * 1024)).toFixed(1)} MB.`,
+        details: { fileSize: file.size, maxSize: MAX_SIZE_BYTES }
+      };
+    }
+
+    // 3. Try Python agent validation
+    try {
+      const agentScript = path.join(__dirname, '..', '..', 'my_agent', 'validate_tracking.py');
+      if (fs.existsSync(agentScript)) {
+        const { stdout } = await execAsync(`python "${agentScript}" "${file.path}"`, { timeout: 30000 });
+        const result = JSON.parse(stdout.trim());
+        return result;
+      }
+    } catch (pythonErr) {
+      console.warn('[TrackingService] Python agent validation failed, using basic validation:', pythonErr.message?.substring(0, 100));
+    }
+
+    // 4. Fallback: basic validation (check PDF has some text content)
+    try {
+      const pdfBuffer = fs.readFileSync(file.path);
+      const textContent = pdfBuffer.toString('utf-8', 0, Math.min(pdfBuffer.length, 50000));
+      
+      // Look for common tracking document keywords in the raw PDF
+      const keywords = ['seguimiento', 'etapa', 'productiva', 'aprendiz', 'instructor'];
+      const foundKeywords = keywords.filter(kw => textContent.toLowerCase().includes(kw));
+      
+      const hasSignatureHint = textContent.includes('/Sig') || 
+                               textContent.includes('Firma') || 
+                               textContent.includes('firmado');
+
+      if (foundKeywords.length >= 2 || hasSignatureHint) {
+        return {
+          valid: true,
+          message: 'El documento parece ser un acta de seguimiento valida.',
+          details: {
+            method: 'basic',
+            keywordsFound: foundKeywords,
+            hasSignatureHint,
+            wordCount: textContent.split(/\s+/).filter(Boolean).length
+          }
+        };
+      }
+
+      return {
+        valid: false,
+        message: 'El documento no parece ser un acta de seguimiento valida. Verifique que sea el formato correcto y que contenga la informacion requerida.',
+        details: {
+          method: 'basic',
+          keywordsFound: foundKeywords,
+          suggestion: 'Asegurese de que el PDF contenga: datos del aprendiz, instructor, fecha y firmas correspondientes.'
+        }
+      };
+    } catch (readErr) {
+      console.error('[TrackingService] Error reading PDF for validation:', readErr.message);
+      return {
+        valid: false,
+        message: 'No se pudo leer el archivo PDF. Verifique que no este corrupto.',
+        details: { error: readErr.message }
+      };
+    }
   }
 
   /**
