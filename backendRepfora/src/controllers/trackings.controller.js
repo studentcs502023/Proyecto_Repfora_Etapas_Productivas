@@ -30,6 +30,15 @@ class TrackingController {
     }
   }
 
+  async rejectExtraordinaryTracking(req, res) {
+    try {
+      const tracking = await trackingService.rejectExtraordinaryTracking(req.user, req.params.id);
+      return successResponse(res, 200, 'Extraordinary tracking rejected', { tracking });
+    } catch (error) {
+      return errorResponse(res, error.statusCode || 500, error.message);
+    }
+  }
+
   async uploadPDF(req, res) {
     try {
       if (!req.file) {
@@ -37,6 +46,18 @@ class TrackingController {
       }
       const tracking = await trackingService.uploadPDF(req.user, req.params.id, req.file);
       return successResponse(res, 200, 'PDF uploaded successfully', { tracking });
+    } catch (error) {
+      return errorResponse(res, error.statusCode || 500, error.message);
+    }
+  }
+
+  async uploadApprenticeAdvances(req, res) {
+    try {
+      if (!req.file) {
+        return errorResponse(res, 400, 'File is required');
+      }
+      const tracking = await trackingService.uploadApprenticeAdvances(req.user, req.params.id, req.file);
+      return successResponse(res, 200, 'Project advances uploaded successfully', { tracking });
     } catch (error) {
       return errorResponse(res, error.statusCode || 500, error.message);
     }
@@ -91,6 +112,18 @@ class TrackingController {
     try {
       const data = await trackingService.getTrackingSummary(req.user, req.params.productiveStageId);
       return successResponse(res, 200, 'Tracking summary retrieved', data);
+    } catch (error) {
+      return errorResponse(res, error.statusCode || 500, error.message);
+    }
+  }
+
+  async validatePDF(req, res) {
+    try {
+      if (!req.file) {
+        return errorResponse(res, 400, 'File is required');
+      }
+      const result = await trackingService.validatePDF(req.user, req.file);
+      return successResponse(res, 200, 'PDF validation completed', result);
     } catch (error) {
       return errorResponse(res, error.statusCode || 500, error.message);
     }

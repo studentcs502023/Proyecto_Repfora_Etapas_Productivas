@@ -21,6 +21,11 @@ const trackingSchema = new Schema({
   driveFileId:          { type: String, default: null },
   driveFileUrl:         { type: String, default: null },
 
+  apprenticeFileName:        { type: String, default: null },
+  apprenticeDriveFileId:     { type: String, default: null },
+  apprenticeDriveFileUrl:    { type: String, default: null },
+  apprenticeFileUploadedAt:  { type: Date, default: null },
+
   signedByInstructor:   { type: Boolean, default: false },
   signedByApprentice:   { type: Boolean, default: false },
   signatureValidatedAt: { type: Date, default: null },

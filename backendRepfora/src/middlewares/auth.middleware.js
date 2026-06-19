@@ -35,15 +35,17 @@ export const verifyToken = async (req, res, next) => {
             firstLogin: user.firstLogin
         };
 
-        // Regla: Si tiene el flag `firstLogin` activo, solo puede ir a la ruta de cambiar contraseña.
-        const isChangingInitialPassword = req.path === "/change-password-first";
+        // Regla: Si tiene el flag `firstLogin` activo, solo puede ir a rutas de cambiar contraseña.
+        const isChangingPassword = req.path === "/change-password-first" || req.path === "/change-password";
 
-        if (user.firstLogin && !isChangingInitialPassword) {
+        if (user.firstLogin && !isChangingPassword) {
+            console.log(`[AuthMiddleware] Usuario ${user.nationalId} bloqueado por firstLogin. Ruta: ${req.method} ${req.originalUrl}`);
             return errorResponse(res, 403, "Debe cambiar su contraseña inicial antes de continuar", {
                 requiresPasswordChange: true
             });
         }
 
+        console.log(`[AuthMiddleware] Usuario ${user.nationalId} (${user.role}) autorizado para: ${req.method} ${req.originalUrl}`);
         next();
     } catch (error) {
         console.error("❌ Auth Middleware Error:", error.message);

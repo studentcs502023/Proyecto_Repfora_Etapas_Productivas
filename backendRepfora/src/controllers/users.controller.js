@@ -70,9 +70,12 @@ class UserController {
 
     async createApprentice(req, res) {
         try {
+            console.log('[UserController] createApprentice llamado. Body:', JSON.stringify(req.body, null, 2));
+            console.log('[UserController] Usuario que ejecuta:', req.user?.nationalId, req.user?.role);
             const apprentice = await userService.createApprentice(req.body, req.user.id);
             return successResponse(res, 201, "Aprendiz creado exitosamente", { apprentice });
         } catch (error) {
+            console.error('[UserController] Error en createApprentice:', error.message);
             return errorResponse(res, error.statusCode || 500, error.message);
         }
     }
@@ -120,6 +123,43 @@ class UserController {
             }
             const results = await userService.importApprentices(req.file.buffer, req.user.id);
             return successResponse(res, 200, "Proceso de importación finalizado", results);
+        } catch (error) {
+            return errorResponse(res, error.statusCode || 500, error.message);
+        }
+    }
+
+    // === DEACTIVATE (Soft Delete) ===
+
+    async deactivateInstructor(req, res) {
+        try {
+            const instructor = await userService.deactivateInstructor(req.params.id, req.user.id);
+            return successResponse(res, 200, "Instructor desactivado exitosamente", { instructor });
+        } catch (error) {
+            return errorResponse(res, error.statusCode || 500, error.message);
+        }
+    }
+
+    async deactivateApprentice(req, res) {
+        try {
+            const apprentice = await userService.deactivateApprentice(req.params.id, req.user.id);
+            return successResponse(res, 200, "Aprendiz desactivado exitosamente", { apprentice });
+        } catch (error) {
+            return errorResponse(res, error.statusCode || 500, error.message);
+        }
+    }
+    async activateInstructor(req, res) {
+        try {
+            const instructor = await userService.activateInstructor(req.params.id, req.user.id);
+            return successResponse(res, 200, "Instructor activado exitosamente", { instructor });
+        } catch (error) {
+            return errorResponse(res, error.statusCode || 500, error.message);
+        }
+    }
+
+    async activateApprentice(req, res) {
+        try {
+            const apprentice = await userService.activateApprentice(req.params.id, req.user.id);
+            return successResponse(res, 200, "Aprendiz activado exitosamente", { apprentice });
         } catch (error) {
             return errorResponse(res, error.statusCode || 500, error.message);
         }

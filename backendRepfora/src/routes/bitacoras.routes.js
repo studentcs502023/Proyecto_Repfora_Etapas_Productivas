@@ -74,4 +74,13 @@ router.post('/additional',
     bitacoraController.createAdditionalBitacora
 );
 
+router.patch('/:id/comment',
+    checkRole('APPRENTICE', 'INSTRUCTOR'),
+    [
+        body('text').isString().isLength({ min: 5 }).withMessage('Comment must be at least 5 characters'),
+        validateFields
+    ],
+    bitacoraController.addComment
+);
+
 export default router;

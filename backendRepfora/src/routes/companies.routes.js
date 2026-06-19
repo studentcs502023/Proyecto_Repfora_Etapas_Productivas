@@ -13,20 +13,20 @@ router.use(verifyToken);
 /**
  * @route   GET /api/companies
  * @desc    Obtener lista de empresas (Paginado)
- * @access  ADMIN, INSTRUCTOR
+ * @access  ADMIN, INSTRUCTOR, APPRENTICE
  */
 router.get('/', 
-  checkRole('ADMIN', 'INSTRUCTOR'),
+  checkRole('ADMIN', 'INSTRUCTOR', 'APPRENTICE'),
   CompanyController.getAll
 );
 
 /**
  * @route   POST /api/companies
  * @desc    Crear empresa manualmente
- * @access  ADMIN
+ * @access  ADMIN, APPRENTICE
  */
 router.post('/', 
-  checkRole('ADMIN'),
+  checkRole('ADMIN', 'APPRENTICE'),
   [
     body('taxId').notEmpty().withMessage('El NIT/RUT es obligatorio'),
     body('name').isLength({ min: 2, max: 200 }).withMessage('El nombre debe tener entre 2 y 200 caracteres'),

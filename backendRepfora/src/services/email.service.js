@@ -1,48 +1,46 @@
-import nodemailer from 'nodemailer';
-import { getConfig } from '../utils/configHelper.util.js';
+import axios from 'axios';
 import { env } from '../config/env.js';
 
-let transporter = null;
-
-const getTransporter = async () => {
-  if (transporter) return transporter;
-
-  // Use environment variables for SMTP configuration
-  // These should be defined in .env and exposed via env.js
-  transporter = nodemailer.createTransport({
-    host: env.EMAIL_HOST || 'smtp.gmail.com',
-    port: parseInt(env.EMAIL_PORT || '587'),
-    secure: env.EMAIL_SECURE === 'true', // true for 465, false for other ports
-    auth: {
-      user: env.EMAIL_USER,
-      pass: env.EMAIL_PASS
-    }
-  });
-
-  return transporter;
-};
-
-/**
- * Send an email
- * @param {Object} params
- * @param {string} params.to
- * @param {string} params.subject
- * @param {string} params.body  - HTML string
- */
 const send = async ({ to, subject, body }) => {
   try {
-    const transport = await getTransporter();
-    const senderEmail = await getConfig('NOTIFICATION_EMAIL') || env.EMAIL_USER;
+    if (!env.BREVO_API_KEY) {
+      console.warn('[EmailService] BREVO_API_KEY no configurada. El correo no se enviara.');
+      return;
+    }
 
-    await transport.sendMail({
-      from: `"REPFORA E.P. - SENA" <${senderEmail}>`,
-      to,
-      subject,
-      html: body
-    });
+    console.log(`[EmailService] Enviando via Brevo API...`);
+    console.log(`[EmailService]   Para: ${to}`);
+    console.log(`[EmailService]   Asunto: ${subject}`);
+    console.log(`[EmailService]   Remitente: ${env.BREVO_SENDER_NAME} <${env.BREVO_SENDER_EMAIL}>`);
+
+    const response = await axios.post(
+      'https://api.brevo.com/v3/smtp/email',
+      {
+        sender: {
+          name: env.BREVO_SENDER_NAME,
+          email: env.BREVO_SENDER_EMAIL
+        },
+        to: [{ email: to }],
+        subject,
+        htmlContent: body
+      },
+      {
+        headers: {
+          'api-key': env.BREVO_API_KEY,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        }
+      }
+    );
+
+    console.log(`[EmailService] OK - messageId: ${response.data?.messageId || 'N/A'}`);
   } catch (error) {
-    console.error('[EmailService] Error sending mail:', error.message);
-    throw error; // Let the notification service handle the error logging
+    const errData = error.response?.data;
+    console.error('[EmailService] ERROR Brevo:');
+    console.error(`[EmailService]   HTTP: ${error.response?.status || 'N/A'}`);
+    console.error(`[EmailService]   Mensaje: ${errData?.message || error.message}`);
+    if (errData?.code) console.error(`[EmailService]   Codigo Brevo: ${errData.code}`);
+    throw error;
   }
 };
 

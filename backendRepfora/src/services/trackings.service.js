@@ -3,9 +3,19 @@ import ProductiveStage from '../models/ProductiveStage.model.js';
 import User from '../models/User.model.js';
 import HourRecord from '../models/HourRecord.model.js';
 import hourService from './hours.service.js';
+import notificationService from './notifications.service.js';
 import { recordAuditLog } from '../utils/auditLog.util.js';
 import { getConfig } from '../utils/configHelper.util.js';
 import productiveStagesService from './productiveStages.service.js';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
+
+const execAsync = promisify(exec);
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // MOCK: Google Drive integration
 const mockDriveUpload = async (file, folderPath) => {
@@ -13,11 +23,6 @@ const mockDriveUpload = async (file, folderPath) => {
     driveFileId: `mock_drive_id_${Date.now()}`,
     driveFileUrl: `https://drive.google.com/file/d/mock_drive_id_${Date.now()}/view`
   };
-};
-
-// MOCK: Notifications integration
-const mockSendNotification = async (type, payload) => {
-  console.log(`[MOCK NOTIFICATION] ${type}:`, payload);
 };
 
 class TrackingService {
@@ -104,11 +109,12 @@ class TrackingService {
 
     await tracking.save();
 
-    // Notify apprentice
-    await mockSendNotification('TRACKING_REMINDER', {
-      recipient: ep.apprentice,
-      scheduledDate,
-      type
+    await notificationService.send({
+      type: 'TRACKING_REMINDER',
+      recipients: [ep.apprentice.toString()],
+      title: 'Nuevo Seguimiento Programado',
+      message: `Se ha programado un seguimiento ${type === 'IN_PERSON' ? 'presencial' : 'virtual'} para el ${new Date(scheduledDate).toLocaleDateString('es-CO')}. Instructor asignado: ${reqUser.fullName}.`,
+      metadata: { entity: 'Tracking', entityId: tracking._id }
     });
 
     // Audit Log
@@ -175,13 +181,16 @@ class TrackingService {
 
     await tracking.save();
 
-    // Notify ADMIN
-    await mockSendNotification('NEW_CRITICAL_NOVELTY', {
-      message: 'New extraordinary tracking request',
-      instructorId: reqUser.id,
-      apprenticeId: ep.apprentice,
-      reason: extraordinaryReason
-    });
+    const admins = await User.find({ role: 'ADMIN', isActive: true }).select('_id');
+    if (admins.length > 0) {
+      await notificationService.send({
+        type: 'NEW_CRITICAL_NOVELTY',
+        recipients: admins.map(a => a._id.toString()),
+        title: 'Solicitud de Seguimiento Extraordinario',
+        message: `El instructor ${reqUser.fullName} solicita un seguimiento extraordinario para el aprendiz ${ep.apprentice?.fullName || 'N/D'}. Motivo: ${extraordinaryReason}`,
+        metadata: { entity: 'Tracking', entityId: tracking._id }
+      });
+    }
 
     // Audit Log
     await recordAuditLog({
@@ -222,15 +231,59 @@ class TrackingService {
     tracking.approvedBy = reqUser.id;
     await tracking.save();
 
-    // Notify instructor
-    await mockSendNotification('EXTRAORDINARY_TRACKING_APPROVED', {
-      recipient: tracking.instructor,
-      trackingId: tracking._id
+    await notificationService.send({
+      type: 'EXTRAORDINARY_TRACKING_APPROVED',
+      recipients: [tracking.instructor.toString()],
+      title: 'Seguimiento Extraordinario Aprobado',
+      message: `Tu solicitud de seguimiento extraordinario ha sido aprobada por la coordinación. Ya puedes ejecutarlo y cargar el acta firmada.`,
+      metadata: { entity: 'Tracking', entityId: tracking._id }
     });
 
     // Audit Log
     await recordAuditLog({
       action: 'TRACKING_EXTRAORDINARY_APPROVED',
+      entity: 'Tracking',
+      entityId: tracking._id,
+      performedBy: reqUser.id
+    });
+
+    return tracking;
+  }
+
+  async rejectExtraordinaryTracking(reqUser, id) {
+    const tracking = await Tracking.findById(id);
+    if (!tracking || !tracking.isActive) {
+      const error = new Error('Tracking not found');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    if (!tracking.isExtraordinary) {
+      const error = new Error('This is not an extraordinary tracking');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    if (tracking.approvedByAdmin) {
+      const error = new Error('This tracking is already approved');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    tracking.isActive = false;
+    tracking.status = 'CANCELLED';
+    await tracking.save();
+
+    await notificationService.send({
+      type: 'EXTRAORDINARY_TRACKING_REJECTED',
+      recipients: [tracking.instructor.toString()],
+      title: 'Seguimiento Extraordinario Rechazado',
+      message: `Tu solicitud de seguimiento extraordinario ha sido rechazada por la coordinación.`,
+      metadata: { entity: 'Tracking', entityId: tracking._id }
+    });
+
+    await recordAuditLog({
+      action: 'TRACKING_EXTRAORDINARY_REJECTED',
       entity: 'Tracking',
       entityId: tracking._id,
       performedBy: reqUser.id
@@ -274,6 +327,57 @@ class TrackingService {
     tracking.driveFileId = driveRes.driveFileId;
     tracking.driveFileUrl = driveRes.driveFileUrl;
     await tracking.save();
+
+    return tracking;
+  }
+
+  /**
+   * Apprentice uploads project advances PDF for a tracking (project modalities)
+   */
+  async uploadApprenticeAdvances(reqUser, id, file) {
+    const tracking = await Tracking.findById(id);
+    if (!tracking || !tracking.isActive) {
+      const error = new Error('Tracking not found');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    if (tracking.apprentice.toString() !== reqUser.id.toString()) {
+      const error = new Error('Forbidden: You can only upload advances for your own trackings');
+      error.statusCode = 403;
+      throw error;
+    }
+
+    if (tracking.status !== 'SCHEDULED') {
+      const error = new Error('Cannot upload advances for a tracking that is already executed');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const ep = await ProductiveStage.findById(tracking.productiveStage);
+    if (!['INDIVIDUAL_PRODUCTIVE_PROJECT', 'GROUP_PRODUCTIVE_PROJECT'].includes(ep.modality)) {
+      const error = new Error('Project advances upload is only available for project modalities');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const driveRes = await mockDriveUpload(file, `trackings/${tracking.productiveStage}_advances`);
+
+    tracking.apprenticeFileName = file.originalname;
+    tracking.apprenticeDriveFileId = driveRes.driveFileId;
+    tracking.apprenticeDriveFileUrl = driveRes.driveFileUrl;
+    tracking.apprenticeFileUploadedAt = new Date();
+    await tracking.save();
+
+    if (tracking.instructor) {
+      await notificationService.send({
+        type: 'BITACORA_PENDING_REVIEW',
+        recipients: [tracking.instructor.toString()],
+        title: 'Avances de Proyecto Cargados',
+        message: `El aprendiz ha cargado sus avances para el seguimiento #${tracking.trackingNumber}.`,
+        metadata: { entity: 'Tracking', entityId: tracking._id }
+      });
+    }
 
     return tracking;
   }
@@ -462,21 +566,117 @@ class TrackingService {
   }
 
   /**
+   * AI-based PDF validation for tracking documents
+   * Uses Python agent for intelligent validation, falls back to basic checks.
+   */
+  async validatePDF(reqUser, file) {
+    const MAX_SIZE_MB = 10;
+    const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024;
+
+    // 1. Validate file type
+    if (file.mimetype !== 'application/pdf') {
+      return {
+        valid: false,
+        message: 'El archivo debe ser un PDF.',
+        details: { fileType: file.mimetype }
+      };
+    }
+
+    // 2. Validate file size
+    if (file.size > MAX_SIZE_BYTES) {
+      return {
+        valid: false,
+        message: `El archivo excede el peso maximo de ${MAX_SIZE_MB} MB. Tamano actual: ${(file.size / (1024 * 1024)).toFixed(1)} MB.`,
+        details: { fileSize: file.size, maxSize: MAX_SIZE_BYTES }
+      };
+    }
+
+    // 3. Try Python agent validation
+    try {
+      const agentScript = path.join(__dirname, '..', '..', 'my_agent', 'validate_tracking.py');
+      if (fs.existsSync(agentScript)) {
+        const { stdout } = await execAsync(`python "${agentScript}" "${file.path}"`, { timeout: 30000 });
+        const result = JSON.parse(stdout.trim());
+        return result;
+      }
+    } catch (pythonErr) {
+      console.warn('[TrackingService] Python agent validation failed, using basic validation:', pythonErr.message?.substring(0, 100));
+    }
+
+    // 4. Fallback: basic validation (check PDF has some text content)
+    try {
+      const pdfBuffer = fs.readFileSync(file.path);
+      const textContent = pdfBuffer.toString('utf-8', 0, Math.min(pdfBuffer.length, 50000));
+      
+      // Look for common tracking document keywords in the raw PDF
+      const keywords = ['seguimiento', 'etapa', 'productiva', 'aprendiz', 'instructor'];
+      const foundKeywords = keywords.filter(kw => textContent.toLowerCase().includes(kw));
+      
+      const hasSignatureHint = textContent.includes('/Sig') || 
+                               textContent.includes('Firma') || 
+                               textContent.includes('firmado');
+
+      if (foundKeywords.length >= 2 || hasSignatureHint) {
+        return {
+          valid: true,
+          message: 'El documento parece ser un acta de seguimiento valida.',
+          details: {
+            method: 'basic',
+            keywordsFound: foundKeywords,
+            hasSignatureHint,
+            wordCount: textContent.split(/\s+/).filter(Boolean).length
+          }
+        };
+      }
+
+      return {
+        valid: false,
+        message: 'El documento no parece ser un acta de seguimiento valida. Verifique que sea el formato correcto y que contenga la informacion requerida.',
+        details: {
+          method: 'basic',
+          keywordsFound: foundKeywords,
+          suggestion: 'Asegurese de que el PDF contenga: datos del aprendiz, instructor, fecha y firmas correspondientes.'
+        }
+      };
+    } catch (readErr) {
+      console.error('[TrackingService] Error reading PDF for validation:', readErr.message);
+      return {
+        valid: false,
+        message: 'No se pudo leer el archivo PDF. Verifique que no este corrupto.',
+        details: { error: readErr.message }
+      };
+    }
+  }
+
+  /**
    * List trackings
    */
   async getTrackings(reqUser, query) {
-    const { productiveStageId, status, isExtraordinary, page = 1, limit = 20 } = query;
+    const { productiveStageId, status, isExtraordinary, approvedByAdmin, page = 1, limit = 20 } = query;
     let filter = { isActive: true };
 
     if (status) filter.status = status;
     if (isExtraordinary !== undefined) filter.isExtraordinary = isExtraordinary === 'true';
+    if (approvedByAdmin !== undefined) filter.approvedByAdmin = approvedByAdmin === 'true';
 
     if (reqUser.role === 'APPRENTICE') {
       filter.apprentice = reqUser.id;
       if (productiveStageId) filter.productiveStage = productiveStageId;
     } else if (reqUser.role === 'INSTRUCTOR') {
-      filter.instructor = reqUser.id;
-      if (productiveStageId) filter.productiveStage = productiveStageId;
+      if (productiveStageId) {
+        filter.productiveStage = productiveStageId;
+      } else {
+        // Find all ProductiveStages where instructor is assigned in any role
+        const assignedEPs = await ProductiveStage.find({
+          $or: [
+            { followupInstructor: reqUser.id },
+            { technicalInstructor: reqUser.id },
+            { projectInstructor: reqUser.id }
+          ]
+        }).select('_id');
+        const epIds = assignedEPs.map(ep => ep._id);
+        filter.productiveStage = { $in: epIds.length > 0 ? epIds : [null] };
+      }
     } else if (reqUser.role === 'ADMIN') {
       if (productiveStageId) filter.productiveStage = productiveStageId;
     }
@@ -520,10 +720,23 @@ class TrackingService {
       error.statusCode = 403;
       throw error;
     }
-    if (reqUser.role === 'INSTRUCTOR' && tracking.instructor._id.toString() !== reqUser.id.toString()) {
-      const error = new Error('Forbidden');
-      error.statusCode = 403;
-      throw error;
+    if (reqUser.role === 'INSTRUCTOR') {
+      const ep = await ProductiveStage.findById(tracking.productiveStage);
+      if (!ep) {
+        const error = new Error('ProductiveStage not found');
+        error.statusCode = 404;
+        throw error;
+      }
+      const isAssigned = [
+        ep.followupInstructor?.toString(),
+        ep.technicalInstructor?.toString(),
+        ep.projectInstructor?.toString()
+      ].includes(reqUser.id.toString());
+      if (!isAssigned) {
+        const error = new Error('Forbidden: You are not assigned to this ProductiveStage');
+        error.statusCode = 403;
+        throw error;
+      }
     }
 
     return tracking;

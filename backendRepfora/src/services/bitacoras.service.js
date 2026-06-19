@@ -6,6 +6,7 @@ import hourService from './hours.service.js';
 import { recordAuditLog } from '../utils/auditLog.util.js';
 import { getConfig } from '../utils/configHelper.util.js';
 import productiveStagesService from './productiveStages.service.js';
+import notificationService from './notifications.service.js';
 import { AUDIT_ACTIONS } from '../utils/enums.js';
 
 // MOCK: Google Drive integration
@@ -14,11 +15,6 @@ const mockDriveUpload = async (file, folderPath) => {
     driveFileId: `mock_drive_id_${Date.now()}`,
     driveFileUrl: `https://drive.google.com/file/d/mock_drive_id_${Date.now()}/view`
   };
-};
-
-// MOCK: Notifications integration
-const mockSendNotification = async (type, payload) => {
-  console.log(`[MOCK NOTIFICATION] ${type}:`, payload);
 };
 
 class BitacoraService {
@@ -49,20 +45,25 @@ class BitacoraService {
         throw error;
     }
 
-    // 3. Count existing non-rejected bitacoras
-    const existingCount = await Bitacora.countDocuments({
+    // 3. Count existing non-rejected bitacoras for limit check
+    const nonRejectedCount = await Bitacora.countDocuments({
       productiveStage: productiveStageId,
       status: { $ne: 'REJECTED' },
       isActive: true
     });
 
-    if (ep.maxBitacoras !== null && existingCount >= ep.maxBitacoras) {
+    if (ep.maxBitacoras !== null && nonRejectedCount >= ep.maxBitacoras) {
         const error = new Error(`Maximum logbooks reached (${ep.maxBitacoras})`);
         error.statusCode = 400;
         throw error;
     }
 
-    // 4. Check for duplicate period
+    // 4. Count all active bitacoras for logbook numbering
+    const totalCount = await Bitacora.countDocuments({
+      productiveStage: productiveStageId,
+      isActive: true
+    });
+    const logbookNumber = totalCount + 1;
     const duplicatePeriod = await Bitacora.findOne({
       productiveStage: productiveStageId,
       periodStart: new Date(periodStart),
@@ -77,13 +78,10 @@ class BitacoraService {
         throw error;
     }
 
-    // 5. Determine logbookNumber
-    const logbookNumber = existingCount + 1;
-
-    // 6. Upload PDF to Drive (Mock)
+    // 5. Upload PDF to Drive (Mock)
     const driveRes = await mockDriveUpload(file, `bitacoras/${ep._id}`);
 
-    // 7. Create bitacora
+    // 6. Create bitacora
     const bitacora = new Bitacora({
       productiveStage: productiveStageId,
       apprentice: reqUser.id,
@@ -102,10 +100,12 @@ class BitacoraService {
 
     // 8. Notify instructor
     if (ep.followupInstructor) {
-      await mockSendNotification('BITACORA_PENDING_REVIEW', {
-        recipient: ep.followupInstructor,
-        apprenticeId: reqUser.id,
-        bitacoraId: bitacora._id
+      await notificationService.send({
+        type: 'BITACORA_PENDING_REVIEW',
+        recipients: [ep.followupInstructor.toString()],
+        title: 'Nueva Bitácora Pendiente de Revisión',
+        message: `El aprendiz ${reqUser.fullName || 'ha subido'} una nueva bitácora para revisión.`,
+        metadata: { entity: 'Bitacora', entityId: bitacora._id }
       });
     }
 
@@ -158,8 +158,16 @@ class BitacoraService {
         }
         filter.productiveStage = productiveStageId;
       } else {
-        // No productiveStageId: return all bitacoras where instructor is assigned
-        filter.instructor = reqUser.id;
+        // Find all ProductiveStages where instructor is assigned in any role
+        const assignedEPs = await ProductiveStage.find({
+          $or: [
+            { followupInstructor: reqUser.id },
+            { technicalInstructor: reqUser.id },
+            { projectInstructor: reqUser.id }
+          ]
+        }).select('_id');
+        const epIds = assignedEPs.map(ep => ep._id);
+        filter.productiveStage = { $in: epIds.length > 0 ? epIds : [null] };
       }
     } else if (reqUser.role === 'ADMIN') {
       if (productiveStageId) filter.productiveStage = productiveStageId;
@@ -170,6 +178,7 @@ class BitacoraService {
       Bitacora.find(filter)
         .populate('apprentice', 'fullName enrollmentNumber')
         .populate('instructor', 'fullName')
+        .populate('reviewComments.author', 'fullName')
         .sort({ logbookNumber: 1 })
         .skip(skip)
         .limit(Number(limit)),
@@ -245,9 +254,15 @@ class BitacoraService {
     }
 
     const ep = await ProductiveStage.findById(bitacora.productiveStage);
-    if (ep.followupInstructor?.toString() !== reqUser.id.toString()) {
+    
+    const isAssigned = [
+      ep.followupInstructor?.toString(),
+      ep.technicalInstructor?.toString(),
+      ep.projectInstructor?.toString()
+    ].includes(reqUser.id.toString());
 
-        const error = new Error('Forbidden: Only the assigned followup instructor can approve logbooks');
+    if (!isAssigned) {
+        const error = new Error('Forbidden: You are not assigned to this ProductiveStage');
         error.statusCode = 403;
         throw error;
     }
@@ -289,9 +304,12 @@ class BitacoraService {
     await productiveStagesService.checkAndAdvanceStatus(ep._id);
 
     // 8. Notify apprentice
-    await mockSendNotification('BITACORA_APPROVED', {
-      recipient: bitacora.apprentice,
-      bitacoraId: bitacora._id
+    await notificationService.send({
+      type: 'BITACORA_APPROVED',
+      recipients: [bitacora.apprentice.toString()],
+      title: 'Bitácora Aprobada',
+      message: `Tu bitácora #${bitacora.logbookNumber} ha sido aprobada.`,
+      metadata: { entity: 'Bitacora', entityId: bitacora._id }
     });
 
     // 9. Audit Log
@@ -330,9 +348,15 @@ class BitacoraService {
     }
 
     const ep = await ProductiveStage.findById(bitacora.productiveStage);
-    if (ep.followupInstructor?.toString() !== reqUser.id.toString()) {
+    
+    const isAssigned = [
+      ep.followupInstructor?.toString(),
+      ep.technicalInstructor?.toString(),
+      ep.projectInstructor?.toString()
+    ].includes(reqUser.id.toString());
 
-        const error = new Error('Forbidden: Only the assigned followup instructor can reject logbooks');
+    if (!isAssigned) {
+        const error = new Error('Forbidden: You are not assigned to this ProductiveStage');
         error.statusCode = 403;
         throw error;
     }
@@ -349,10 +373,12 @@ class BitacoraService {
     await bitacora.save();
 
     // Notify apprentice
-    await mockSendNotification('BITACORA_REJECTED', {
-      recipient: bitacora.apprentice,
-      bitacoraId: bitacora._id,
-      comment
+    await notificationService.send({
+      type: 'BITACORA_REJECTED',
+      recipients: [bitacora.apprentice.toString()],
+      title: 'Bitácora Rechazada',
+      message: `Tu bitácora #${bitacora.logbookNumber} ha sido rechazada. Motivo: ${comment.substring(0, 200)}`,
+      metadata: { entity: 'Bitacora', entityId: bitacora._id }
     });
 
     // Audit Log
@@ -378,7 +404,7 @@ class BitacoraService {
         throw error;
     }
 
-    if (bitacora.apprentice.toString() !== reqUser.id) {
+    if (bitacora.apprentice.toString() !== reqUser.id.toString()) {
         const error = new Error('Forbidden: You can only resubmit your own logbooks');
         error.statusCode = 403;
         throw error;
@@ -405,11 +431,12 @@ class BitacoraService {
     // Notify instructor
     const ep = await ProductiveStage.findById(bitacora.productiveStage);
     if (ep.followupInstructor) {
-      await mockSendNotification('BITACORA_PENDING_REVIEW', {
-        recipient: ep.followupInstructor,
-        apprenticeId: reqUser.id,
-        bitacoraId: bitacora._id,
-        isResubmission: true
+      await notificationService.send({
+        type: 'BITACORA_PENDING_REVIEW',
+        recipients: [ep.followupInstructor.toString()],
+        title: 'Bitácora Corregida Pendiente de Revisión',
+        message: `El aprendiz ha re-enviado la bitácora #${bitacora.logbookNumber} corregida.`,
+        metadata: { entity: 'Bitacora', entityId: bitacora._id }
       });
     }
 
@@ -466,13 +493,76 @@ class BitacoraService {
     await bitacora.save();
 
     // Notify apprentice
-    await mockSendNotification('BITACORA_REMINDER', {
-      recipient: ep.apprentice,
-      message: 'Instructor requested an additional logbook. Please upload the PDF.',
-      reason
+    await notificationService.send({
+      type: 'BITACORA_REMINDER',
+      recipients: [ep.apprentice.toString()],
+      title: 'Bitácora Extra Solicitada',
+      message: `Tu instructor ha solicitado una bitácora adicional. Motivo: ${reason.substring(0, 200)}`,
+      metadata: { entity: 'Bitacora', entityId: bitacora._id }
     });
 
     return bitacora;
+  }
+
+  async addComment(reqUser, id, text) {
+    if (!text || text.trim().length < 5) {
+        const error = new Error('Validation error: comment must be at least 5 characters');
+        error.statusCode = 400;
+        throw error;
+    }
+
+    const bitacora = await Bitacora.findOne({ _id: id, isActive: true });
+    if (!bitacora) {
+        const error = new Error('Bitacora not found');
+        error.statusCode = 404;
+        throw error;
+    }
+
+    if (reqUser.role === 'APPRENTICE') {
+      if (bitacora.apprentice.toString() !== reqUser.id.toString()) {
+        const error = new Error('Forbidden: Document belongs to another apprentice');
+        error.statusCode = 403;
+        throw error;
+      }
+    } else if (reqUser.role === 'INSTRUCTOR') {
+      const ep = await ProductiveStage.findById(bitacora.productiveStage);
+      const isAssigned = [
+        ep.followupInstructor?.toString(),
+        ep.technicalInstructor?.toString(),
+        ep.projectInstructor?.toString()
+      ].includes(reqUser.id.toString());
+      if (!isAssigned) {
+        const error = new Error('Forbidden: You are not assigned to this ProductiveStage');
+        error.statusCode = 403;
+        throw error;
+      }
+    }
+
+    bitacora.reviewComments.push({
+      text: text.trim(),
+      author: reqUser.id,
+      createdAt: new Date()
+    });
+
+    await bitacora.save();
+
+    const populated = await Bitacora.findById(bitacora._id)
+      .populate('reviewComments.author', 'fullName');
+
+    const otherRole = reqUser.role === 'INSTRUCTOR' ? 'APPRENTICE' : 'INSTRUCTOR';
+    const otherUserId = reqUser.role === 'INSTRUCTOR' ? bitacora.apprentice : bitacora.instructor;
+
+    if (otherUserId) {
+      await notificationService.send({
+        type: 'BITACORA_REJECTED',
+        recipients: [otherUserId.toString()],
+        title: 'Nuevo comentario en bitácora',
+        message: `${reqUser.fullName || 'Alguien'} ha comentado en la bitácora #${bitacora.logbookNumber}`,
+        metadata: { entity: 'Bitacora', entityId: bitacora._id }
+      });
+    }
+
+    return populated;
   }
 }
 

@@ -5,6 +5,7 @@ import { getConfig } from "../utils/configHelper.util.js";
 import { calculateEpDeadline, daysUntil } from "../utils/dateHelper.util.js";
 import { recordAuditLog } from "../utils/auditLog.util.js";
 import { AUDIT_ACTIONS, EP_STATUSES } from "../utils/enums.js";
+import notificationService from "./notifications.service.js";
 
 class ProductiveStageService {
     /**
@@ -19,10 +20,10 @@ class ProductiveStageService {
             throw error;
         }
 
-        // 2. Verificar que no tenga EP activa
+        // 2. Verificar que no tenga EP activa (permitir re-registro si fue rechazada)
         const existingEP = await ProductiveStage.findOne({
             apprentice: apprenticeId,
-            status: { $nin: ["COMPLETED", "ARCHIVED"] },
+            status: { $nin: ["COMPLETED", "ARCHIVED", "PENDING_REGISTRATION"] },
             isActive: true
         });
         if (existingEP) {
@@ -30,6 +31,12 @@ class ProductiveStageService {
             error.statusCode = 409;
             throw error;
         }
+
+        // Si existe una EP rechazada (PENDING_REGISTRATION), la archivamos como histórico
+        await ProductiveStage.updateMany(
+            { apprentice: apprenticeId, status: "PENDING_REGISTRATION", isActive: true },
+            { $set: { isActive: false, isHistorical: true } }
+        );
 
         // 3. Verificar elegibilidad de matrícula
         if (!apprentice.enrollmentExpiryDate) {
@@ -55,20 +62,25 @@ class ProductiveStageService {
         }
 
         // 4. Verificar empresa
-        const company = await Company.findById(data.companyId);
-        if (!company) {
-            const error = new Error("La empresa seleccionada no existe");
-            error.statusCode = 404;
-            throw error;
+        let companySnapshot = { ...data.companySnapshot };
+        if (data.companyId) {
+            const company = await Company.findById(data.companyId);
+            if (!company) {
+                const error = new Error("La empresa seleccionada no existe");
+                error.statusCode = 404;
+                throw error;
+            }
+            companySnapshot.companyName = company.name;
+            companySnapshot.taxId = company.taxId;
+            companySnapshot.address = company.address;
+        } else {
+            // Es una nueva empresa, validamos que el snapshot tenga lo necesario
+            if (!companySnapshot.companyName || !companySnapshot.taxId) {
+                const error = new Error("Debe proporcionar los datos de la nueva empresa");
+                error.statusCode = 400;
+                throw error;
+            }
         }
-
-        // 5. Crear Snapshot de la empresa
-        const companySnapshot = {
-            companyName: company.name,
-            taxId: company.taxId,
-            address: company.address,
-            ...data.companySnapshot
-        };
 
         // 6. Crear EP
         const ep = new ProductiveStage({
@@ -131,7 +143,7 @@ class ProductiveStageService {
         // Búsqueda por texto (requiere populate previo o agregación, por simplicidad usamos regex en path)
         let populateQuery = {
             path: "apprentice",
-            select: "fullName nationalId enrollmentNumber email"
+            select: "fullName nationalId enrollmentNumber email program"
         };
 
         if (search) {
@@ -191,6 +203,26 @@ class ProductiveStageService {
         const maxBitacoras = await getConfig(`MAX_LOGBOOKS_${level}`);
         const requiredTrackings = await getConfig(`REQUIRED_TRACKINGS_${level}`);
 
+        // 1.5. Crear la empresa si era propuesta por el aprendiz y no existe
+        if (!ep.company) {
+            const newCompany = new Company({
+                name: ep.companySnapshot.companyName,
+                taxId: ep.companySnapshot.taxId,
+                address: ep.companySnapshot.address || 'Pendiente',
+                phone: ep.companySnapshot.companyPhone || ep.companySnapshot.supervisorPhone || '0000000',
+                email: ep.companySnapshot.companyEmail || ep.companySnapshot.supervisorEmail || 'pendiente@correo.com',
+                contacts: [{
+                    fullName: ep.companySnapshot.supervisorName || 'Pendiente',
+                    jobTitle: ep.companySnapshot.apprenticeJobTitle || 'Supervisor',
+                    phone: ep.companySnapshot.supervisorPhone,
+                    email: ep.companySnapshot.supervisorEmail,
+                    isPrimary: true
+                }]
+            });
+            await newCompany.save();
+            ep.company = newCompany._id;
+        }
+
         // 2. Actualizar datos
         ep.status = "ACTIVE";
         ep.approvalDate = new Date();
@@ -213,7 +245,13 @@ class ProductiveStageService {
             details: { maxBitacoras, requiredTrackings }
         });
 
-        // TODO: Notificar al aprendiz
+        notificationService.send({
+            type: "EP_APPROVED",
+            recipients: [ep.apprentice.toString()],
+            title: "Etapa Productiva Aprobada",
+            message: `Tu etapa productiva ha sido aprobada. Ya puedes consultar los detalles y continuar con el proceso.`,
+            metadata: { entity: "ProductiveStage", entityId: ep._id }
+        });
 
         return ep;
     }
@@ -286,6 +324,42 @@ class ProductiveStageService {
             performedBy,
             details: updates
         });
+
+        // Notificar a cada instructor asignado
+        await ep.populate("apprentice", "fullName enrollmentNumber program");
+        const apprenticeName = ep.apprentice?.fullName || "N/D";
+        const apprenticeFicha = ep.apprentice?.enrollmentNumber || "N/D";
+        const apprenticeProgram = ep.apprentice?.program || "N/D";
+
+        for (const instructorId of instructorIds) {
+            const instructor = instructors.find(i => i._id.toString() === instructorId.toString());
+            const roleLabel = instructorId.toString() === followupInstructorId?.toString()
+                ? "Seguimiento"
+                : instructorId.toString() === technicalInstructorId?.toString()
+                    ? "Tecnico"
+                    : "Proyecto";
+
+            notificationService.send({
+                type: "APPRENTICE_ASSIGNED",
+                recipients: [instructorId.toString()],
+                title: "Nuevo Aprendiz Asignado",
+                message: `Se te ha asignado un nuevo aprendiz como instructor ${roleLabel.toLowerCase()}: ${apprenticeName} | Programa: ${apprenticeProgram} | Ficha: ${apprenticeFicha}. Revisa tu lista de aprendices para mas detalles.`,
+                metadata: { entity: "ProductiveStage", entityId: ep._id.toString() }
+            });
+        }
+
+        // Notificar a los administradores sobre la asignacion
+        const admins = await User.find({ role: "ADMIN", isActive: true }).select("_id");
+        if (admins.length > 0) {
+            const instructorNames = instructors.map(i => `${i.fullName} (${i.email})`).join(", ");
+            notificationService.send({
+                type: "APPRENTICE_ASSIGNED",
+                recipients: admins.map(a => a._id.toString()),
+                title: "Instructores Asignados a Aprendiz",
+                message: `Se han asignado instructores al aprendiz ${apprenticeName} | Programa: ${apprenticeProgram} | Ficha: ${apprenticeFicha}. Instructores: ${instructorNames}.`,
+                metadata: { entity: "ProductiveStage", entityId: ep._id.toString() }
+            });
+        }
 
         return ep;
     }
@@ -390,6 +464,14 @@ class ProductiveStageService {
             details: { reason }
         });
 
+        notificationService.send({
+            type: "EP_REJECTED",
+            recipients: [ep.apprentice.toString()],
+            title: "Etapa Productiva Rechazada",
+            message: `Tu solicitud de etapa productiva ha sido rechazada. Motivo: ${reason}. Ingresa para corregir y volver a enviar.`,
+            metadata: { entity: "ProductiveStage", entityId: ep._id }
+        });
+
         return ep;
     }
 
@@ -410,6 +492,15 @@ class ProductiveStageService {
         });
 
         await ep.save();
+
+        notificationService.send({
+            type: "EP_COMMENT_ADDED",
+            recipients: [ep.apprentice.toString()],
+            title: "Nuevo Comentario en tu Etapa",
+            message: `Has recibido un nuevo comentario en tu etapa productiva: "${text.substring(0, 120)}"`,
+            metadata: { entity: "ProductiveStage", entityId: ep._id }
+        });
+
         return ep;
     }
 
@@ -555,6 +646,26 @@ class ProductiveStageService {
             performedBy,
             details: { followupInstructor: instructorId }
         });
+
+        notificationService.send({
+            type: "APPRENTICE_ASSIGNED",
+            recipients: [instructorId.toString()],
+            title: "Nuevo Aprendiz Asignado",
+            message: `Se te ha asignado un nuevo aprendiz como instructor de seguimiento: ${apprentice.fullName} | Programa: ${apprentice.program || 'N/D'} | Ficha: ${apprentice.enrollmentNumber || 'N/D'}. Revisa tu lista de aprendices para mas detalles.`,
+            metadata: { entity: "ProductiveStage", entityId: ep._id.toString() }
+        });
+
+        // Notificar a los administradores
+        const admins = await User.find({ role: "ADMIN", isActive: true }).select("_id");
+        if (admins.length > 0) {
+            notificationService.send({
+                type: "APPRENTICE_ASSIGNED",
+                recipients: admins.map(a => a._id.toString()),
+                title: "Instructor Asignado a Aprendiz",
+                message: `El instructor ${instructor.fullName} (${instructor.email}) ha sido asignado al aprendiz ${apprentice.fullName} | Programa: ${apprentice.program || 'N/D'} | Ficha: ${apprentice.enrollmentNumber || 'N/D'} como instructor de seguimiento.`,
+                metadata: { entity: "ProductiveStage", entityId: ep._id.toString() }
+            });
+        }
 
         return ep;
     }

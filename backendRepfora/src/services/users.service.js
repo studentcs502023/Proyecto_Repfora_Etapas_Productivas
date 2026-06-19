@@ -3,9 +3,11 @@ import User from "../models/User.model.js";
 import ProductiveStage from "../models/ProductiveStage.model.js";
 import { recordAuditLog } from "../utils/auditLog.util.js";
 import { AUDIT_ACTIONS } from "../utils/enums.js";
+import emailService from "./email.service.js";
 
 import { parseCSV, validateApprenticeRow } from "../utils/importParser.util.js";
 import notificationService from "./notifications.service.js";
+import { buildWelcomeSubject, buildWelcomeMessage } from "../templates/welcomeEmail.template.js";
 
 /**
  * Genera una contraseña temporal siguiendo el patrón Sena + últimos 4 dígitos del ID + *
@@ -49,7 +51,7 @@ class UserService {
             password: hashedPassword,
             role: "INSTRUCTOR",
             status: "ACTIVE",
-            firstLogin: true,
+            firstLogin: false,
         });
 
         // 3. Integración Google Drive (MOCK por ahora)
@@ -81,11 +83,16 @@ class UserService {
             instructorType,
             knowledgeArea,
             search,
+            isActive,
             page = 1,
             limit = 20,
         } = filters;
 
-        const query = { role: "INSTRUCTOR", isActive: true };
+        const query = { role: "INSTRUCTOR" };
+
+        if (isActive !== undefined && isActive !== 'all') {
+            query.isActive = isActive === 'true' || isActive === true;
+        }
 
         if (status) query.status = status;
         if (instructorType) query.instructorType = instructorType;
@@ -251,6 +258,30 @@ class UserService {
             details: { previousStatus, newStatus: status, reason },
         });
 
+        // Enviar correo de notificación
+        const estadoLabel = status === 'ACTIVE' ? 'Activada' : (status === 'INACTIVE' ? 'Inactivada' : 'Finalizada');
+        try {
+            await emailService.send({
+                to: instructor.email,
+                subject: `Estado de cuenta actualizado a ${estadoLabel} - REPFORA E.P.`,
+                body: `
+                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #eee; padding: 20px; border-radius: 8px;">
+                        <h2 style="color: #39a900; text-align: center;">REPFORA E.P. — SENA</h2>
+                        <p>Estimado/a <strong>${instructor.fullName}</strong>,</p>
+                        <p>El estado de tu cuenta en el sistema ha sido cambiado a: <strong>${estadoLabel}</strong>.</p>
+                        ${status === 'INACTIVE' ? '<p>Tu cuenta ha sido bloqueada temporalmente y no podrás acceder a tus funciones hasta nueva orden.</p>' : ''}
+                        ${status === 'ACTIVE' ? '<p>Ya puedes acceder nuevamente a la plataforma y continuar con tus labores.</p>' : ''}
+                        <p><strong>Motivo:</strong> ${reason}</p>
+                        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; text-align: center;">
+                            <p style="font-size: 12px; color: #666;">Este es un mensaje automático. Por favor no respondas a este correo.</p>
+                        </div>
+                    </div>
+                `
+            });
+        } catch (emailErr) {
+            console.error('[UserService] Error enviando correo de cambio de estado:', emailErr.message);
+        }
+
         return { instructor, affectedApprentices };
     }
 
@@ -342,6 +373,7 @@ class UserService {
         });
 
         await apprentice.save();
+        console.log(`[UserService] Aprendiz creado: ${apprentice.fullName} (${apprentice.nationalId}) - Email: ${apprentice.email}`);
 
         await recordAuditLog({
             action: AUDIT_ACTIONS.APPRENTICE_CREATED || "APPRENTICE_CREATED",
@@ -351,30 +383,14 @@ class UserService {
             details: { nationalId, email },
         });
 
-        // 5. Enviar correo de bienvenida (RF-001)
-        const welcomeMessage = `
-            Por medio del presente correo me complace informarle que usted ya puede iniciar su etapa productiva. Para comenzar este proceso de la mejor manera posible, debe seguir los siguientes pasos:<br><br>
-            <strong>Ingreso a la plataforma:</strong> Ingrese a la página de REPFORA E.P. a través del siguiente enlace: <a href="${process.env.FRONTEND_URL || 'http://localhost:5174'}">Acceso al sistema</a>.<br><br>
-            <strong>Credenciales de acceso:</strong><br>
-            * Usuario: Su número de documento de identidad.<br>
-            * Contraseña: Su número de documento de identidad.<br>
-            <em>(Nota: Tenga en cuenta que es obligatorio realizar el cambio de contraseña en su primer acceso por seguridad).</em><br><br>
-            <strong>Registro del proceso:</strong> Una vez dentro del Dashboard principal, encontrará y deberá seleccionar la opción “Registrar Etapa Productiva”.<br><br>
-            <strong>Documentación:</strong> Allí deberá elegir la modalidad que va a realizar y adjuntar los documentos correspondientes en formato PDF.<br><br>
-            <strong>Validación:</strong> Después de enviar el registro, en un plazo de algunos días recibirá una notificación indicando si su solicitud fue Aceptada o Rechazada.<br><br>
-            Si es Aceptado: Se formalizará el inicio de su etapa productiva y se le asignará un instructor de seguimiento según la modalidad elegida.<br>
-            Si es Rechazado: Deberá revisar las observaciones detalladas por el administrador y realizar las correcciones respectivas lo antes posible para volver a enviar la solicitud.<br><br>
-            Tenga en cuenta que si no realiza correctamente este registro, su etapa productiva no podrá ser validada dentro del sistema.<br><br>
-            Atentamente,<br>
-            <strong>Administrador REPFORA E.P.</strong>
-        `;
-
-        await notificationService.send({
+        console.log('[UserService] Disparando correo de bienvenida vía notificationService...');
+        notificationService.send({
             type: "SYSTEM_WELCOME",
             recipients: [apprentice._id.toString()],
-            title: "Está registrado en REPFORA E.P. para comenzar su etapa productiva.",
-            message: welcomeMessage
-        });
+            title: buildWelcomeSubject(),
+            message: buildWelcomeMessage(),
+        }).catch(err => console.error('[UserService] Error enviando notificación de bienvenida:', err.message));
+        console.log('[UserService] Correo de bienvenida procesado.');
 
         return apprentice;
     }
@@ -389,11 +405,16 @@ class UserService {
             trainingLevel,
             trainingCenter,
             search,
+            isActive,
             page = 1,
             limit = 20,
         } = filters;
 
-        const query = { role: "APPRENTICE", isActive: true };
+        const query = { role: "APPRENTICE" };
+
+        if (isActive !== undefined && isActive !== 'all') {
+            query.isActive = isActive === 'true' || isActive === true;
+        }
 
         if (enrollmentNumber) query.enrollmentNumber = enrollmentNumber;
         if (program) query.program = { $regex: program, $options: "i" };
@@ -556,34 +577,198 @@ class UserService {
             details: { importedCount: results.imported, errorCount: results.errors.length },
         });
 
-        // RF-001: Enviar correos de bienvenida a los importados en background
         if (newApprentices.length > 0) {
-            const welcomeMessage = `
-                Por medio del presente correo me complace informarle que usted ya puede iniciar su etapa productiva. Para comenzar este proceso de la mejor manera posible, debe seguir los siguientes pasos:<br><br>
-                <strong>Ingreso a la plataforma:</strong> Ingrese a la página de REPFORA E.P. a través del siguiente enlace: <a href="${process.env.FRONTEND_URL || 'http://localhost:5174'}">Acceso al sistema</a>.<br><br>
-                <strong>Credenciales de acceso:</strong><br>
-                * Usuario: Su número de documento de identidad.<br>
-                * Contraseña: Su número de documento de identidad.<br>
-                <em>(Nota: Tenga en cuenta que es obligatorio realizar el cambio de contraseña en su primer acceso por seguridad).</em><br><br>
-                <strong>Registro del proceso:</strong> Una vez dentro del Dashboard principal, encontrará y deberá seleccionar la opción “Registrar Etapa Productiva”.<br><br>
-                <strong>Documentación:</strong> Allí deberá elegir la modalidad que va a realizar y adjuntar los documentos correspondientes en formato PDF.<br><br>
-                <strong>Validación:</strong> Después de enviar el registro, en un plazo de algunos días recibirá una notificación indicando si su solicitud fue Aceptada o Rechazada.<br><br>
-                Si es Aceptado: Se formalizará el inicio de su etapa productiva y se le asignará un instructor de seguimiento según la modalidad elegida.<br>
-                Si es Rechazado: Deberá revisar las observaciones detalladas por el administrador y realizar las correcciones respectivas lo antes posible para volver a enviar la solicitud.<br><br>
-                Tenga en cuenta que si no realiza correctamente este registro, su etapa productiva no podrá ser validada dentro del sistema.<br><br>
-                Atentamente,<br>
-                <strong>Administrador REPFORA E.P.</strong>
-            `;
-
             notificationService.send({
                 type: "SYSTEM_WELCOME",
                 recipients: newApprentices.map(a => a._id.toString()),
-                title: "Está registrado en REPFORA E.P. para comenzar su etapa productiva.",
-                message: welcomeMessage
+                title: buildWelcomeSubject(),
+                message: buildWelcomeMessage(),
             }).catch(err => console.error("Error enviando correos de importación:", err));
         }
 
         return results;
+    }
+
+    // === DEACTIVATE (Soft Delete) ===
+
+    async deactivateInstructor(id, performedBy) {
+        const instructor = await User.findOneAndUpdate(
+            { _id: id, role: "INSTRUCTOR", isActive: true },
+            { $set: { isActive: false, status: "INACTIVE" } },
+            { returnDocument: 'after' }
+        ).select("-password");
+
+        if (!instructor) {
+            const error = new Error("Instructor no encontrado o ya desactivado");
+            error.statusCode = 404;
+            throw error;
+        }
+
+        await recordAuditLog({
+            action: "INSTRUCTOR_DEACTIVATED",
+            entity: "User",
+            entityId: id,
+            performedBy,
+            details: { nationalId: instructor.nationalId, fullName: instructor.fullName }
+        });
+
+        // Enviar correo de notificación
+        try {
+            await emailService.send({
+                to: instructor.email,
+                subject: 'Cuenta Eliminada - REPFORA E.P.',
+                body: `
+                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #eee; padding: 20px; border-radius: 8px;">
+                        <h2 style="color: #39a900; text-align: center;">REPFORA E.P. — SENA</h2>
+                        <p>Estimado/a <strong>${instructor.fullName}</strong>,</p>
+                        <p>Tu cuenta en el sistema REPFORA E.P. ha sido <strong>inactivada/eliminada</strong>.</p>
+                        <p>Ya no tienes acceso a la plataforma. Para cualquier duda, comunícate con el administrador del sistema o tu coordinador.</p>
+                        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; text-align: center;">
+                            <p style="font-size: 12px; color: #666;">Este es un mensaje automático. Por favor no respondas a este correo.</p>
+                        </div>
+                    </div>
+                `
+            });
+        } catch (emailErr) {
+            console.error('[UserService] Error enviando correo de deactivación:', emailErr.message);
+        }
+
+        return instructor;
+    }
+
+    async deactivateApprentice(id, performedBy) {
+        const apprentice = await User.findOneAndUpdate(
+            { _id: id, role: "APPRENTICE", isActive: true },
+            { $set: { isActive: false } },
+            { returnDocument: 'after' }
+        ).select("-password");
+
+        if (!apprentice) {
+            const error = new Error("Aprendiz no encontrado o ya desactivado");
+            error.statusCode = 404;
+            throw error;
+        }
+
+        await recordAuditLog({
+            action: "APPRENTICE_DEACTIVATED",
+            entity: "User",
+            entityId: id,
+            performedBy,
+            details: { nationalId: apprentice.nationalId, fullName: apprentice.fullName }
+        });
+
+        // Enviar correo de notificación
+        try {
+            await emailService.send({
+                to: apprentice.email,
+                subject: 'Cuenta Eliminada - REPFORA E.P.',
+                body: `
+                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #eee; padding: 20px; border-radius: 8px;">
+                        <h2 style="color: #39a900; text-align: center;">REPFORA E.P. — SENA</h2>
+                        <p>Estimado/a <strong>${apprentice.fullName}</strong>,</p>
+                        <p>Tu cuenta en el sistema REPFORA E.P. ha sido <strong>inactivada/eliminada</strong>.</p>
+                        <p>Ya no tienes acceso a la plataforma. Para cualquier duda, comunícate con tu instructor o coordinador.</p>
+                        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; text-align: center;">
+                            <p style="font-size: 12px; color: #666;">Este es un mensaje automático. Por favor no respondas a este correo.</p>
+                        </div>
+                    </div>
+                `
+            });
+        } catch (emailErr) {
+            console.error('[UserService] Error enviando correo de deactivación de aprendiz:', emailErr.message);
+        }
+
+        return apprentice;
+    }
+
+    async activateInstructor(id, performedBy) {
+        const instructor = await User.findOneAndUpdate(
+            { _id: id, role: "INSTRUCTOR", isActive: false },
+            { $set: { isActive: true, status: "ACTIVE" } },
+            { returnDocument: 'after' }
+        ).select("-password");
+
+        if (!instructor) {
+            const error = new Error("Instructor no encontrado o ya está activo");
+            error.statusCode = 404;
+            throw error;
+        }
+
+        await recordAuditLog({
+            action: "INSTRUCTOR_ACTIVATED",
+            entity: "User",
+            entityId: id,
+            performedBy,
+            details: { nationalId: instructor.nationalId, fullName: instructor.fullName }
+        });
+
+        // Enviar correo de notificación
+        try {
+            await emailService.send({
+                to: instructor.email,
+                subject: 'Cuenta Restaurada - REPFORA E.P.',
+                body: `
+                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #eee; padding: 20px; border-radius: 8px;">
+                        <h2 style="color: #39a900; text-align: center;">REPFORA E.P. — SENA</h2>
+                        <p>Estimado/a <strong>${instructor.fullName}</strong>,</p>
+                        <p>Tu cuenta en el sistema REPFORA E.P. ha sido <strong>restaurada y activada</strong> nuevamente.</p>
+                        <p>Ya puedes acceder al sistema y continuar con tus funciones regulares.</p>
+                        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; text-align: center;">
+                            <p style="font-size: 12px; color: #666;">Este es un mensaje automático. Por favor no respondas a este correo.</p>
+                        </div>
+                    </div>
+                `
+            });
+        } catch (emailErr) {
+            console.error('[UserService] Error enviando correo de activación de instructor:', emailErr.message);
+        }
+
+        return instructor;
+    }
+
+    async activateApprentice(id, performedBy) {
+        const apprentice = await User.findOneAndUpdate(
+            { _id: id, role: "APPRENTICE", isActive: false },
+            { $set: { isActive: true } },
+            { returnDocument: 'after' }
+        ).select("-password");
+
+        if (!apprentice) {
+            const error = new Error("Aprendiz no encontrado o ya está activo");
+            error.statusCode = 404;
+            throw error;
+        }
+
+        await recordAuditLog({
+            action: "APPRENTICE_ACTIVATED",
+            entity: "User",
+            entityId: id,
+            performedBy,
+            details: { nationalId: apprentice.nationalId, fullName: apprentice.fullName }
+        });
+
+        // Enviar correo de notificación
+        try {
+            await emailService.send({
+                to: apprentice.email,
+                subject: 'Cuenta Restaurada - REPFORA E.P.',
+                body: `
+                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #eee; padding: 20px; border-radius: 8px;">
+                        <h2 style="color: #39a900; text-align: center;">REPFORA E.P. — SENA</h2>
+                        <p>Estimado/a <strong>${apprentice.fullName}</strong>,</p>
+                        <p>Tu cuenta en el sistema REPFORA E.P. ha sido <strong>restaurada y activada</strong> nuevamente.</p>
+                        <p>Ya puedes acceder al sistema y continuar con tu proceso.</p>
+                        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; text-align: center;">
+                            <p style="font-size: 12px; color: #666;">Este es un mensaje automático. Por favor no respondas a este correo.</p>
+                        </div>
+                    </div>
+                `
+            });
+        } catch (emailErr) {
+            console.error('[UserService] Error enviando correo de activación de aprendiz:', emailErr.message);
+        }
+
+        return apprentice;
     }
 }
 

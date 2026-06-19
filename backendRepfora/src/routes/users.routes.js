@@ -96,6 +96,10 @@ router.post("/apprentices",
         body("isPreNov2024").isBoolean(),
         validateFields
     ],
+    (req, res, next) => {
+        console.log('[UsersRoute] POST /apprentices -> pasó middlewares, ejecutando controlador...');
+        next();
+    },
     userController.createApprentice
 );
 
@@ -132,6 +136,28 @@ router.patch("/apprentices/:id",
         validateFields
     ],
     userController.updateApprentice
+);
+
+// === DEACTIVATE (Soft Delete) ===
+
+router.patch("/instructors/:id/deactivate",
+    checkRole("ADMIN"),
+    userController.deactivateInstructor
+);
+
+router.patch("/instructors/:id/activate",
+    checkRole("ADMIN"),
+    userController.activateInstructor
+);
+
+router.patch("/apprentices/:id/deactivate",
+    checkRole("ADMIN"),
+    userController.deactivateApprentice
+);
+
+router.patch("/apprentices/:id/activate",
+    checkRole("ADMIN"),
+    userController.activateApprentice
 );
 
 export default router;

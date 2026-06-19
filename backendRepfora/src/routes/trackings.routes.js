@@ -16,6 +16,7 @@ router.get('/',
     [
         query('status').optional().isIn(TRACKING_STATUSES),
         query('isExtraordinary').optional().isBoolean(),
+        query('approvedByAdmin').optional().isBoolean(),
         query('page').optional().isInt({ min: 1 }),
         query('limit').optional().isInt({ min: 1, max: 100 }),
         validateFields
@@ -57,6 +58,12 @@ router.patch('/:id/upload-pdf',
     trackingController.uploadPDF
 );
 
+router.patch('/:id/upload-advances',
+    checkRole('APPRENTICE'),
+    upload.single('file'),
+    trackingController.uploadApprenticeAdvances
+);
+
 router.patch('/:id/validate-signature',
     checkRole('INSTRUCTOR'),
     [
@@ -65,6 +72,12 @@ router.patch('/:id/validate-signature',
         validateFields
     ],
     trackingController.validateSignature
+);
+
+router.post('/validate-pdf',
+    checkRole('INSTRUCTOR'),
+    upload.single('file'),
+    trackingController.validatePDF
 );
 
 router.patch('/:id/execute',
@@ -81,6 +94,11 @@ router.patch('/:id/mark-paid',
 router.patch('/:id/approve-extraordinary',
     checkRole('ADMIN'),
     trackingController.approveExtraordinaryTracking
+);
+
+router.patch('/:id/reject-extraordinary',
+    checkRole('ADMIN'),
+    trackingController.rejectExtraordinaryTracking
 );
 
 export default router;
