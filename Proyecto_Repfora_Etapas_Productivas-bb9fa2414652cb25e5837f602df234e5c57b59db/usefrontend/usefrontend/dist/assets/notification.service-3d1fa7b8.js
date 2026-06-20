@@ -1,0 +1,1 @@
+import{aA as i}from"./index-9a576757.js";const o={getNotifications:t=>i.get("/notifications",{params:t}),getUnreadCount:()=>i.get("/notifications/unread-count"),markAsRead:t=>i.patch(`/notifications/${t}/read`),markAllAsRead:()=>i.patch("/notifications/read-all"),delete:t=>i.delete(`/notifications/${t}`)};export{o as n};

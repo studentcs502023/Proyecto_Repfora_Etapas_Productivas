@@ -9,9 +9,6 @@
         </h2>
         <p class="text-subtitle1 opacity-80 q-mt-xs q-mb-none">Sube y gestiona tus bitácoras quincenales.</p>
       </div>
-      <div class="col-auto z-top">
-        <q-btn color="white" text-color="primary" icon="add" label="Subir Bitácora" class="text-weight-bold shadow-2" rounded @click="showUploadModal = true" :disable="!canSubmit" />
-      </div>
     </div>
 
     <!-- Loading State -->
@@ -31,8 +28,8 @@
     <!-- Project Modality -->
     <q-card v-else-if="isProjectModality" class="my-card no-shadow bg-amber-1 text-center q-pa-xl">
       <q-icon name="engineering" size="5em" color="warning" class="q-mb-md" />
-      <div class="text-h5 text-warning text-weight-bold">Modalidad de Proyecto</div>
-      <p class="text-grey-8 q-mt-sm">Los avances se registran mediante <strong>seguimientos</strong> programados por tu instructor.</p>
+      <div class="text-h5 text-warning text-weight-bold">Modalidad de Proyecto o Pasantía</div>
+      <p class="text-grey-8 q-mt-sm">En esta modalidad los avances se registran mediante <strong>seguimientos</strong> programados por tu instructor, no mediante bitácoras.</p>
       <q-btn color="warning" text-color="black" icon="co_present" label="Ir a Mis Seguimientos" to="/seguimientos" class="q-mt-md header-btn text-weight-bold shadow-2" rounded />
     </q-card>
 
@@ -290,7 +287,7 @@ const isActiveEP = computed(() => {
 
 const isProjectModality = computed(() => {
   if (!ep.value) return false;
-  return ['INDIVIDUAL_PRODUCTIVE_PROJECT', 'GROUP_PRODUCTIVE_PROJECT'].includes(ep.value.modality);
+  return ['INDIVIDUAL_PRODUCTIVE_PROJECT', 'GROUP_PRODUCTIVE_PROJECT', 'INTERNSHIP'].includes(ep.value.modality);
 });
 
 const canSubmit = computed(() => {

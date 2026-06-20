@@ -6,7 +6,6 @@
         <p class="text-grey-7 q-my-sm">Registra y gestiona los seguimientos obligatorios por aprendiz.</p>
       </div>
       <div class="col-auto q-gutter-sm">
-        <q-btn color="green" outline icon="upload_file" label="Subir Acta" @click="openUploadActaModal" />
         <q-btn color="warning" outline icon="warning" label="Extraordinario" @click="openExtraordinaryModal" />
         <q-btn color="primary" icon="add" label="Programar Seguimiento" @click="openCreateModal" />
       </div>
@@ -36,15 +35,6 @@
             emit-value
             map-options
             clearable
-          />
-        </div>
-        <div class="col-12 col-sm-3 text-right">
-          <q-btn
-            color="primary"
-            icon="add_circle"
-            label="Agregar Seguimiento"
-            size="md"
-            @click="openUploadActaModal"
           />
         </div>
       </q-card-section>
@@ -225,12 +215,13 @@
           <q-list v-else bordered separator>
             <q-item v-for="(file, idx) in filesList" :key="idx" class="q-py-sm">
               <q-item-section avatar>
-                <q-icon name="picture_as_pdf" color="negative" size="md" />
+                <q-icon :name="file.uploadedBy === 'Aprendiz' ? 'person' : 'school'" :color="file.uploadedBy === 'Aprendiz' ? 'teal' : 'negative'" size="md" />
               </q-item-section>
               <q-item-section>
                 <q-item-label class="text-weight-bold">
                   Seguimiento #{{ file.trackingNumber }}
                   <q-badge v-if="file.isExtraordinary" color="warning" label="Extraordinario" class="q-ml-sm" size="sm" />
+                  <q-badge :color="file.uploadedBy === 'Aprendiz' ? 'teal' : 'primary'" :label="file.uploadedBy" class="q-ml-xs" size="sm" />
                 </q-item-label>
                 <q-item-label caption>
                   {{ file.fileName || 'Acta de seguimiento' }}
@@ -384,9 +375,48 @@
                 </q-file>
 
                 <q-btn color="secondary" label="Subir Documento" @click="uploadPDF" :loading="saving" :disable="!executeForm.file" />
+
+                <div v-if="selectedTracking.driveFileUrl" class="q-mt-md">
+                  <q-separator class="q-my-md" />
+                  <p class="text-subtitle1 text-grey-8">Validar documento con inteligencia artificial</p>
+
+                  <q-banner v-if="!executeForm.aiValidated" class="bg-blue-1 rounded-borders q-mb-md">
+                    <q-icon name="info" size="sm" class="q-mr-sm" />
+                    Presiona <strong>"Verificar con IA"</strong> para analizar el documento. No podrás continuar sin esta validación.
+                  </q-banner>
+
+                  <q-banner v-if="executeForm.aiValidated && executeForm.aiValid" class="bg-green-1 text-positive rounded-borders q-mb-md">
+                    <q-icon name="check_circle" size="sm" class="q-mr-sm" />
+                    <strong>Validación exitosa:</strong> {{ executeForm.aiMessage }}
+                  </q-banner>
+
+                  <q-banner v-if="executeForm.aiValidated && !executeForm.aiValid" class="bg-red-1 text-negative rounded-borders q-mb-md">
+                    <q-icon name="error" size="sm" class="q-mr-sm" />
+                    <strong>Validación fallida:</strong> {{ executeForm.aiMessage }}
+                  </q-banner>
+
+                  <div v-if="executeForm.aiDetails" class="q-mb-md">
+                    <q-card flat bordered class="bg-grey-1">
+                      <q-card-section>
+                        <div class="text-caption text-grey">Detalles de validación:</div>
+                        <div v-if="executeForm.aiDetails.pages">Páginas: {{ executeForm.aiDetails.pages }}</div>
+                        <div v-if="executeForm.aiDetails.wordCount">Palabras detectadas: {{ executeForm.aiDetails.wordCount }}</div>
+                        <div v-if="executeForm.aiDetails.score !== undefined">Puntaje: {{ executeForm.aiDetails.score }}/100</div>
+                        <div v-if="executeForm.aiDetails.foundRequired">Keywords requeridas: {{ executeForm.aiDetails.foundRequired?.join(', ') }}</div>
+                        <div v-if="executeForm.aiDetails.method">Método: {{ executeForm.aiDetails.method }}</div>
+                        <div v-if="executeForm.aiDetails.suggestion" class="text-orange q-mt-sm">{{ executeForm.aiDetails.suggestion }}</div>
+                      </q-card-section>
+                    </q-card>
+                  </div>
+
+                  <div class="row q-gutter-md">
+                    <q-btn color="purple" icon="psychology" label="Verificar con IA" @click="validatePDFWithAI" :loading="executeForm.validatingAI" :disable="executeForm.aiValidated && executeForm.aiValid" />
+                    <q-btn v-if="executeForm.aiValidated && !executeForm.aiValid" color="orange" outline label="Volver a Intentar" @click="resetExecuteAI" />
+                  </div>
+                </div>
               </div>
               <q-stepper-navigation>
-                <q-btn color="primary" label="Continuar" @click="executeStep = 2" :disable="!selectedTracking.driveFileUrl" />
+                <q-btn color="primary" label="Continuar" @click="executeStep = 2" :disable="!selectedTracking.driveFileUrl || !executeForm.aiValidated || !executeForm.aiValid" />
               </q-stepper-navigation>
             </q-step>
 
@@ -429,176 +459,6 @@
       </q-card>
     </q-dialog>
 
-    <!-- Modal: Subir Acta de Seguimiento (4 pasos) -->
-    <q-dialog v-model="showUploadActaModal" persistent maximized>
-      <q-card class="column">
-        <q-card-section class="bg-green text-white row items-center q-pb-none">
-          <div class="text-h6">Agregar Seguimiento</div>
-          <q-space />
-          <q-btn icon="close" flat round dense v-close-popup @click="resetUploadActa">
-            <q-tooltip>Cerrar</q-tooltip>
-          </q-btn>
-        </q-card-section>
-
-        <q-card-section class="col q-pa-lg scroll">
-          <q-stepper v-model="actaStep" ref="actaStepper" color="green" animated flat bordered class="q-mx-auto" style="max-width: 800px;">
-
-            <q-step :name="1" title="Buscar Aprendiz" icon="search" :done="actaStep > 1">
-              <div class="q-pa-md">
-                <p class="text-subtitle1 text-grey-8">Busca al aprendiz por nombre, apellido, documento o ficha.</p>
-
-                <q-select
-                  v-model="actaForm.selectedApprentice"
-                  :options="apprenticeOptions"
-                  :option-label="opt => `${opt.fullName} - ${opt.nationalId} - Ficha: ${opt.enrollmentNumber || 'N/D'}`"
-                  option-value="_id"
-                  label="Seleccionar Aprendiz"
-                  outlined
-                  use-input
-                  input-debounce="300"
-                  @filter="filterApprentices"
-                  @update:model-value="onApprenticeSelected"
-                  behavior="menu"
-                  class="q-mb-md"
-                >
-                  <template v-slot:no-option>
-                    <q-item><q-item-section class="text-grey">No se encontraron resultados</q-item-section></q-item>
-                  </template>
-                </q-select>
-
-                <q-banner v-if="actaForm.selectedApprentice" class="bg-green-1 rounded-borders" dense>
-                  <div class="text-weight-bold">{{ actaForm.selectedApprentice.fullName }}</div>
-                  <div>Documento: {{ actaForm.selectedApprentice.nationalId }} | Ficha: {{ actaForm.selectedApprentice.enrollmentNumber || 'N/D' }}</div>
-                  <div>Programa: {{ actaForm.selectedApprentice.program || 'N/D' }} | Nivel: {{ actaForm.apprenticeLevel || 'N/D' }}</div>
-                  <div class="text-positive text-weight-bold q-mt-sm">Seguimientos requeridos: {{ actaForm.requiredTrackings }}</div>
-                </q-banner>
-              </div>
-              <q-stepper-navigation>
-                <q-btn color="green" label="Continuar" @click="actaStep = 2" :disable="!actaForm.selectedApprentice" />
-              </q-stepper-navigation>
-            </q-step>
-
-            <q-step :name="2" title="Numero de Seguimiento" icon="format_list_numbered" :done="actaStep > 2">
-              <div class="q-pa-md">
-                <p class="text-subtitle1 text-grey-8">Selecciona el numero de seguimiento a subir.</p>
-
-                <q-select
-                  v-model="actaForm.selectedTrackingNumber"
-                  :options="trackingNumberOptions"
-                  label="Numero de Seguimiento"
-                  outlined
-                  emit-value
-                  class="q-mb-md"
-                  @update:model-value="onTrackingNumberSelected"
-                />
-
-                <q-banner v-if="actaForm.selectedTrackingNumber === 'extra'" class="bg-warning text-black rounded-borders q-mb-md">
-                  <q-icon name="warning" size="sm" class="q-mr-sm" />
-                  Los seguimientos extraordinarios requieren aprobacion del administrador.
-                </q-banner>
-
-                <q-banner v-if="actaForm.existingFileWarning" class="bg-orange-1 text-warning rounded-borders q-mb-md">
-                  <q-icon name="warning" size="sm" class="q-mr-sm" />
-                  {{ actaForm.existingFileWarning }}
-                </q-banner>
-
-                <q-banner v-if="actaForm.selectedTrackingNumber && !actaForm.existingFileWarning" class="bg-green-1 text-positive rounded-borders">
-                  <q-icon name="check_circle" size="sm" class="q-mr-sm" />
-                  No existe un archivo cargado para el seguimiento #{{ actaForm.selectedTrackingNumber }}. Puede continuar.
-                </q-banner>
-
-                <div class="q-mt-md" v-if="actaForm.selectedTrackingNumber && actaForm.selectedApprentice">
-                  <p class="text-caption text-grey">
-                    Nivel: {{ actaForm.apprenticeLevel }} — Seguimientos requeridos: {{ actaForm.requiredTrackings }}
-                  </p>
-                </div>
-              </div>
-              <q-stepper-navigation>
-                <q-btn flat color="green" label="Atras" @click="actaStep = 1" class="q-mr-sm" />
-                <q-btn color="green" label="Continuar" @click="actaStep = 3" :disable="!actaForm.selectedTrackingNumber || !!actaForm.existingFileWarning" />
-              </q-stepper-navigation>
-            </q-step>
-
-            <q-step :name="3" title="Subir PDF" icon="upload_file" :done="actaStep > 3 && actaForm.pdfUploaded">
-              <div class="q-pa-md">
-                <p class="text-subtitle1 text-grey-8">Carga el acta de seguimiento en formato PDF (maximo 10 MB).</p>
-
-                <q-file
-                  v-model="actaForm.file"
-                  label="Seleccionar Acta PDF"
-                  outlined
-                  accept=".pdf"
-                  :max-file-size="10485760"
-                  @rejected="onFileRejected"
-                  class="q-mb-md"
-                >
-                  <template v-slot:prepend><q-icon name="picture_as_pdf" /></template>
-                  <template v-slot:append>
-                    <q-icon v-if="actaForm.file" name="close" class="cursor-pointer" @click.stop="actaForm.file = null" />
-                  </template>
-                </q-file>
-
-                <q-banner v-if="actaForm.fileError" class="bg-red-1 text-negative rounded-borders q-mb-md">
-                  <q-icon name="error" size="sm" class="q-mr-sm" />{{ actaForm.fileError }}
-                </q-banner>
-
-                <q-btn color="green" label="Subir Documento" @click="uploadActaPDF" :loading="saving" :disable="!actaForm.file" />
-                <q-chip v-if="actaForm.pdfUploaded" color="positive" icon="check_circle" label="PDF cargado correctamente" class="q-ml-md" />
-              </div>
-              <q-stepper-navigation>
-                <q-btn flat color="green" label="Atras" @click="actaStep = 2" class="q-mr-sm" />
-                <q-btn color="green" label="Continuar" @click="actaStep = 4" :disable="!actaForm.pdfUploaded" />
-              </q-stepper-navigation>
-            </q-step>
-
-            <q-step :name="4" title="Validacion IA" icon="psychology" :done="actaForm.aiValidated && actaForm.aiValid">
-              <div class="q-pa-md">
-                <p class="text-subtitle1 text-grey-8">Verifica el documento con inteligencia artificial antes de confirmar.</p>
-
-                <q-banner v-if="!actaForm.aiValidated" class="bg-blue-1 rounded-borders q-mb-md">
-                  <q-icon name="info" size="sm" class="q-mr-sm" />
-                  Presiona <strong>"Verificar con IA"</strong> para analizar el documento. No podras continuar sin esta validacion.
-                </q-banner>
-
-                <q-banner v-if="actaForm.aiValidated && actaForm.aiValid" class="bg-green-1 text-positive rounded-borders q-mb-md">
-                  <q-icon name="check_circle" size="sm" class="q-mr-sm" />
-                  <strong>Validacion exitosa:</strong> {{ actaForm.aiMessage }}
-                </q-banner>
-
-                <q-banner v-if="actaForm.aiValidated && !actaForm.aiValid" class="bg-red-1 text-negative rounded-borders q-mb-md">
-                  <q-icon name="error" size="sm" class="q-mr-sm" />
-                  <strong>Validacion fallida:</strong> {{ actaForm.aiMessage }}
-                </q-banner>
-
-                <div v-if="actaForm.aiDetails" class="q-mb-md">
-                  <q-card flat bordered class="bg-grey-1">
-                    <q-card-section>
-                      <div class="text-caption text-grey">Detalles de validacion:</div>
-                      <div v-if="actaForm.aiDetails.pages">Paginas: {{ actaForm.aiDetails.pages }}</div>
-                      <div v-if="actaForm.aiDetails.wordCount">Palabras detectadas: {{ actaForm.aiDetails.wordCount }}</div>
-                      <div v-if="actaForm.aiDetails.score !== undefined">Puntaje: {{ actaForm.aiDetails.score }}/100</div>
-                      <div v-if="actaForm.aiDetails.foundRequired">Keywords requeridas: {{ actaForm.aiDetails.foundRequired?.join(', ') }}</div>
-                      <div v-if="actaForm.aiDetails.method">Metodo: {{ actaForm.aiDetails.method }}</div>
-                      <div v-if="actaForm.aiDetails.suggestion" class="text-orange q-mt-sm">{{ actaForm.aiDetails.suggestion }}</div>
-                    </q-card-section>
-                  </q-card>
-                </div>
-
-                <div class="row q-gutter-md">
-                  <q-btn color="purple" icon="psychology" label="Verificar con IA" @click="validateActaWithAI" :loading="actaForm.validatingAI" :disable="actaForm.aiValidated && actaForm.aiValid" />
-                  <q-btn v-if="actaForm.aiValidated && !actaForm.aiValid" color="orange" outline label="Volver a Intentar" @click="resetAIValidation" />
-                </div>
-              </div>
-              <q-stepper-navigation>
-                <q-btn flat color="green" label="Atras" @click="actaStep = 3" class="q-mr-sm" />
-                <q-btn color="green" size="lg" label="Confirmar y Guardar" @click="confirmActaUpload" :loading="saving" :disable="!actaForm.aiValidated || !actaForm.aiValid" />
-              </q-stepper-navigation>
-            </q-step>
-
-          </q-stepper>
-        </q-card-section>
-      </q-card>
-    </q-dialog>
 
   </div>
 </template>
@@ -811,18 +671,36 @@ async function openFilesModal(row) {
   try {
     const body = await trackingService.getSummary(row._id);
     const trackings = body.data?.trackings || [];
-    filesList.value = trackings
-      .filter(t => t.driveFileUrl || t.driveFileId)
-      .map(t => ({
-        trackingNumber: t.trackingNumber,
-        isExtraordinary: t.isExtraordinary,
-        fileName: t.fileName || `Seguimiento_${t.trackingNumber}.pdf`,
-        driveFileUrl: t.driveFileUrl,
-        driveFileId: t.driveFileId,
-        status: t.status,
-        executedDate: t.executedDate,
-        uploadedAt: t.updatedAt || t.executedDate
-      }));
+    const result = [];
+    for (const t of trackings) {
+      if (t.apprenticeDriveFileUrl || t.apprenticeDriveFileId) {
+        result.push({
+          trackingNumber: t.trackingNumber,
+          isExtraordinary: t.isExtraordinary,
+          fileName: t.apprenticeFileName || `Seguimiento_${t.trackingNumber}_aprendiz.pdf`,
+          driveFileUrl: t.apprenticeDriveFileUrl,
+          driveFileId: t.apprenticeDriveFileId,
+          status: t.status,
+          executedDate: t.executedDate,
+          uploadedAt: t.apprenticeFileUploadedAt || t.updatedAt,
+          uploadedBy: 'Aprendiz'
+        });
+      }
+      if (t.driveFileUrl || t.driveFileId) {
+        result.push({
+          trackingNumber: t.trackingNumber,
+          isExtraordinary: t.isExtraordinary,
+          fileName: t.fileName || `Acta_Seguimiento_${t.trackingNumber}.pdf`,
+          driveFileUrl: t.driveFileUrl,
+          driveFileId: t.driveFileId,
+          status: t.status,
+          executedDate: t.executedDate,
+          uploadedAt: t.updatedAt || t.executedDate,
+          uploadedBy: 'Instructor'
+        });
+      }
+    }
+    filesList.value = result;
   } catch (error) {
     console.error('Error fetching files:', error);
     $q.notify({ type: 'negative', message: error.message || 'Error al cargar archivos.', position: 'top', timeout: 5000 });
@@ -869,7 +747,12 @@ const executeForm = ref({
   file: null,
   signedByInstructor: false,
   signedByApprentice: false,
-  signaturesSavedLocal: false
+  signaturesSavedLocal: false,
+  aiValidated: false,
+  aiValid: false,
+  aiMessage: '',
+  aiDetails: null,
+  validatingAI: false
 });
 
 function resetForm() {
@@ -954,7 +837,12 @@ function openExecuteModal(tracking) {
     file: null,
     signedByInstructor: tracking.signedByInstructor || false,
     signedByApprentice: tracking.signedByApprentice || false,
-    signaturesSavedLocal: false
+    signaturesSavedLocal: false,
+    aiValidated: false,
+    aiValid: false,
+    aiMessage: '',
+    aiDetails: null,
+    validatingAI: false
   };
   showExecuteModal.value = true;
 }
@@ -975,6 +863,41 @@ async function uploadPDF() {
   } finally {
     saving.value = false;
   }
+}
+
+async function validatePDFWithAI() {
+  if (!selectedTracking.value?.driveFileId) return;
+  executeForm.value.validatingAI = true;
+  try {
+    const fd = new FormData();
+    fd.append('fileId', selectedTracking.value.driveFileId);
+    const body = await trackingService.validatePDF(fd);
+    const result = body.data || body;
+    executeForm.value.aiValidated = true;
+    executeForm.value.aiValid = result.valid;
+    executeForm.value.aiMessage = result.message || '';
+    executeForm.value.aiDetails = result.details || null;
+    if (result.valid) {
+      $q.notify({ type: 'positive', message: 'Validación IA exitosa.', position: 'top', timeout: 5000 });
+    } else {
+      $q.notify({ type: 'negative', message: 'La validación IA encontró problemas. Corrija el archivo e intente de nuevo.', position: 'top', timeout: 5000 });
+    }
+  } catch (error) {
+    console.error(error);
+    executeForm.value.aiValidated = true;
+    executeForm.value.aiValid = false;
+    executeForm.value.aiMessage = error.message || 'Error al validar con IA.';
+    $q.notify({ type: 'negative', message: 'Error al validar con IA.', position: 'top', timeout: 5000 });
+  } finally {
+    executeForm.value.validatingAI = false;
+  }
+}
+
+function resetExecuteAI() {
+  executeForm.value.aiValidated = false;
+  executeForm.value.aiValid = false;
+  executeForm.value.aiMessage = '';
+  executeForm.value.aiDetails = null;
 }
 
 async function validateSignatures() {
@@ -1011,307 +934,6 @@ async function executeTracking() {
   }
 }
 
-// ============ Upload Acta Flow ============
-const showUploadActaModal = ref(false);
-const actaStep = ref(1);
-const actaForm = ref({
-  selectedApprentice: null,
-  apprenticeLevel: '',
-  requiredTrackings: 0,
-  selectedTrackingNumber: null,
-  isExtraordinary: false,
-  existingFileWarning: '',
-  file: null,
-  fileError: '',
-  pdfUploaded: false,
-  aiValidated: false,
-  aiValid: false,
-  aiMessage: '',
-  aiDetails: null,
-  validatingAI: false,
-  uploadedTrackingId: null
-});
-const apprenticeOptions = ref([]);
-
-function resetUploadActa() {
-  actaStep.value = 1;
-  actaForm.value = {
-    selectedApprentice: null,
-    apprenticeLevel: '',
-    requiredTrackings: 0,
-    selectedTrackingNumber: null,
-    isExtraordinary: false,
-    existingFileWarning: '',
-    file: null,
-    fileError: '',
-    pdfUploaded: false,
-    aiValidated: false,
-    aiValid: false,
-    aiMessage: '',
-    aiDetails: null,
-    validatingAI: false,
-    uploadedTrackingId: null
-  };
-  apprenticeOptions.value = [];
-}
-
-function openUploadActaModal() {
-  resetUploadActa();
-  showUploadActaModal.value = true;
-}
-
-async function filterApprentices(val, update) {
-  if (!val || val.length < 2) {
-    update(() => { apprenticeOptions.value = []; });
-    return;
-  }
-  const search = val.toLowerCase();
-
-  const results = myEPs.value
-    .filter(ep => ep.modality !== 'APPRENTICESHIP_CONTRACT')
-    .filter(ep => {
-      const a = ep.apprentice;
-      if (!a) return false;
-      const fullName = (a.fullName || '').toLowerCase();
-      const nationalId = (a.nationalId || '').toLowerCase();
-      const enrollmentNumber = (a.enrollmentNumber || '').toLowerCase();
-      return fullName.includes(search) || nationalId.includes(search) || enrollmentNumber.includes(search);
-    })
-    .map(ep => ({
-      _id: ep.apprentice?._id || (typeof ep.apprentice === 'string' ? ep.apprentice : ''),
-      fullName: ep.apprentice?.fullName || 'N/D',
-      nationalId: ep.apprentice?.nationalId || 'N/D',
-      enrollmentNumber: ep.apprentice?.enrollmentNumber || 'N/D',
-      program: ep.apprentice?.program || 'N/D',
-      trainingLevel: ep.apprentice?.trainingLevel || 'TECHNOLOGIST'
-    }))
-    .filter((v, i, a) => a.findIndex(x => x._id === v._id) === i)
-    .slice(0, 20);
-
-  update(() => { apprenticeOptions.value = results; });
-}
-
-function onApprenticeSelected(apprentice) {
-  if (!apprentice) return;
-  const level = apprentice.trainingLevel || 'TECHNOLOGIST';
-  actaForm.value.apprenticeLevel = level === 'TECHNICIAN' ? 'TECNICO' : (level === 'TECHNOLOGIST' ? 'TECNOLOGO' : 'OPERARIO');
-  if (level === 'TECHNICIAN' || level === 'TECHNOLOGIST') {
-    actaForm.value.requiredTrackings = 3;
-  } else {
-    actaForm.value.requiredTrackings = 2;
-  }
-  actaForm.value.selectedTrackingNumber = null;
-  actaForm.value.existingFileWarning = '';
-}
-
-const trackingNumberOptions = computed(() => {
-  const max = actaForm.value.requiredTrackings;
-  const options = [];
-  for (let i = 1; i <= max; i++) {
-    options.push({ label: `Seguimiento #${i}`, value: i });
-  }
-  options.push({ label: 'Seguimiento Extraordinario', value: 'extra' });
-  return options;
-});
-
-function onTrackingNumberSelected(val) {
-  actaForm.value.isExtraordinary = (val === 'extra');
-  checkExistingTracking();
-}
-
-function onFileRejected(rejectedEntries) {
-  const entry = rejectedEntries[0];
-  if (entry) {
-    const reason = entry.failedPropValidation;
-    if (reason === 'max-file-size') {
-      actaForm.value.fileError = 'El archivo excede el peso maximo de 10 MB.';
-    } else if (reason === 'accept') {
-      actaForm.value.fileError = 'Solo se permiten archivos PDF.';
-    } else {
-      actaForm.value.fileError = 'Archivo no valido.';
-    }
-  }
-}
-
-async function checkExistingTracking() {
-  const selectedApprentice = actaForm.value.selectedApprentice;
-  const trackingNum = actaForm.value.selectedTrackingNumber;
-  if (!selectedApprentice || !trackingNum) return;
-  actaForm.value.existingFileWarning = '';
-
-  try {
-    const eps = myEPs.value;
-    const ep = eps.find(e => {
-      const appId = typeof e.apprentice === 'object' ? e.apprentice._id : e.apprentice;
-      return appId === selectedApprentice._id;
-    });
-
-    if (!ep) {
-      actaForm.value.existingFileWarning = 'No se encontro una etapa productiva activa para este aprendiz.';
-      return;
-    }
-
-    const summaryBody = await trackingService.getSummary(ep._id);
-    const trackings = summaryBody.data?.trackings || [];
-
-    let existing;
-    if (trackingNum === 'extra') {
-      existing = trackings.find(t => t.isExtraordinary && (t.driveFileUrl || t.driveFileId));
-      if (existing) {
-        actaForm.value.existingFileWarning = `Ya existe un seguimiento extraordinario con archivo cargado. No es posible reemplazarlo desde esta seccion.`;
-      }
-    } else {
-      existing = trackings.find(t =>
-        t.trackingNumber === trackingNum &&
-        !t.isExtraordinary &&
-        (t.driveFileUrl || t.driveFileId)
-      );
-      if (existing) {
-        actaForm.value.existingFileWarning = `El seguimiento #${trackingNum} ya tiene un archivo cargado. No es posible reemplazarlo desde esta seccion.`;
-      }
-    }
-
-    if (!actaForm.value.existingFileWarning) {
-      let existingWithoutFile;
-      if (trackingNum === 'extra') {
-        existingWithoutFile = trackings.find(t => t.isExtraordinary);
-      } else {
-        existingWithoutFile = trackings.find(t => t.trackingNumber === trackingNum && !t.isExtraordinary);
-      }
-      if (existingWithoutFile) {
-        actaForm.value.uploadedTrackingId = existingWithoutFile._id;
-      } else {
-        actaForm.value.uploadedTrackingId = null;
-      }
-    }
-  } catch (error) {
-    console.error('Error verificando seguimiento existente:', error);
-  }
-}
-
-async function uploadActaPDF() {
-  if (!actaForm.value.file) return;
-  saving.value = true;
-  actaForm.value.fileError = '';
-  try {
-    const fd = new FormData();
-    fd.append('file', actaForm.value.file);
-
-    if (actaForm.value.uploadedTrackingId) {
-      await trackingService.uploadPDF(actaForm.value.uploadedTrackingId, fd);
-      actaForm.value.pdfUploaded = true;
-      $q.notify({ type: 'positive', message: 'Documento subido correctamente.', position: 'top', timeout: 5000 });
-      return;
-    }
-
-    const selectedApprentice = actaForm.value.selectedApprentice;
-    const eps = myEPs.value;
-    const ep = eps.find(e => {
-      const appId = typeof e.apprentice === 'object' ? e.apprentice._id : e.apprentice;
-      return appId === selectedApprentice._id;
-    });
-
-    if (!ep) {
-      $q.notify({ type: 'negative', message: 'No se encontro una etapa productiva activa para este aprendiz.', position: 'top', timeout: 5000 });
-      return;
-    }
-
-    const today = new Date().toISOString().split('T')[0];
-    const payload = {
-      productiveStageId: ep._id,
-      type: 'IN_PERSON',
-      scheduledDate: today
-    };
-
-    let createBody;
-    if (actaForm.value.isExtraordinary) {
-      createBody = await trackingService.requestExtraordinary({
-        ...payload,
-        extraordinaryReason: 'Acta de seguimiento extraordinario cargada por el instructor.'
-      });
-    } else {
-      createBody = await trackingService.create(payload);
-    }
-
-    const newTracking = createBody.data?.tracking || createBody.data;
-    if (newTracking) {
-      await trackingService.uploadPDF(newTracking._id, fd);
-      actaForm.value.uploadedTrackingId = newTracking._id;
-      actaForm.value.pdfUploaded = true;
-      $q.notify({ type: 'positive', message: 'Documento subido correctamente.', position: 'top', timeout: 5000 });
-    }
-  } catch (error) {
-    console.error(error);
-    actaForm.value.fileError = error.message || 'Error al subir el documento.';
-    $q.notify({ type: 'negative', message: error.message || 'Error al subir documento.', position: 'top', timeout: 5000 });
-  } finally {
-    saving.value = false;
-  }
-}
-
-async function validateActaWithAI() {
-  if (!actaForm.value.file) return;
-  actaForm.value.validatingAI = true;
-  try {
-    const fd = new FormData();
-    fd.append('file', actaForm.value.file);
-    const body = await trackingService.validatePDF(fd);
-    const result = body.data || body;
-    actaForm.value.aiValidated = true;
-    actaForm.value.aiValid = result.valid;
-    actaForm.value.aiMessage = result.message || '';
-    actaForm.value.aiDetails = result.details || null;
-    if (result.valid) {
-      $q.notify({ type: 'positive', message: 'Validacion IA exitosa.', position: 'top', timeout: 5000 });
-    } else {
-      $q.notify({ type: 'negative', message: 'La validacion IA encontro problemas. Corrija el archivo e intente de nuevo.', position: 'top', timeout: 5000 });
-    }
-  } catch (error) {
-    console.error(error);
-    actaForm.value.aiValidated = true;
-    actaForm.value.aiValid = false;
-    actaForm.value.aiMessage = error.message || 'Error al validar con IA.';
-    $q.notify({ type: 'negative', message: 'Error al validar con IA.', position: 'top', timeout: 5000 });
-  } finally {
-    actaForm.value.validatingAI = false;
-  }
-}
-
-function resetAIValidation() {
-  actaForm.value.aiValidated = false;
-  actaForm.value.aiValid = false;
-  actaForm.value.aiMessage = '';
-  actaForm.value.aiDetails = null;
-}
-
-async function confirmActaUpload() {
-  if (!actaForm.value.uploadedTrackingId) {
-    $q.notify({ type: 'warning', message: 'Primero sube el documento PDF.', position: 'top', timeout: 5000 });
-    return;
-  }
-  saving.value = true;
-  try {
-    if (actaForm.value.isExtraordinary) {
-      $q.notify({
-        type: 'positive',
-        message: 'Acta de seguimiento extraordinario subida correctamente. El administrador debe aprobarla antes de ejecutarse.',
-        position: 'top',
-        timeout: 8000
-      });
-    } else {
-      await trackingService.execute(actaForm.value.uploadedTrackingId);
-      $q.notify({ type: 'positive', message: 'Acta de seguimiento guardada y ejecutada exitosamente.', position: 'top', timeout: 5000 });
-    }
-    showUploadActaModal.value = false;
-    resetUploadActa();
-    fetchMyEPs();
-  } catch (error) {
-    console.error(error);
-    $q.notify({ type: 'negative', message: error.message || 'Error al confirmar el acta.', position: 'top', timeout: 5000 });
-  } finally {
-    saving.value = false;
-  }
-}
 </script>
 
 <style scoped>

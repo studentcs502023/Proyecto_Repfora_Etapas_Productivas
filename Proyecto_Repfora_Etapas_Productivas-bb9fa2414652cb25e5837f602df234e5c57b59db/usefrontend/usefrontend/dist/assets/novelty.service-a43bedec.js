@@ -1,0 +1,1 @@
+import{aA as e}from"./index-9a576757.js";const n={create:t=>e.post("/novelties",t),getAll:t=>e.get("/novelties",{params:t}),getById:t=>e.get(`/novelties/${t}`),updateStatus:(t,s)=>e.patch(`/novelties/${t}/status`,s),addAttachments:(t,s)=>e.post(`/novelties/${t}/attachments`,s),getByEP:t=>e.get(`/novelties/ep/${t}`),getHistory:t=>e.get(`/novelties/history/${t}`)};export{n};
