@@ -1,18 +1,19 @@
 <template>
   <div class="dashboard-wrapper q-pa-md">
 
-    <!-- Header -->
-    <div class="row items-center q-mb-lg">
-      <div class="col">
-        <h1 class="text-h4 text-black text-weight-bold q-my-none">
+    <!-- Premium Header -->
+    <div class="page-header q-mb-xl row items-center justify-between shadow-4">
+      <div class="cover-overlay"></div>
+      <div class="header-content col-12 col-md-auto q-mb-sm-md text-white">
+        <h2 class="text-h3 text-weight-bolder q-my-none shadow-text">
           Bienvenido, {{ authStore.user?.fullName }}
-        </h1>
-        <p class="text-grey-7 text-subtitle1 q-my-none">
+        </h2>
+        <p class="text-subtitle1 opacity-80 q-mt-xs q-mb-none">
           Panel de Control — {{ roleLabel }}
         </p>
       </div>
-      <div class="col-auto row items-center q-gutter-sm">
-        <q-chip outline color="primary" text-color="primary" icon="event">
+      <div class="col-auto row items-center q-gutter-sm z-top">
+        <q-chip color="white" text-color="primary" icon="event" class="text-weight-bold shadow-1">
           {{ currentDate }}
         </q-chip>
       </div>
@@ -361,16 +362,16 @@
     </div>
 
     <!-- ==================== ADMIN ==================== -->
-    <div v-else-if="authStore.isAdmin" class="row q-col-gutter-md">
+    <div v-else-if="authStore.isAdmin" class="row q-col-gutter-lg">
 
       <!-- KPI Cards -->
-      <div class="col-12 col-md-4" v-for="stat in adminStats" :key="stat.label">
-        <q-card flat bordered class="kpi-card q-pa-md">
+      <div class="col-12 col-sm-6 col-md-3" v-for="stat in adminStats" :key="stat.label">
+        <q-card class="my-card kpi-card no-shadow q-pa-md">
           <div class="row items-center no-wrap">
-            <q-icon :name="stat.icon" :color="stat.color" size="lg" class="q-mr-md" />
+            <q-icon :name="stat.icon" :color="stat.color" size="xl" class="q-mr-md" />
             <div>
-              <div class="text-grey-7 text-caption">{{ stat.label }}</div>
-              <div class="text-h5 text-weight-bold">
+              <div class="text-grey-7 text-caption text-weight-bold text-uppercase">{{ stat.label }}</div>
+              <div class="text-h4 text-weight-bolder text-primary">
                 <span v-if="stat.loading"><q-spinner size="sm" /></span>
                 <span v-else>{{ stat.value }}</span>
               </div>
@@ -380,8 +381,8 @@
       </div>
 
       <!-- Acciones Rápidas -->
-      <div class="col-12">
-        <div class="text-subtitle1 text-weight-bold text-black q-mb-md">Acciones Rápidas</div>
+      <div class="col-12 q-mt-xl">
+        <div class="text-subtitle1 text-weight-bold text-primary q-mb-md text-uppercase"><q-icon name="bolt" /> Acciones Rápidas</div>
         <div class="row q-col-gutter-md">
           <div class="col-12 col-sm-6 col-md-3" v-for="action in adminActions" :key="action.label">
             <q-btn
@@ -389,7 +390,8 @@
               :icon="action.icon"
               :label="action.label"
               stack
-              class="full-width q-pa-md"
+              class="full-width q-pa-md header-btn text-weight-bold shadow-2"
+              rounded
               :to="action.to"
               unelevated
             />
@@ -398,12 +400,12 @@
       </div>
 
       <!-- Aprobaciones pendientes -->
-      <div class="col-12" v-if="stats.admin.pendingApprovals > 0">
-        <q-banner class="bg-orange-1 text-orange-9 rounded-borders" rounded>
-          <template v-slot:avatar><q-icon name="pending_actions" color="warning" /></template>
+      <div class="col-12 q-mt-lg" v-if="stats.admin.pendingApprovals > 0">
+        <q-banner class="bg-orange-1 text-orange-9 rounded-borders border-orange shadow-1" rounded>
+          <template v-slot:avatar><q-icon name="pending_actions" color="warning" size="lg" /></template>
           Tienes <strong>{{ stats.admin.pendingApprovals }}</strong> solicitud(es) de Etapa Productiva pendientes de aprobación.
           <template v-slot:action>
-            <q-btn flat color="warning" label="Revisar ahora" to="/admin/approvals" />
+            <q-btn flat color="warning" class="text-weight-bold" label="Revisar ahora" to="/admin/approvals" />
           </template>
         </q-banner>
       </div>
@@ -723,11 +725,67 @@ async function loadAdmin() {
 </script>
 
 <style scoped>
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
+
 .dashboard-wrapper {
-  max-width: 1300px;
+  max-width: 1400px;
   margin: 0 auto;
+  font-family: 'Outfit', sans-serif;
+  animation: fadeIn 0.5s ease-out;
 }
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Premium Header */
+.page-header {
+  background: linear-gradient(135deg, #093028 0%, #237A57 100%);
+  border-radius: 20px;
+  padding: 30px;
+  position: relative;
+  overflow: hidden;
+}
+
+.cover-overlay {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-image: radial-gradient(circle at 2px 2px, rgba(255,255,255,0.1) 1px, transparent 0);
+  background-size: 20px 20px;
+  pointer-events: none;
+}
+
+.shadow-text { text-shadow: 2px 2px 8px rgba(0,0,0,0.4); }
+.opacity-80 { opacity: 0.8; }
+
+/* Cards & Glassmorphism */
+.my-card {
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(15px);
+  border: 1px solid rgba(0,0,0,0.03);
+  box-shadow: 0 10px 40px rgba(0,0,0,0.06) !important;
+  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.3s ease;
+}
+
 .kpi-card {
   height: 100%;
+}
+
+.kpi-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 15px 50px rgba(0,0,0,0.1) !important;
+}
+
+/* Buttons */
+.header-btn { transition: all 0.3s ease; }
+.header-btn:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 20px rgba(0,0,0,0.2) !important;
+}
+
+.border-orange {
+  border: 1px solid #ffe0b2;
 }
 </style>

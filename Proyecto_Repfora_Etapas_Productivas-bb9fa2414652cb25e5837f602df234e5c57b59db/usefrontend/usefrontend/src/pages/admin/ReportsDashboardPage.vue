@@ -1,50 +1,57 @@
 <template>
   <div class="reports-dashboard-container q-pa-md">
-    <div class="row items-center q-mb-md">
-      <div class="col">
-        <h2 class="text-h4 text-black text-weight-bold q-my-none">Panel de Reportes</h2>
-        <p class="text-grey-7 q-my-sm">Visión general del estado de las etapas productivas e instructores.</p>
+    <!-- Premium Header -->
+    <div class="page-header q-mb-xl row items-center justify-between shadow-4">
+      <div class="cover-overlay"></div>
+      <div class="header-content col-12 col-md-auto q-mb-sm-md text-white">
+        <h2 class="text-h3 text-weight-bolder q-my-none shadow-text">
+          <q-icon name="insert_chart" class="q-mr-sm" size="md"/>Panel de Reportes
+        </h2>
+        <p class="text-subtitle1 opacity-80 q-mt-xs q-mb-none">Visión general del estado de las etapas productivas e instructores.</p>
       </div>
     </div>
 
     <!-- Loading State -->
-    <q-card flat bordered v-if="loading" class="q-pa-xl text-center">
-      <q-spinner color="primary" size="3em" />
+    <q-card v-if="loading" class="my-card no-shadow q-pa-xl text-center">
+      <q-spinner color="primary" size="4em" />
+      <div class="q-mt-md text-h6 text-primary text-weight-medium">Cargando reportes...</div>
     </q-card>
 
     <div v-else>
       
       <!-- EP Summary Section -->
-      <div class="text-h6 text-primary q-mb-sm">Resumen de Etapas Productivas ({{ new Date().getFullYear() }})</div>
-      <div class="row q-col-gutter-md q-mb-lg" v-if="epSummary">
+      <div class="text-h5 text-primary text-weight-bolder q-mb-md flex items-center">
+        <q-icon name="pie_chart" class="q-mr-sm" size="md"/> Resumen de Etapas Productivas ({{ new Date().getFullYear() }})
+      </div>
+      <div class="row q-col-gutter-lg q-mb-xl" v-if="epSummary">
         <div class="col-12 col-md-3">
-          <q-card flat bordered class="bg-blue-1 border-blue text-center full-height flex flex-center column q-pa-md">
-            <div class="text-h3 text-weight-bold text-primary">{{ epSummary.totalEPs || 0 }}</div>
-            <div class="text-subtitle1 text-grey-9">Total Etapas</div>
-            <q-btn class="q-mt-sm" color="primary" size="sm" icon="download" label="Exportar" @click="exportEP" :loading="exporting === 'ep'" />
+          <q-card class="my-card bg-blue-1 border-left-primary text-center full-height flex flex-center column q-pa-xl shadow-1">
+            <div class="text-h2 text-weight-bold text-primary">{{ epSummary.totalEPs || 0 }}</div>
+            <div class="text-h6 text-primary text-uppercase text-weight-bold q-mt-sm">Total Etapas</div>
+            <q-btn class="q-mt-md header-btn text-weight-bold shadow-2" color="primary" icon="download" label="Exportar PDF" rounded padding="xs md" @click="exportEP" :loading="exporting === 'ep'" />
           </q-card>
         </div>
         
         <div class="col-12 col-md-9">
-          <q-card flat bordered class="q-pa-md">
-            <div class="text-subtitle2 text-black q-mb-sm">Por Estado</div>
-            <div class="row q-col-gutter-sm">
+          <q-card class="my-card no-shadow q-pa-lg full-height">
+            <div class="text-subtitle2 text-primary text-uppercase text-weight-bold q-mb-md">Por Estado</div>
+            <div class="row q-col-gutter-md">
               <div class="col" v-for="(count, status) in (epSummary.byStatus || {})" :key="status">
-                <q-card class="bg-grey-2 text-center q-pa-sm">
-                  <div class="text-h6">{{ count }}</div>
-                  <div class="text-caption text-weight-bold" style="font-size: 10px;">{{ getStatusLabel(status) }}</div>
+                <q-card class="bg-grey-1 border-blue text-center q-pa-md shadow-1 stat-card">
+                  <div class="text-h5 text-primary text-weight-bold">{{ count }}</div>
+                  <div class="text-caption text-weight-bold text-uppercase text-grey-8 q-mt-xs">{{ getStatusLabel(status) }}</div>
                 </q-card>
               </div>
             </div>
             
-            <q-separator class="q-my-md" />
+            <q-separator class="q-my-lg opacity-20" />
             
-            <div class="text-subtitle2 text-black q-mb-sm">Por Modalidad</div>
-            <q-list dense>
-              <q-item v-for="(data, mod) in (epSummary.byModality || {})" :key="mod">
-                <q-item-section>{{ getModalityLabel(mod) }}</q-item-section>
+            <div class="text-subtitle2 text-primary text-uppercase text-weight-bold q-mb-sm">Por Modalidad</div>
+            <q-list dense class="bg-white rounded-borders shadow-1">
+              <q-item v-for="(data, mod) in (epSummary.byModality || {})" :key="mod" class="q-py-sm">
+                <q-item-section class="text-weight-medium">{{ getModalityLabel(mod) }}</q-item-section>
                 <q-item-section side>
-                  <q-badge color="primary">{{ data.total }}</q-badge>
+                  <q-badge color="primary" class="q-pa-sm text-weight-bold shadow-1" rounded>{{ data.total }}</q-badge>
                 </q-item-section>
               </q-item>
             </q-list>
@@ -52,86 +59,90 @@
         </div>
       </div>
 
-      <q-separator class="q-my-lg" />
-
       <!-- Instructors Hours Section -->
-      <div class="row items-center justify-between q-mb-sm">
-        <div class="text-h6 text-primary">Horas de Instructores</div>
-        <q-btn color="secondary" size="sm" icon="download" label="Exportar General" @click="exportHours" :loading="exporting === 'hours'" />
+      <div class="row items-center justify-between q-mb-md">
+        <div class="text-h5 text-primary text-weight-bolder flex items-center">
+          <q-icon name="schedule" class="q-mr-sm" size="md"/> Horas de Instructores
+        </div>
+        <q-btn color="secondary" icon="download" label="Exportar General" class="header-btn text-weight-bold shadow-2" rounded padding="xs md" @click="exportHours" :loading="exporting === 'hours'" />
       </div>
-      <q-card flat bordered class="q-mb-lg" v-if="hourSummary">
+      <q-card class="my-card no-shadow q-mb-xl" v-if="hourSummary">
         <q-table
           :rows="hourSummary.instructors || []"
           :columns="instructorColumns"
           row-key="instructor.id"
           flat
+          class="custom-table bg-transparent"
+          table-header-class="custom-table-header"
           hide-pagination
           :pagination="{ rowsPerPage: 10 }"
         >
           <template v-slot:body-cell-instructor="props">
             <q-td :props="props">
               <div class="text-weight-bold">{{ props.row.instructor?.fullName }}</div>
-              <div class="text-caption">{{ props.row.instructor?.knowledgeArea || 'Área general' }}</div>
+              <div class="text-caption text-grey-7">{{ props.row.instructor?.knowledgeArea || 'Área general' }}</div>
             </q-td>
           </template>
 
           <template v-slot:body-cell-total="props">
-            <q-td :props="props">
-              <q-chip color="info" text-color="white" dense>{{ props.row.yearTotals?.totalHours || 0 }} h</q-chip>
+            <q-td :props="props" class="text-center">
+              <q-chip color="info" text-color="white" dense class="shadow-1 text-weight-bold">{{ props.row.yearTotals?.totalHours || 0 }} h</q-chip>
             </q-td>
           </template>
 
           <template v-slot:body-cell-pending="props">
-            <q-td :props="props">
-              <q-chip :color="(props.row.yearTotals?.pendingPaymentHours || 0) > 0 ? 'warning' : 'grey'" text-color="white" dense>
+            <q-td :props="props" class="text-center">
+              <q-chip :color="(props.row.yearTotals?.pendingPaymentHours || 0) > 0 ? 'warning' : 'grey'" text-color="white" dense class="shadow-1 text-weight-bold">
                 {{ props.row.yearTotals?.pendingPaymentHours || 0 }} h por cobrar
               </q-chip>
             </q-td>
           </template>
         </q-table>
-        <div class="bg-grey-2 q-pa-md text-right text-subtitle2">
-          Total Global de Horas: {{ hourSummary.grandTotals?.totalHours || 0 }} | Pendientes de Pago: <span class="text-negative">{{ hourSummary.grandTotals?.totalPending || 0 }}</span>
+        <div class="bg-blue-grey-1 q-pa-md text-right text-subtitle1 text-weight-bold shadow-1">
+          Total Global de Horas: <span class="text-primary">{{ hourSummary.grandTotals?.totalHours || 0 }}</span> | Pendientes de Pago: <span class="text-negative">{{ hourSummary.grandTotals?.totalPending || 0 }}</span>
         </div>
       </q-card>
 
-      <q-separator class="q-my-lg" />
-
       <!-- Expiry Alerts Section -->
-      <div class="text-h6 text-negative q-mb-sm"><q-icon name="warning" /> Alertas de Vencimiento de Matrícula</div>
-      <q-card flat bordered class="border-red" v-if="expiryReport">
+      <div class="text-h5 text-negative text-weight-bolder q-mb-md flex items-center">
+        <q-icon name="warning" class="q-mr-sm" size="md"/> Alertas de Vencimiento de Matrícula
+      </div>
+      <q-card class="my-card border-red no-shadow q-mb-lg" v-if="expiryReport">
         <q-table
           :rows="expiryReport.apprentices || []"
           :columns="expiryColumns"
           row-key="enrollmentNumber"
           flat
+          class="custom-table bg-transparent"
+          table-header-class="custom-table-header text-negative"
           hide-pagination
           :pagination="{ rowsPerPage: 10 }"
         >
           <template v-slot:body-cell-alert="props">
             <q-td :props="props" class="text-center">
-              <q-icon name="error" size="sm" :color="getAlertColor(props.row.alertLevel)" />
+              <q-icon name="error" size="md" :color="getAlertColor(props.row.alertLevel)" class="shadow-1 q-pa-xs rounded-borders" style="background: rgba(255,255,255,0.8)" />
             </q-td>
           </template>
           
           <template v-slot:body-cell-apprentice="props">
             <q-td :props="props">
               <div class="text-weight-bold">{{ props.row.fullName }}</div>
-              <div class="text-caption">Ficha: {{ props.row.enrollmentNumber }}</div>
+              <div class="text-caption text-grey-7">Ficha: {{ props.row.enrollmentNumber }}</div>
             </q-td>
           </template>
 
           <template v-slot:body-cell-days="props">
             <q-td :props="props">
-              <div class="text-weight-bold" :class="`text-${getAlertColor(props.row.alertLevel)}`">
+              <div class="text-weight-bold text-subtitle2" :class="`text-${getAlertColor(props.row.alertLevel)}`">
                 {{ props.row.daysRemaining }} días
               </div>
-              <div class="text-caption">{{ formatDate(props.row.enrollmentExpiryDate) }}</div>
+              <div class="text-caption text-grey-7">{{ formatDate(props.row.enrollmentExpiryDate) }}</div>
             </q-td>
           </template>
           
           <template v-slot:no-data>
-            <div class="full-width row flex-center text-positive q-pa-lg">
-              <q-icon name="check_circle" size="sm" class="q-mr-sm" /> No hay aprendices próximos a vencer.
+            <div class="full-width row flex-center text-positive q-pa-xl text-h6">
+              <q-icon name="check_circle" size="md" class="q-mr-sm" /> No hay aprendices próximos a vencer.
             </div>
           </template>
         </q-table>
@@ -279,10 +290,86 @@ function getAlertColor(level) {
 </script>
 
 <style scoped>
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
+
 .reports-dashboard-container {
-  max-width: 1300px;
+  max-width: 1400px;
   margin: 0 auto;
+  font-family: 'Outfit', sans-serif;
+  animation: fadeIn 0.5s ease-out;
 }
-.border-blue { border-color: #bbdefb; }
-.border-red { border-color: #ffcdd2; }
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Premium Header */
+.page-header {
+  background: linear-gradient(135deg, #093028 0%, #237A57 100%);
+  border-radius: 20px;
+  padding: 30px;
+  position: relative;
+  overflow: hidden;
+}
+
+.cover-overlay {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-image: radial-gradient(circle at 2px 2px, rgba(255,255,255,0.1) 1px, transparent 0);
+  background-size: 20px 20px;
+  pointer-events: none;
+}
+
+.shadow-text { text-shadow: 2px 2px 8px rgba(0,0,0,0.4); }
+.opacity-80 { opacity: 0.8; }
+.opacity-20 { opacity: 0.2; }
+
+/* Cards & Glassmorphism */
+.my-card {
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(15px);
+  border: 1px solid rgba(0,0,0,0.03);
+  box-shadow: 0 10px 40px rgba(0,0,0,0.06) !important;
+  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.3s ease;
+}
+
+.stat-card {
+  border-radius: 12px;
+  transition: all 0.3s ease;
+}
+
+.stat-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 25px rgba(0,0,0,0.1) !important;
+}
+
+/* Table Enhancements */
+.custom-table { border-radius: 20px; }
+.custom-table :deep(.q-table__container) { background: transparent; }
+.custom-table :deep(th) {
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #4a5568;
+  border-bottom: 2px solid rgba(0,0,0,0.05);
+}
+.custom-table :deep(tbody tr) { transition: all 0.2s ease; }
+.custom-table :deep(tbody tr:hover) {
+  background-color: #f8fcfb !important;
+  transform: scale(1.002);
+}
+.custom-table :deep(td) { border-bottom: 1px solid rgba(0,0,0,0.03); }
+
+/* Chips & Buttons */
+.header-btn { transition: all 0.3s ease; }
+.header-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 15px rgba(0,0,0,0.2) !important;
+}
+
+.border-blue { border: 1px solid #bbdefb; }
+.border-red { border: 1px solid #ffcdd2; }
+.border-left-primary { border-left: 5px solid var(--q-primary); }
 </style>
