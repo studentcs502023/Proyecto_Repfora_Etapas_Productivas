@@ -292,7 +292,7 @@
     <div v-else-if="authStore.isInstructor" class="row q-col-gutter-md">
 
       <!-- KPI: Aprendices asignados -->
-      <div class="col-12 col-md-3">
+      <div class="col-12 col-sm-6 col-md">
         <q-card flat bordered class="kpi-card text-center q-pa-md">
           <q-icon name="group" color="primary" size="2em" />
           <div class="text-h4 text-weight-bold text-primary q-mt-sm">{{ stats.instructor.totalApprentices }}</div>
@@ -301,7 +301,7 @@
       </div>
 
       <!-- KPI: Horas del mes -->
-      <div class="col-12 col-md-3">
+      <div class="col-12 col-sm-6 col-md">
         <q-card flat bordered class="kpi-card text-center q-pa-md">
           <q-icon name="schedule" color="blue" size="2em" />
           <div class="text-h4 text-weight-bold text-blue q-mt-sm">
@@ -312,7 +312,7 @@
       </div>
 
       <!-- KPI: Horas por cobrar -->
-      <div class="col-12 col-md-3">
+      <div class="col-12 col-sm-6 col-md">
         <q-card flat bordered class="kpi-card text-center q-pa-md">
           <q-icon name="payments" color="warning" size="2em" />
           <div class="text-h4 text-weight-bold text-warning q-mt-sm">{{ stats.instructor.pendingHours }}</div>
@@ -321,7 +321,7 @@
       </div>
 
       <!-- KPI: Bitácoras pendientes -->
-      <div class="col-12 col-md-3">
+      <div class="col-12 col-sm-6 col-md">
         <q-card flat bordered class="kpi-card text-center q-pa-md">
           <q-icon name="rule_folder" color="orange" size="2em" />
           <div class="text-h4 text-weight-bold text-orange q-mt-sm">{{ stats.instructor.pendingBitacoras }}</div>
@@ -329,8 +329,66 @@
         </q-card>
       </div>
 
+      <!-- KPI: Seguimientos próximos a vencer -->
+      <div class="col-12 col-sm-6 col-md">
+        <q-card flat bordered class="kpi-card text-center q-pa-md">
+          <q-icon name="event_busy" color="red" size="2em" />
+          <div class="text-h4 text-weight-bold text-red q-mt-sm">{{ stats.instructor.upcomingTrackings }}</div>
+          <div class="text-caption text-grey-7">Seguimientos por Vencer (7 días)</div>
+        </q-card>
+      </div>
+
+      <!-- Tabla: Seguimientos próximos a vencer -->
+      <div class="col-12 col-md-6" v-if="upcomingTrackings.length > 0">
+        <q-card flat bordered>
+          <q-card-section class="bg-red-1 row items-center justify-between">
+            <div class="text-subtitle1 text-weight-bold text-red-9">
+              <q-icon name="warning" class="q-mr-sm" />Seguimientos Próximos a Vencer
+            </div>
+            <q-btn flat size="sm" color="red" label="Ver todos" to="/instructor/manage-trackings" />
+          </q-card-section>
+          <q-table
+            flat
+            :rows="upcomingTrackings"
+            :columns="trackingAlertColumns"
+            row-key="_id"
+            hide-pagination
+            :pagination="{ rowsPerPage: 5 }"
+            :no-data-label="'No hay seguimientos próximos ✓'"
+          >
+            <template v-slot:body-cell-aprendiz="props">
+              <q-td :props="props">
+                <div class="text-weight-bold">{{ props.row.apprentice?.fullName }}</div>
+                <div class="text-caption text-grey-7">Ficha: {{ props.row.apprentice?.enrollmentNumber || 'N/D' }}</div>
+              </q-td>
+            </template>
+            <template v-slot:body-cell-seguimiento="props">
+              <q-td :props="props">
+                <span>Seguimiento #{{ props.row.trackingNumber }}</span>
+                <q-badge v-if="props.row.isExtraordinary" color="warning" label="Extra" class="q-ml-xs" size="sm" />
+              </q-td>
+            </template>
+            <template v-slot:body-cell-fecha="props">
+              <q-td :props="props">
+                <div :class="getTrackingUrgencyClass(props.row)">
+                  {{ formatDate(props.row.scheduledDate) }}
+                </div>
+                <div class="text-caption" :class="getTrackingUrgencyClass(props.row)">
+                  {{ getDaysUntilLabel(props.row) }}
+                </div>
+              </q-td>
+            </template>
+            <template v-slot:body-cell-accion="props">
+              <q-td :props="props">
+                <q-btn size="sm" color="primary" label="Gestionar" to="/instructor/manage-trackings" />
+              </q-td>
+            </template>
+          </q-table>
+        </q-card>
+      </div>
+
       <!-- Tabla: Bitácoras pendientes de revisión -->
-      <div class="col-12">
+      <div class="col-12 col-md-6">
         <q-card flat bordered>
           <q-card-section class="bg-grey-2 row items-center justify-between">
             <div class="text-subtitle1 text-weight-bold text-black">Bitácoras Pendientes de Revisión</div>
@@ -423,6 +481,7 @@ import bitacoraService from '../api/bitacora.service';
 import userService from '../api/user.service';
 import hourService from '../api/hours.service';
 import notificationService from '../api/notification.service';
+import trackingService from '../api/tracking.service';
 
 const $q = useQuasar();
 const router = useRouter();
@@ -437,9 +496,10 @@ const sendingComment = ref(false);
 const notifications = ref([]);
 const unreadCount = ref(0);
 const loadingNotif = ref(false);
+const upcomingTrackings = ref([]);
 
 const stats = ref({
-  instructor: { totalApprentices: 0, hoursThisMonth: 0, pendingHours: 0, pendingBitacoras: 0 },
+  instructor: { totalApprentices: 0, hoursThisMonth: 0, pendingHours: 0, pendingBitacoras: 0, upcomingTrackings: 0 },
   admin: { activeEPs: 0, totalInstructors: 0, totalApprentices: 0, pendingApprovals: 0 }
 });
 
@@ -492,11 +552,18 @@ const adminActions = [
 
 // ─── Columnas tabla bitácoras ──────────────────────────────────────────────
 const bitacoraColumns = [
-  { name: 'apprentice', label: 'Aprendiz', field: row => row.apprentice?.fullName || '—', align: 'left' },
-  { name: 'logbookNumber', label: 'Bitácora', field: row => `#${row.logbookNumber}`, align: 'left' },
-  { name: 'submittedAt', label: 'Enviada', field: row => formatDate(row.submittedAt), align: 'left' },
+  { name: 'apprentice', label: 'Aprendiz', field: row => row.apprentice?.fullName, align: 'left' },
+  { name: 'logbook', label: 'Bitácora', field: 'logbookNumber', align: 'left' },
+  { name: 'period', label: 'Periodo', field: row => formatDate(row.periodStart) + ' - ' + formatDate(row.periodEnd), align: 'left' },
   { name: 'status', label: 'Estado', align: 'center' },
   { name: 'actions', label: 'Acción', align: 'center' },
+];
+
+const trackingAlertColumns = [
+  { name: 'aprendiz', label: 'Aprendiz', field: row => row.apprentice?.fullName, align: 'left' },
+  { name: 'seguimiento', label: 'Seguimiento', field: 'trackingNumber', align: 'left' },
+  { name: 'fecha', label: 'Fecha Límite', field: 'scheduledDate', align: 'center' },
+  { name: 'accion', label: 'Acción', align: 'center' },
 ];
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
@@ -646,6 +713,27 @@ function commentInitial(c) {
   return 'A';
 }
 
+function getDaysUntilLabel(tracking) {
+  if (!tracking.scheduledDate) return '';
+  const now = new Date();
+  const scheduled = new Date(tracking.scheduledDate);
+  const diff = Math.ceil((scheduled.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+  if (diff < 0) return '¡VENCIDO!';
+  if (diff === 0) return 'HOY';
+  if (diff === 1) return 'Mañana';
+  return `En ${diff} días`;
+}
+
+function getTrackingUrgencyClass(tracking) {
+  if (!tracking.scheduledDate) return 'text-grey';
+  const now = new Date();
+  const scheduled = new Date(tracking.scheduledDate);
+  const diff = Math.ceil((scheduled.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+  if (diff < 0) return 'text-negative text-weight-bold';
+  if (diff <= 3) return 'text-orange text-weight-bold';
+  return 'text-warning';
+}
+
 async function sendComment() {
   if (!newComment.value.trim() || !ep.value) return;
   sendingComment.value = true;
@@ -667,19 +755,20 @@ async function loadInstructor() {
   const month = now.getMonth() + 1;
   const userId = authStore.user?.id || authStore.user?._id;
 
+  const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+
   const results = await Promise.allSettled([
     productiveStageService.getAllEPs({ status: 'ACTIVE', limit: 1 }),
     hourService.getInstructorHours(userId, { year, month }),
     bitacoraService.getPendingReview(),
+    trackingService.getTrackings({ status: 'SCHEDULED', limit: 100 }),
   ]);
 
-  // Aprendices (conteo total de EPs activas asignadas)
   if (results[0].status === 'fulfilled') {
     const d = results[0].value.data;
     stats.value.instructor.totalApprentices = d?.pagination?.total ?? d?.total ?? 0;
   }
 
-  // Horas del mes
   if (results[1].status === 'fulfilled') {
     const d = results[1].value.data;
     const records = d?.records ?? d?.data ?? [];
@@ -689,12 +778,30 @@ async function loadInstructor() {
     stats.value.instructor.pendingHours = rec?.pendingPaymentHours ?? 0;
   }
 
-  // Bitácoras pendientes
   if (results[2].status === 'fulfilled') {
     const d = results[2].value.data;
     const list = d?.bitacoras ?? d?.data ?? [];
     pendingBitacoras.value = (Array.isArray(list) ? list : []).slice(0, 5);
     stats.value.instructor.pendingBitacoras = pendingBitacoras.value.length;
+  }
+
+  if (results[3].status === 'fulfilled') {
+    const d = results[3].value.data;
+    const trackings = d?.trackings || d?.data || [];
+    const list = Array.isArray(trackings) ? trackings : [];
+    upcomingTrackings.value = list
+      .filter(t => {
+        if (!t.scheduledDate) return false;
+        const scheduled = new Date(t.scheduledDate);
+        return scheduled <= sevenDaysFromNow && scheduled >= now;
+      })
+      .sort((a, b) => new Date(a.scheduledDate) - new Date(b.scheduledDate))
+      .slice(0, 5);
+    stats.value.instructor.upcomingTrackings = list.filter(t => {
+      if (!t.scheduledDate) return false;
+      const scheduled = new Date(t.scheduledDate);
+      return scheduled <= sevenDaysFromNow;
+    }).length;
   }
 }
 

@@ -10,7 +10,9 @@ import {
   buildBitacoraSubject, buildBitacoraMessage,
   buildBitacoraOverdueSubject, buildBitacoraOverdueMessage,
   buildTrackingSubject, buildTrackingMessage,
-  buildTrackingDeadlineSubject, buildTrackingDeadlineMessage
+  buildTrackingDeadlineSubject, buildTrackingDeadlineMessage,
+  buildInstructorTrackingDeadlineSubject, buildInstructorTrackingDeadlineMessage,
+  buildLastTrackingCriticalSubject, buildLastTrackingCriticalMessage
 } from '../templates/calendarReminderEmail.template.js';
 import { buildExpirySubject, buildExpiryMessage } from '../templates/enrollmentExpiryEmail.template.js';
 
@@ -293,18 +295,16 @@ const checkCriticalDesertion = async () => {
 };
 
 /**
- * Check tracking deadlines and send YELLOW/ORANGE/RED alerts (RF-004 Escenario 2)
- * - YELLOW: tracking scheduled in 7 days
- * - ORANGE: tracking scheduled in 3 days
- * - RED: tracking scheduled date has passed and not executed
+ * Check tracking deadlines and send YELLOW/ORANGE/RED alerts (RF-004 Escenario 2 + RF-005.0)
+ * - YELLOW: tracking scheduled in 7 days → apprentice + instructor
+ * - ORANGE: tracking scheduled in 3 days → apprentice + instructor
+ * - RED: tracking scheduled date has passed → apprentice + instructor + admin
  * Runs daily at 8:00 AM.
  */
 const checkTrackingDeadlines = async () => {
   console.log('[Cron] Verificando plazos de seguimientos...');
 
   const now = new Date();
-  const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-  const threeDaysFromNow = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
 
   const pendingTrackings = await Tracking.find({
     status: 'SCHEDULED',
@@ -319,7 +319,12 @@ const checkTrackingDeadlines = async () => {
     const daysUntil = Math.ceil((scheduled.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
     const recipients = [tracking.apprentice._id.toString()];
 
-    // RED: passed deadline
+    // Include instructor in recipients
+    if (tracking.instructor) {
+      recipients.push(tracking.instructor._id.toString());
+    }
+
+    // RED: passed deadline (daysUntil < 0)
     if (daysUntil < 0) {
       const admins = await User.find({ role: 'ADMIN', isActive: true }).select('_id');
       const adminIds = admins.map(a => a._id.toString());
@@ -452,6 +457,70 @@ const checkPendingBitacoraAlerts = async () => {
 };
 
 /**
+ * Check for LAST tracking deadlines (RF-005.0 Sub-flow 2.0)
+ * When the LAST required tracking is due within 7 days, send CRITICAL alert to instructor
+ * highlighting risk of non-certification with apprentice name and document ID.
+ * Runs daily at 8:00 AM.
+ */
+const checkLastTrackingDeadlines = async () => {
+  console.log('[Cron] Verificando últimos seguimientos próximos a vencer...');
+
+  const now = new Date();
+  const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+  const activeEPs = await ProductiveStage.find({
+    status: { $in: ['ACTIVE', 'IN_FOLLOWUP'] },
+    isActive: true
+  }).populate('apprentice followupInstructor');
+
+  let criticalSent = 0;
+
+  for (const ep of activeEPs) {
+    if (!ep.apprentice) continue;
+
+    const requiredTrackings = ep.requiredTrackings || (ep.apprentice.trainingLevel === 'TECHNICIAN' || ep.apprentice.trainingLevel === 'TECHNOLOGIST' ? 3 : 2);
+
+    const lastTracking = await Tracking.findOne({
+      productiveStage: ep._id,
+      trackingNumber: requiredTrackings,
+      status: 'SCHEDULED',
+      isActive: true
+    }).populate('instructor');
+
+    if (!lastTracking || !lastTracking.scheduledDate) continue;
+
+    const scheduled = new Date(lastTracking.scheduledDate);
+    const daysUntil = Math.ceil((scheduled.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
+    if (daysUntil < 0 || daysUntil > 7) continue;
+
+    const instructor = lastTracking.instructor || ep.followupInstructor;
+    if (!instructor) continue;
+
+    await notificationService.send({
+      type: 'TRACKING_LAST_DEADLINE',
+      recipients: [instructor._id.toString()],
+      title: buildLastTrackingCriticalSubject(),
+      message: buildLastTrackingCriticalMessage({
+        apprenticeName: ep.apprentice.fullName,
+        apprenticeDoc: ep.apprentice.nationalId || 'N/D',
+        trackingNumber: requiredTrackings,
+        scheduledDate: lastTracking.scheduledDate,
+        daysUntil,
+        enrollmentNumber: ep.apprentice.enrollmentNumber,
+        program: ep.apprentice.program
+      }),
+      metadata: { entity: 'Tracking', entityId: lastTracking._id }
+    });
+
+    console.log(`[Cron] ALERTA CRÍTICA último seguimiento: ${ep.apprentice.fullName} (Doc: ${ep.apprentice.nationalId}) - Seguimiento #${requiredTrackings} en ${daysUntil} día(s)`);
+    criticalSent++;
+  }
+
+  console.log(`[Cron] Alertas críticas de último seguimiento enviadas: ${criticalSent}`);
+};
+
+/**
  * Start all scheduled jobs
  */
 export const initJobs = () => {
@@ -462,6 +531,7 @@ export const initJobs = () => {
     await checkBitacoraSchedule();
     await checkUpcomingTrackings();
     await checkTrackingDeadlines();
+    await checkLastTrackingDeadlines();
     await checkEnrollmentExpiry();
     await checkCriticalDesertion();
   });

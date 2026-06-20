@@ -82,6 +82,10 @@ class UserController {
 
     async getApprentices(req, res) {
         try {
+            if (req.user.role === 'INSTRUCTOR') {
+                const data = await userService.getApprenticesForInstructor(req.user.id, req.query);
+                return successResponse(res, 200, "Aprendices obtenidos exitosamente", data);
+            }
             const data = await userService.getApprentices(req.query);
             return successResponse(res, 200, "Aprendices obtenidos exitosamente", data);
         } catch (error) {
