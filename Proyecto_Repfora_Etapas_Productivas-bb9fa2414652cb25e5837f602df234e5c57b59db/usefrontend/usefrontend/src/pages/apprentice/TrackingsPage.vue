@@ -1,76 +1,83 @@
 <template>
   <div class="trackings-container q-pa-md">
-    <div class="row items-center q-mb-md">
-      <div class="col">
-        <h2 class="text-h4 text-black text-weight-bold q-my-none">Mis Seguimientos</h2>
-        <p class="text-grey-7 q-my-sm" v-if="isProjectModality">Carga tus avances de proyecto para cada seguimiento programado.</p>
-        <p class="text-grey-7 q-my-sm" v-else>Cronograma y registro de evaluaciones con tus instructores.</p>
+    <!-- Premium Header -->
+    <div class="page-header q-mb-xl row items-center justify-between shadow-4">
+      <div class="cover-overlay"></div>
+      <div class="header-content col-12 col-md-auto q-mb-sm-md text-white">
+        <h2 class="text-h3 text-weight-bolder q-my-none shadow-text">
+          <q-icon name="co_present" class="q-mr-sm" size="md"/>Mis Seguimientos
+        </h2>
+        <p class="text-subtitle1 opacity-80 q-mt-xs q-mb-none" v-if="isProjectModality">Carga tus avances de proyecto para cada seguimiento programado.</p>
+        <p class="text-subtitle1 opacity-80 q-mt-xs q-mb-none" v-else>Cronograma y registro de evaluaciones con tus instructores.</p>
       </div>
     </div>
 
     <!-- Loading State -->
-    <q-card flat bordered v-if="loading" class="q-pa-xl text-center">
-      <q-spinner color="primary" size="3em" />
+    <q-card v-if="loading" class="my-card no-shadow q-pa-xl text-center">
+      <q-spinner color="primary" size="4em" />
+      <p class="text-h6 text-primary text-weight-medium q-mt-md">Cargando seguimientos...</p>
     </q-card>
 
     <!-- Error/No EP State -->
-    <q-card flat bordered v-else-if="!ep || !isActiveEP" class="bg-blue-1 text-center q-pa-xl">
-      <q-icon name="warning" size="4em" color="primary" class="q-mb-md" />
-      <div class="text-h6 text-primary">Seguimientos no disponibles</div>
-      <p class="text-grey-8">Tu etapa productiva debe estar activa o en seguimiento para ver tus evaluaciones.</p>
-      <q-btn color="primary" outline label="Registrar Etapa" to="/register-ep" class="q-mt-md" />
+    <q-card v-else-if="!ep || !isActiveEP" class="my-card no-shadow text-center q-pa-xl">
+      <q-icon name="event_busy" size="5em" color="primary" class="q-mb-md" />
+      <div class="text-h5 text-primary text-weight-bold">Seguimientos no disponibles</div>
+      <p class="text-grey-8 q-mt-sm">Tu etapa productiva debe estar activa o en seguimiento para ver tus evaluaciones.</p>
+      <q-btn color="primary" icon="app_registration" label="Registrar Etapa" to="/register-ep" class="q-mt-md header-btn text-weight-bold shadow-2" rounded />
     </q-card>
 
     <div v-else>
       <!-- Project Modality Info Banner -->
-      <q-card flat bordered class="q-mb-md bg-amber-1 border-amber" v-if="isProjectModality">
-        <q-card-section class="row items-center q-pa-md">
-          <q-icon name="info" color="warning" size="md" class="q-mr-sm" />
+      <q-card class="my-card no-shadow q-mb-lg bg-amber-1" v-if="isProjectModality">
+        <q-card-section class="row items-center q-pa-lg">
+          <q-icon name="info" color="warning" size="lg" class="q-mr-md" />
           <div>
-            <div class="text-subtitle2 text-weight-bold">Modalidad de Proyecto</div>
-            <div class="text-caption text-grey-8">
-              Debes subir un archivo PDF con tus avances antes de cada seguimiento. 
-              El instructor revisar&aacute; tu progreso en la reuni&oacute;n.
-            </div>
+            <div class="text-subtitle1 text-weight-bold text-warning">Modalidad de Proyecto</div>
+            <div class="text-caption text-grey-8 q-mt-xs">Debes subir un archivo PDF con tus avances antes de cada seguimiento. El instructor revisar&aacute; tu progreso en la reuni&oacute;n.</div>
           </div>
         </q-card-section>
       </q-card>
 
       <!-- Summary KPI -->
-      <div class="row q-col-gutter-md q-mb-md" v-if="summary">
+      <div class="row q-col-gutter-lg q-mb-lg" v-if="summary">
         <div class="col-12 col-md-4">
-          <q-card flat bordered class="bg-blue-1 border-blue text-center q-pa-md">
-            <div class="text-h4 text-weight-bold text-primary">{{ summary.required || ep.requiredTrackings || '?' }}</div>
-            <div class="text-caption text-grey-8">Requeridos</div>
+          <q-card class="my-card no-shadow text-center q-pa-lg kpi-card">
+            <q-icon name="format_list_numbered" color="primary" size="lg" class="q-mb-sm" />
+            <div class="text-h3 text-weight-bolder text-primary">{{ summary.required || ep.requiredTrackings || '?' }}</div>
+            <div class="text-caption text-uppercase text-weight-bold text-grey-7 q-mt-xs">Requeridos</div>
           </q-card>
         </div>
         <div class="col-12 col-md-4">
-          <q-card flat bordered class="bg-green-1 border-green text-center q-pa-md">
-            <div class="text-h4 text-weight-bold text-positive">{{ summary.completed || ep.completedTrackings || 0 }}</div>
-            <div class="text-caption text-grey-8">Ejecutados</div>
+          <q-card class="my-card no-shadow text-center q-pa-lg kpi-card">
+            <q-icon name="check_circle" color="positive" size="lg" class="q-mb-sm" />
+            <div class="text-h3 text-weight-bolder text-positive">{{ summary.completed || ep.completedTrackings || 0 }}</div>
+            <div class="text-caption text-uppercase text-weight-bold text-grey-7 q-mt-xs">Ejecutados</div>
           </q-card>
         </div>
         <div class="col-12 col-md-4">
-          <q-card flat bordered class="bg-orange-1 border-orange text-center q-pa-md">
-            <div class="text-h4 text-weight-bold text-warning">{{ summary.pending || 0 }}</div>
-            <div class="text-caption text-grey-8">Programados</div>
+          <q-card class="my-card no-shadow text-center q-pa-lg kpi-card">
+            <q-icon name="pending_actions" color="warning" size="lg" class="q-mb-sm" />
+            <div class="text-h3 text-weight-bolder text-warning">{{ summary.pending || 0 }}</div>
+            <div class="text-caption text-uppercase text-weight-bold text-grey-7 q-mt-xs">Programados</div>
           </q-card>
         </div>
       </div>
 
       <!-- Table -->
-      <q-card flat bordered>
+      <q-card class="my-card no-shadow">
         <q-table
           :rows="trackings"
           :columns="columns"
           row-key="_id"
           flat
+          class="custom-table bg-transparent"
+          table-header-class="custom-table-header"
           hide-pagination
           :pagination="{ rowsPerPage: 50 }"
         >
           <template v-slot:body-cell-trackingNumber="props">
             <q-td :props="props">
-              <div class="text-weight-bold">Seguimiento #{{ props.value }}</div>
+              <div class="text-weight-bold text-primary">Seguimiento #{{ props.value }}</div>
               <q-badge v-if="props.row.isExtraordinary" color="negative" label="Extraordinario" />
             </q-td>
           </template>
@@ -321,12 +328,63 @@ async function uploadAdvances() {
 </script>
 
 <style scoped>
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
+
 .trackings-container {
   max-width: 1200px;
   margin: 0 auto;
+  font-family: 'Outfit', sans-serif;
+  animation: fadeIn 0.5s ease-out;
 }
-.border-blue { border-color: #bbdefb; }
-.border-green { border-color: #c8e6c9; }
-.border-orange { border-color: #ffe0b2; }
-.border-amber { border-color: #ffecb3; }
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.page-header {
+  background: linear-gradient(135deg, #093028 0%, #237A57 100%);
+  border-radius: 20px;
+  padding: 30px;
+  position: relative;
+  overflow: hidden;
+}
+.cover-overlay {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-image: radial-gradient(circle at 2px 2px, rgba(255,255,255,0.1) 1px, transparent 0);
+  background-size: 20px 20px;
+  pointer-events: none;
+}
+.shadow-text { text-shadow: 2px 2px 8px rgba(0,0,0,0.4); }
+.opacity-80 { opacity: 0.8; }
+
+.my-card {
+  border-radius: 20px;
+  background: rgba(255,255,255,0.98);
+  backdrop-filter: blur(15px);
+  border: 1px solid rgba(0,0,0,0.03);
+  box-shadow: 0 10px 40px rgba(0,0,0,0.06) !important;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.kpi-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 15px 40px rgba(0,0,0,0.1) !important;
+}
+
+.custom-table :deep(.q-table__container) { background: transparent; }
+.custom-table :deep(th) {
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #4a5568;
+  border-bottom: 2px solid rgba(0,0,0,0.05);
+}
+.custom-table :deep(tbody tr) { transition: all 0.2s ease; }
+.custom-table :deep(tbody tr:hover) { background-color: #f8fcfb !important; }
+.custom-table :deep(td) { border-bottom: 1px solid rgba(0,0,0,0.03); }
+
+.header-btn { transition: all 0.3s ease; }
+.header-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 15px rgba(0,0,0,0.2) !important; }
 </style>

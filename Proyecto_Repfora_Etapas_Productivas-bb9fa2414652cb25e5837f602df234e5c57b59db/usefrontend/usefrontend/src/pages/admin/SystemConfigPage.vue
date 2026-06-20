@@ -1,42 +1,46 @@
 <template>
   <div class="config-container q-pa-md">
-    <div class="row items-center q-mb-md">
-      <div class="col">
-        <h2 class="text-h4 text-black text-weight-bold q-my-none">Configuración del Sistema</h2>
-        <p class="text-grey-7 q-my-sm">Parámetros globales, límites de horas y alertas.</p>
+    <!-- Premium Header -->
+    <div class="page-header q-mb-xl row items-center justify-between shadow-4">
+      <div class="cover-overlay"></div>
+      <div class="header-content col-12 col-md-auto q-mb-sm-md text-white">
+        <h2 class="text-h3 text-weight-bolder q-my-none shadow-text">
+          <q-icon name="settings_system_daydream" class="q-mr-sm" size="md"/>Configuración del Sistema
+        </h2>
+        <p class="text-subtitle1 opacity-80 q-mt-xs q-mb-none">Parámetros globales, límites de horas y alertas.</p>
       </div>
     </div>
     
-    <q-card flat bordered v-if="loading" class="q-pa-xl text-center">
-      <q-spinner color="primary" size="3em" />
-      <div class="q-mt-md text-grey">Cargando configuraciones...</div>
+    <q-card v-if="loading" class="my-card no-shadow q-pa-xl text-center">
+      <q-spinner color="primary" size="4em" />
+      <div class="q-mt-md text-h6 text-primary text-weight-medium">Cargando configuraciones...</div>
     </q-card>
 
-    <div class="row q-col-gutter-md" v-else>
+    <div class="row q-col-gutter-lg" v-else>
       <div class="col-12" v-for="config in configs" :key="config.key">
-        <q-card flat bordered>
-          <q-card-section class="row items-center">
-            <div class="col-12 col-md-4">
-              <div class="text-weight-bold text-subtitle1">{{ formatKeyName(config.key) }}</div>
-              <div class="text-caption text-grey-7">{{ config.description || config.key }}</div>
+        <q-card class="my-card config-item no-shadow">
+          <q-card-section class="row items-center q-pa-lg">
+            <div class="col-12 col-md-5 q-mb-sm-md q-mb-md-none">
+              <div class="text-weight-bold text-h6 text-primary">{{ formatKeyName(config.key) }}</div>
+              <div class="text-caption text-grey-8 text-weight-medium q-mt-xs">{{ config.description || config.key }}</div>
             </div>
             
-            <div class="col-12 col-md-6 q-px-md">
+            <div class="col-12 col-md-5 q-px-md-xl q-mb-sm-md q-mb-md-none">
               <q-input 
                 v-if="typeof config.value === 'number' || !isNaN(config.value)" 
                 v-model.number="config.editValue" 
                 type="number" 
-                dense outlined 
+                dense outlined color="primary" class="glass-input text-weight-bold"
               />
               <q-toggle 
                 v-else-if="typeof config.value === 'boolean' || config.value === 'true' || config.value === 'false'" 
                 v-model="config.editValue" 
-                color="primary" 
+                color="primary" size="lg"
               />
               <q-input 
                 v-else 
                 v-model="config.editValue" 
-                dense outlined 
+                dense outlined color="primary" class="glass-input text-weight-bold"
               />
             </div>
             
@@ -45,6 +49,7 @@
                 color="secondary" 
                 icon="save" 
                 label="Actualizar" 
+                class="header-btn text-weight-bold shadow-2 full-width" rounded
                 @click="updateConfig(config)" 
                 :disable="config.value === config.editValue"
                 :loading="config.saving"
@@ -184,8 +189,73 @@ function formatKeyName(key) {
 </script>
 
 <style scoped>
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
+
 .config-container {
-  max-width: 1000px;
+  max-width: 1200px;
   margin: 0 auto;
+  font-family: 'Outfit', sans-serif;
+  animation: fadeIn 0.5s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Premium Header */
+.page-header {
+  background: linear-gradient(135deg, #093028 0%, #237A57 100%);
+  border-radius: 20px;
+  padding: 30px;
+  position: relative;
+  overflow: hidden;
+}
+
+.cover-overlay {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-image: radial-gradient(circle at 2px 2px, rgba(255,255,255,0.1) 1px, transparent 0);
+  background-size: 20px 20px;
+  pointer-events: none;
+}
+
+.shadow-text { text-shadow: 2px 2px 8px rgba(0,0,0,0.4); }
+.opacity-80 { opacity: 0.8; }
+
+/* Cards & Glassmorphism */
+.my-card {
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(15px);
+  border: 1px solid rgba(0,0,0,0.03);
+  box-shadow: 0 10px 40px rgba(0,0,0,0.06) !important;
+  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.3s ease;
+}
+
+.config-item:hover {
+  transform: translateX(5px);
+  box-shadow: -5px 15px 40px rgba(0,0,0,0.08) !important;
+  border-left: 4px solid var(--q-primary);
+}
+
+/* Inputs */
+.glass-input :deep(.q-field__control) {
+  border-radius: 12px;
+  transition: all 0.3s ease;
+  background: #f8fcfb;
+}
+
+.glass-input:focus-within :deep(.q-field__control) {
+  transform: scale(1.02);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+  background: #fff;
+}
+
+/* Buttons */
+.header-btn { transition: all 0.3s ease; }
+.header-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 15px rgba(0,0,0,0.2) !important;
 }
 </style>

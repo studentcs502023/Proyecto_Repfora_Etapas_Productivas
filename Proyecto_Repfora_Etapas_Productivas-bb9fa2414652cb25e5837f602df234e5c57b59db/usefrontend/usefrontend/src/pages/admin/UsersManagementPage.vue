@@ -1,59 +1,102 @@
 <template>
   <div class="users-container q-pa-md">
-    <div class="row items-center q-mb-md">
-      <div class="col">
-        <h2 class="text-h4 text-black text-weight-bold q-my-none">Gestión de Usuarios</h2>
+    <!-- Premium Header -->
+    <div class="page-header q-mb-xl row items-center justify-between shadow-4">
+      <div class="cover-overlay"></div>
+      <div class="header-content col-12 col-md-auto q-mb-sm-md text-white">
+        <h2 class="text-h3 text-weight-bolder q-my-none shadow-text">
+          <q-icon name="group" class="q-mr-sm" size="md"/>Gestión de Usuarios
+        </h2>
+        <p class="text-subtitle1 opacity-80 q-mt-xs q-mb-none">Administra instructores y aprendices del sistema</p>
       </div>
-      <div class="col-auto q-gutter-sm">
-        <q-btn v-if="activeTab === 'APPRENTICES'" color="secondary" outline icon="upload_file" label="Importar Aprendices" @click="showImportModal = true" />
-        <q-btn color="primary" icon="add" :label="activeTab === 'INSTRUCTORS' ? 'Nuevo Instructor' : 'Nuevo Aprendiz'" @click="openCreateModal(activeTab)" />
+      <div class="header-actions col-12 col-md-auto q-gutter-sm row justify-end items-center">
+        <q-btn 
+          v-if="activeTab === 'APPRENTICES'" 
+          color="white" 
+          text-color="primary"
+          icon="upload_file" 
+          label="Importar Aprendices" 
+          class="header-btn text-weight-bold shadow-2"
+          rounded
+          @click="showImportModal = true" 
+        />
+        <q-btn 
+          color="secondary" 
+          text-color="white"
+          icon="add" 
+          :label="activeTab === 'INSTRUCTORS' ? 'Nuevo Instructor' : 'Nuevo Aprendiz'" 
+          class="header-btn text-weight-bold shadow-2"
+          rounded
+          @click="openCreateModal(activeTab)" 
+        />
       </div>
     </div>
 
     <!-- Tabs for Roles -->
-    <q-tabs
-      v-model="activeTab"
-      dense
-      class="text-grey"
-      active-color="primary"
-      indicator-color="primary"
-      align="left"
-      narrow-indicator
-    >
-      <q-tab name="INSTRUCTORS" label="Instructores" />
-      <q-tab name="APPRENTICES" label="Aprendices" />
-    </q-tabs>
-
-    <q-separator />
+    <div class="tabs-wrapper q-mb-lg flex flex-center">
+      <q-tabs
+        v-model="activeTab"
+        dense
+        class="custom-tabs bg-white shadow-2 rounded-borders"
+        active-color="white"
+        active-bg-color="primary"
+        indicator-color="transparent"
+        align="center"
+        narrow-indicator
+      >
+        <q-tab name="INSTRUCTORS" class="custom-tab text-weight-bold" icon="school" label="Instructores" />
+        <q-tab name="APPRENTICES" class="custom-tab text-weight-bold" icon="local_library" label="Aprendices" />
+      </q-tabs>
+    </div>
 
     <!-- Filters -->
-    <q-card flat bordered class="q-mt-md q-mb-md">
-      <q-card-section class="row q-col-gutter-sm items-center">
-        <div class="col-12 col-sm-4">
-          <q-input v-model="filter" dense outlined placeholder="Buscar por nombre o cédula..." @update:model-value="debouncedFetch">
-            <template v-slot:append><q-icon name="search" /></template>
+    <q-card class="filter-card my-card q-mb-lg no-shadow">
+      <q-card-section class="row q-col-gutter-md items-center">
+        <div class="col-12 col-md-6">
+          <q-input 
+            v-model="filter" 
+            dense 
+            outlined 
+            color="primary"
+            class="glass-input text-weight-medium"
+            placeholder="Buscar por nombre o cédula..." 
+            @update:model-value="debouncedFetch"
+          >
+            <template v-slot:prepend><q-icon name="search" color="grey-6" /></template>
           </q-input>
         </div>
-        <div class="col-12 col-sm-3">
-          <q-checkbox v-model="showInactive" label="Mostrar Inactivos" dense color="primary" @update:model-value="fetchUsers" />
+        <div class="col-12 col-md-6 row justify-end items-center">
+          <q-checkbox 
+            v-model="showInactive" 
+            label="Mostrar Usuarios Inactivos" 
+            color="secondary" 
+            class="text-weight-medium text-grey-8 custom-checkbox"
+            @update:model-value="fetchUsers" 
+          />
         </div>
       </q-card-section>
     </q-card>
 
     <!-- Users Table -->
-    <q-card flat bordered>
+    <q-card class="table-card my-card no-shadow">
       <q-table
         :rows="users"
         :columns="columns"
         :loading="loading"
         row-key="_id"
         flat
+        class="custom-table bg-transparent"
+        table-header-class="custom-table-header"
         v-model:pagination="pagination"
         @request="onRequest"
       >
+        <template v-slot:loading>
+          <q-inner-loading showing color="primary" />
+        </template>
+        
         <template v-slot:body-cell-role="props">
           <q-td :props="props">
-            <q-badge :color="getRoleColor(props.value)" :label="getRoleLabel(props.value)" />
+            <q-badge :color="getRoleColor(props.value)" :label="getRoleLabel(props.value)" class="role-badge q-px-sm q-py-xs text-weight-bold shadow-1" rounded />
           </q-td>
         </template>
 
@@ -64,7 +107,7 @@
               color="negative"
               text-color="white"
               dense
-              size="sm"
+              class="status-chip text-weight-bold shadow-1"
             >
               ELIMINADO
             </q-chip>
@@ -73,7 +116,7 @@
               color="warning"
               text-color="white"
               dense
-              size="sm"
+              class="status-chip text-weight-bold shadow-1"
             >
               INACTIVO
             </q-chip>
@@ -82,7 +125,7 @@
               color="orange"
               text-color="white"
               dense
-              size="sm"
+              class="status-chip text-weight-bold shadow-1"
             >
               CONTRATO FINALIZADO
             </q-chip>
@@ -91,7 +134,7 @@
               color="positive"
               text-color="white"
               dense
-              size="sm"
+              class="status-chip text-weight-bold shadow-1"
             >
               ACTIVO
             </q-chip>
@@ -100,32 +143,28 @@
 
         <template v-slot:body-cell-actions="props">
           <q-td :props="props" class="q-gutter-xs">
-            <q-btn size="sm" flat round color="secondary" icon="edit" @click="editUser(props.row)">
-              <q-tooltip>Editar usuario</q-tooltip>
+            <q-btn size="sm" flat round color="secondary" icon="edit" class="action-btn" @click="editUser(props.row)">
+              <q-tooltip class="bg-secondary text-white shadow-4">Editar usuario</q-tooltip>
             </q-btn>
 
-            <q-btn v-if="activeTab === 'APPRENTICES'" size="sm" flat round color="accent" icon="assignment_ind" @click="openAssignModal(props.row)">
-              <q-tooltip>Asignar instructor</q-tooltip>
+            <q-btn v-if="activeTab === 'APPRENTICES'" size="sm" flat round color="accent" icon="assignment_ind" class="action-btn" @click="openAssignModal(props.row)">
+              <q-tooltip class="bg-accent text-white shadow-4">Asignar instructor</q-tooltip>
             </q-btn>
 
-            <!-- Deshabilitar (solo instructores activos) -->
-            <q-btn v-if="activeTab === 'INSTRUCTORS' && props.row.isActive && props.row.status === 'ACTIVE'" size="sm" flat round color="warning" icon="block" @click="confirmDisableInstructor(props.row)">
-              <q-tooltip>Deshabilitar instructor</q-tooltip>
+            <q-btn v-if="activeTab === 'INSTRUCTORS' && props.row.isActive && props.row.status === 'ACTIVE'" size="sm" flat round color="warning" icon="block" class="action-btn" @click="confirmDisableInstructor(props.row)">
+              <q-tooltip class="bg-warning text-white shadow-4">Deshabilitar instructor</q-tooltip>
             </q-btn>
 
-            <!-- Habilitar (solo instructores inactivos por estado) -->
-            <q-btn v-if="activeTab === 'INSTRUCTORS' && props.row.isActive && props.row.status === 'INACTIVE'" size="sm" flat round color="positive" icon="check_circle" @click="confirmEnableInstructor(props.row)">
-              <q-tooltip>Habilitar instructor</q-tooltip>
+            <q-btn v-if="activeTab === 'INSTRUCTORS' && props.row.isActive && props.row.status === 'INACTIVE'" size="sm" flat round color="positive" icon="check_circle" class="action-btn" @click="confirmEnableInstructor(props.row)">
+              <q-tooltip class="bg-positive text-white shadow-4">Habilitar instructor</q-tooltip>
             </q-btn>
 
-            <!-- Activar (si está eliminado / isActive = false) -->
-            <q-btn v-if="!props.row.isActive" size="sm" flat round color="positive" icon="restore_from_trash" @click="confirmActivateUser(props.row)">
-              <q-tooltip>Restaurar usuario eliminado</q-tooltip>
+            <q-btn v-if="!props.row.isActive" size="sm" flat round color="positive" icon="restore_from_trash" class="action-btn" @click="confirmActivateUser(props.row)">
+              <q-tooltip class="bg-positive text-white shadow-4">Restaurar usuario eliminado</q-tooltip>
             </q-btn>
 
-            <!-- Eliminar (soft delete) -->
-            <q-btn v-if="props.row.isActive" size="sm" flat round color="negative" icon="delete" @click="confirmDeleteUser(props.row)">
-              <q-tooltip>Eliminar usuario</q-tooltip>
+            <q-btn v-if="props.row.isActive" size="sm" flat round color="negative" icon="delete" class="action-btn" @click="confirmDeleteUser(props.row)">
+              <q-tooltip class="bg-negative text-white shadow-4">Eliminar usuario</q-tooltip>
             </q-btn>
           </q-td>
         </template>
@@ -133,36 +172,41 @@
     </q-card>
 
     <!-- Modal: Nuevo/Editar Usuario -->
-    <q-dialog v-model="showUserModal" persistent>
-      <q-card :style="activeTab === 'APPRENTICES' ? 'width: 650px; max-width: 95vw;' : 'width: 500px; max-width: 90vw;'">
+    <q-dialog v-model="showUserModal" persistent transition-show="scale" transition-hide="scale">
+      <q-card class="modal-card" :style="activeTab === 'APPRENTICES' ? 'width: 750px; max-width: 95vw;' : 'width: 550px; max-width: 90vw;'">
         <q-form @submit="saveUser">
-          <q-card-section class="bg-primary text-white">
-            <div class="text-h6">{{ isEditing ? 'Editar Usuario' : (activeTab === 'INSTRUCTORS' ? 'Nuevo Instructor' : 'Nuevo Aprendiz') }}</div>
+          <q-card-section class="bg-primary text-white row items-center">
+            <div class="text-h6 text-weight-bold">
+              <q-icon :name="isEditing ? 'edit' : 'add_circle'" class="q-mr-sm" size="sm"/>
+              {{ isEditing ? 'Editar Usuario' : (activeTab === 'INSTRUCTORS' ? 'Nuevo Instructor' : 'Nuevo Aprendiz') }}
+            </div>
+            <q-space />
+            <q-btn icon="close" flat round dense v-close-popup />
           </q-card-section>
           
-          <q-card-section class="q-pa-md q-gutter-md">
+          <q-card-section class="q-pa-lg q-gutter-md">
             <!-- Campos comunes -->
-            <div class="text-subtitle2 text-grey-7 q-mb-xs">Datos Personales</div>
-            <div class="row q-col-gutter-sm">
+            <div class="text-subtitle2 text-primary text-uppercase text-weight-bold q-mb-sm"><q-icon name="person" class="q-mr-xs"/>Datos Personales</div>
+            <div class="row q-col-gutter-md">
               <div class="col-12 col-md-6">
-                <q-input v-model="userForm.nationalId" label="Cédula / Documento" outlined dense :disable="isEditing" :rules="[val => !!val || 'Requerido', val => /^\d{7,15}$/.test(val) || 'Debe tener solo dígitos (7-15)']" />
+                <q-input v-model="userForm.nationalId" label="Cédula / Documento" outlined dense color="primary" class="glass-input" :disable="isEditing" :rules="[val => !!val || 'Requerido', val => /^\d{7,15}$/.test(val) || 'Debe tener solo dígitos (7-15)']" />
               </div>
               <div class="col-12 col-md-6">
-                <q-input v-model="userForm.fullName" label="Nombre Completo" outlined dense :rules="[val => !!val || 'Requerido', val => !val || !/\d/.test(val) || 'No se permiten números']" />
+                <q-input v-model="userForm.fullName" label="Nombre Completo" outlined dense color="primary" class="glass-input" :rules="[val => !!val || 'Requerido', val => !val || !/\d/.test(val) || 'No se permiten números']" />
               </div>
               <div class="col-12 col-md-6">
-                <q-input v-model="userForm.email" label="Correo Electrónico" type="email" outlined dense :rules="[val => !!val || 'Requerido', val => !val || /.+@.+\..+/.test(val) || 'El correo debe contener @ y un dominio válido']" />
+                <q-input v-model="userForm.email" label="Correo Electrónico" type="email" outlined dense color="primary" class="glass-input" :rules="[val => !!val || 'Requerido', val => !val || /.+@.+\..+/.test(val) || 'El correo debe contener @ y un dominio válido']" />
               </div>
               <div class="col-12 col-md-6">
-                <q-input v-model="userForm.phone" label="Teléfono" outlined dense :rules="[val => !val || /^\d{7,15}$/.test(val) || 'Debe tener solo dígitos (7-15)']" />
+                <q-input v-model="userForm.phone" label="Teléfono" outlined dense color="primary" class="glass-input" :rules="[val => !val || /^\d{7,15}$/.test(val) || 'Debe tener solo dígitos (7-15)']" />
               </div>
             </div>
             
             <!-- Campos exclusivos Instructor -->
             <template v-if="activeTab === 'INSTRUCTORS'">
-              <q-separator class="q-my-sm" />
-              <div class="text-subtitle2 text-grey-7 q-mb-xs">Datos del Instructor</div>
-              <div class="row q-col-gutter-sm">
+              <q-separator class="q-my-md opacity-20" />
+              <div class="text-subtitle2 text-primary text-uppercase text-weight-bold q-mb-sm"><q-icon name="work" class="q-mr-xs"/>Datos del Instructor</div>
+              <div class="row q-col-gutter-md">
                 <div class="col-12 col-md-6">
                   <q-select 
                     v-model="userForm.instructorType" 
@@ -172,7 +216,7 @@
                     emit-value
                     map-options
                     label="Tipo de Instructor" 
-                    outlined dense 
+                    outlined dense color="primary" class="glass-input"
                     :rules="[val => !!val || 'Requerido']" 
                   />
                 </div>
@@ -181,7 +225,7 @@
                     v-model="userForm.knowledgeArea"
                     :options="knowledgeAreasFiltered"
                     label="Área de Conocimiento"
-                    outlined dense
+                    outlined dense color="primary" class="glass-input"
                     emit-value
                     map-options
                     use-input
@@ -195,18 +239,18 @@
             
             <!-- Campos exclusivos Aprendiz -->
             <template v-if="activeTab === 'APPRENTICES'">
-              <q-separator class="q-my-sm" />
-              <div class="text-subtitle2 text-grey-7 q-mb-xs">Datos Académicos</div>
-              <div class="row q-col-gutter-sm">
+              <q-separator class="q-my-md opacity-20" />
+              <div class="text-subtitle2 text-primary text-uppercase text-weight-bold q-mb-sm"><q-icon name="school" class="q-mr-xs"/>Datos Académicos</div>
+              <div class="row q-col-gutter-md">
                 <div class="col-12 col-md-4">
-                  <q-input v-model="userForm.enrollmentNumber" label="No. Ficha" outlined dense :rules="[val => !!val || 'Requerido', val => /^\d+$/.test(val) || 'Solo números']" />
+                  <q-input v-model="userForm.enrollmentNumber" label="No. Ficha" outlined dense color="primary" class="glass-input" :rules="[val => !!val || 'Requerido', val => /^\d+$/.test(val) || 'Solo números']" />
                 </div>
                 <div class="col-12 col-md-4">
                   <q-select
                     v-model="userForm.program"
                     :options="programsFiltered"
                     label="Programa de Formación"
-                    outlined dense
+                    outlined dense color="primary" class="glass-input"
                     emit-value
                     map-options
                     use-input
@@ -224,7 +268,7 @@
                     emit-value
                     map-options
                     label="Nivel de Formación" 
-                    outlined dense 
+                    outlined dense color="primary" class="glass-input"
                     :rules="[val => !!val || 'Requerido']" 
                   />
                 </div>
@@ -233,7 +277,7 @@
                     v-model="userForm.trainingCenter"
                     :options="centersFiltered"
                     label="Centro de Formación"
-                    outlined dense
+                    outlined dense color="primary" class="glass-input"
                     emit-value
                     map-options
                     use-input
@@ -243,52 +287,66 @@
                   />
                 </div>
                 <div class="col-12 col-md-6">
-                  <q-input v-model="userForm.enrollmentExpiryDate" type="date" label="Fin de Etapa Lectiva" outlined dense stack-label :rules="[val => !!val || 'Requerido']" />
+                  <q-input v-model="userForm.enrollmentExpiryDate" type="date" label="Fin de Etapa Lectiva" outlined dense color="primary" class="glass-input" stack-label :rules="[val => !!val || 'Requerido']" />
                 </div>
                 <div class="col-12">
-                  <q-checkbox v-model="userForm.isPreNov2024" label="¿Ingresó antes de Noviembre 2024?" dense />
+                  <q-checkbox v-model="userForm.isPreNov2024" label="¿Ingresó antes de Noviembre 2024?" dense color="secondary" class="text-weight-medium text-grey-8 custom-checkbox" />
                 </div>
               </div>
             </template>
           </q-card-section>
           
-          <q-card-actions align="right" class="q-pa-md">
-            <q-btn flat label="Cancelar" color="grey" v-close-popup />
-            <q-btn color="primary" label="Guardar" type="submit" :loading="saving" />
+          <q-separator class="opacity-20" />
+          <q-card-actions align="right" class="q-pa-md bg-grey-1">
+            <q-btn flat label="Cancelar" color="grey-8" class="text-weight-bold" v-close-popup />
+            <q-btn color="primary" label="Guardar" type="submit" :loading="saving" class="text-weight-bold shadow-2" rounded padding="xs lg"/>
           </q-card-actions>
         </q-form>
       </q-card>
     </q-dialog>
 
     <!-- Modal: Importar Aprendices -->
-    <q-dialog v-model="showImportModal">
-      <q-card style="width: 450px;">
+    <q-dialog v-model="showImportModal" transition-show="scale" transition-hide="scale">
+      <q-card class="modal-card" style="width: 450px;">
         <q-form @submit="importUsers">
-          <q-card-section class="bg-secondary text-white">
-            <div class="text-h6">Importación Masiva</div>
+          <q-card-section class="bg-secondary text-white row items-center">
+            <div class="text-h6 text-weight-bold"><q-icon name="cloud_upload" class="q-mr-sm" size="sm"/>Importación Masiva</div>
+            <q-space />
+            <q-btn icon="close" flat round dense v-close-popup />
           </q-card-section>
-          <q-card-section class="q-pa-lg">
-            <p class="text-caption text-grey-8">Seleccione un archivo CSV o Excel (.xlsx) para cargar aprendices.</p>
-            <q-file v-model="importFile" label="Seleccionar archivo" outlined dense accept=".csv, .xlsx" :rules="[val => !!val || 'Seleccione un archivo']">
-              <template v-slot:prepend><q-icon name="attach_file" /></template>
+          <q-card-section class="q-pa-lg text-center">
+            <q-icon name="description" size="4rem" color="grey-4" class="q-mb-md" />
+            <p class="text-body1 text-grey-8 q-mb-lg">Seleccione un archivo CSV o Excel (.xlsx) para cargar aprendices de forma masiva.</p>
+            <q-file v-model="importFile" label="Seleccionar archivo..." outlined dense color="secondary" class="glass-input" accept=".csv, .xlsx" :rules="[val => !!val || 'Seleccione un archivo']">
+              <template v-slot:prepend><q-icon name="attach_file" color="secondary" /></template>
             </q-file>
           </q-card-section>
-          <q-card-actions align="right" class="q-pa-md">
-            <q-btn flat label="Cerrar" color="grey" v-close-popup />
-            <q-btn color="secondary" label="Subir Archivo" type="submit" :loading="importing" />
+          <q-separator class="opacity-20" />
+          <q-card-actions align="center" class="q-pa-md bg-grey-1">
+            <q-btn color="secondary" label="Subir Archivo" icon="upload" type="submit" :loading="importing" class="text-weight-bold shadow-2 full-width" rounded />
           </q-card-actions>
         </q-form>
       </q-card>
     </q-dialog>
+    
     <!-- Modal: Asignación Rápida -->
-    <q-dialog v-model="showAssignModal" persistent>
-      <q-card style="width: 450px;">
+    <q-dialog v-model="showAssignModal" persistent transition-show="scale" transition-hide="scale">
+      <q-card class="modal-card" style="width: 450px;">
         <q-form @submit="submitQuickAssign">
-          <q-card-section class="bg-accent text-white">
-            <div class="text-h6">Asignación Rápida (Pruebas)</div>
+          <q-card-section class="bg-accent text-white row items-center">
+            <div class="text-h6 text-weight-bold"><q-icon name="assignment_ind" class="q-mr-sm" size="sm"/>Asignación Rápida</div>
+            <q-space />
+            <q-btn icon="close" flat round dense v-close-popup />
           </q-card-section>
-          <q-card-section class="q-pa-md">
-            <p class="text-subtitle2 q-mb-md">Aprendiz: <span class="text-weight-bold">{{ selectedApprentice?.fullName }}</span></p>
+          <q-card-section class="q-pa-lg">
+            <div class="bg-blue-grey-1 q-pa-md rounded-borders q-mb-lg row items-center">
+              <q-avatar color="accent" text-color="white" icon="person" size="md" class="q-mr-md" />
+              <div>
+                <div class="text-caption text-grey-7 text-uppercase text-weight-bold">Aprendiz</div>
+                <div class="text-subtitle1 text-weight-bolder text-dark">{{ selectedApprentice?.fullName }}</div>
+              </div>
+            </div>
+            
             <q-select 
               v-model="selectedInstructor" 
               :options="instructorsList" 
@@ -297,14 +355,19 @@
               label="Selecciona un Instructor" 
               outlined 
               dense 
+              color="accent"
+              class="glass-input"
               emit-value 
               map-options 
               :rules="[val => !!val || 'Requerido']" 
-            />
+            >
+              <template v-slot:prepend><q-icon name="school" color="accent" /></template>
+            </q-select>
           </q-card-section>
-          <q-card-actions align="right" class="q-pa-md">
-            <q-btn flat label="Cancelar" color="grey" v-close-popup />
-            <q-btn color="accent" label="Asignar" type="submit" :loading="assigning" />
+          <q-separator class="opacity-20" />
+          <q-card-actions align="right" class="q-pa-md bg-grey-1">
+            <q-btn flat label="Cancelar" color="grey-8" class="text-weight-bold" v-close-popup />
+            <q-btn color="accent" label="Asignar" type="submit" :loading="assigning" class="text-weight-bold shadow-2" rounded padding="xs lg"/>
           </q-card-actions>
         </q-form>
       </q-card>
@@ -799,8 +862,143 @@ async function activateUser(user) {
 </script>
 
 <style scoped>
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
+
 .users-container {
-  max-width: 1300px;
+  max-width: 1400px;
   margin: 0 auto;
+  font-family: 'Outfit', sans-serif;
+  animation: fadeIn 0.5s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Premium Header */
+.page-header {
+  background: linear-gradient(135deg, #093028 0%, #237A57 100%);
+  border-radius: 20px;
+  padding: 30px;
+  position: relative;
+  overflow: hidden;
+}
+
+.cover-overlay {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-image: radial-gradient(circle at 2px 2px, rgba(255,255,255,0.1) 1px, transparent 0);
+  background-size: 20px 20px;
+  pointer-events: none;
+}
+
+.shadow-text {
+  text-shadow: 2px 2px 8px rgba(0,0,0,0.4);
+}
+
+.opacity-80 { opacity: 0.8; }
+.opacity-20 { opacity: 0.2; }
+
+/* Cards & Glassmorphism */
+.my-card {
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(15px);
+  border: 1px solid rgba(0,0,0,0.03);
+  box-shadow: 0 10px 40px rgba(0,0,0,0.06) !important;
+  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.3s ease;
+}
+
+.my-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 15px 50px rgba(0,0,0,0.1) !important;
+}
+
+.modal-card {
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
+}
+
+/* Custom Tabs */
+.custom-tabs {
+  border-radius: 30px !important;
+  padding: 4px;
+}
+
+.custom-tab {
+  border-radius: 25px;
+  padding: 8px 24px;
+  transition: all 0.3s ease;
+}
+
+/* Inputs */
+.glass-input :deep(.q-field__control) {
+  border-radius: 12px;
+  transition: all 0.3s ease;
+  background: #f8fcfb;
+}
+
+.glass-input:focus-within :deep(.q-field__control) {
+  transform: scale(1.02);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+  background: #fff;
+}
+
+/* Table Enhancements */
+.custom-table {
+  border-radius: 20px;
+}
+
+.custom-table :deep(.q-table__container) {
+  background: transparent;
+}
+
+.custom-table :deep(th) {
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #4a5568;
+  border-bottom: 2px solid rgba(0,0,0,0.05);
+}
+
+.custom-table :deep(tbody tr) {
+  transition: all 0.2s ease;
+}
+
+.custom-table :deep(tbody tr:hover) {
+  background-color: #f8fcfb !important;
+  transform: scale(1.002);
+}
+
+.custom-table :deep(td) {
+  border-bottom: 1px solid rgba(0,0,0,0.03);
+}
+
+/* Chips & Badges */
+.status-chip, .role-badge {
+  letter-spacing: 0.5px;
+}
+
+.action-btn {
+  transition: all 0.2s ease;
+}
+
+.action-btn:hover {
+  transform: scale(1.15) rotate(5deg);
+}
+
+.header-btn {
+  transition: all 0.3s ease;
+}
+
+.header-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 15px rgba(0,0,0,0.2) !important;
+}
+
+.custom-checkbox :deep(.q-checkbox__inner) {
+  transition: all 0.3s ease;
 }
 </style>

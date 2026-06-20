@@ -1,24 +1,28 @@
 <template>
   <div class="notificaciones-container q-pa-md">
-    <div class="row items-center q-mb-lg">
-      <div class="col">
-        <h2 class="text-h4 text-black text-weight-bold q-my-none">Notificaciones</h2>
-        <p class="text-grey-7 text-subtitle1 q-my-none">Centro de notificaciones de tu etapa productiva</p>
+    <!-- Premium Header -->
+    <div class="page-header q-mb-xl row items-center justify-between shadow-4">
+      <div class="cover-overlay"></div>
+      <div class="header-content col-12 col-md-auto q-mb-sm-md text-white">
+        <h2 class="text-h3 text-weight-bolder q-my-none shadow-text">
+          <q-icon name="notifications_active" class="q-mr-sm" size="md"/>Notificaciones
+        </h2>
+        <p class="text-subtitle1 opacity-80 q-mt-xs q-mb-none">Centro de notificaciones de tu etapa productiva</p>
       </div>
-      <div class="col-auto row items-center q-gutter-sm">
-        <q-badge v-if="unreadCount > 0" color="red" class="q-pa-sm" rounded>
+      <div class="col-auto row items-center q-gutter-md z-top">
+        <q-badge v-if="unreadCount > 0" color="red" class="q-pa-sm text-weight-bold shadow-1" rounded>
           {{ unreadCount }} sin leer
         </q-badge>
-        <q-btn v-if="unreadCount > 0" color="primary" outline icon="done_all" label="Marcar todas leídas" @click="markAllAsRead" :loading="loadingAction" />
-        <q-btn flat round color="primary" icon="refresh" @click="fetchNotifications" :loading="loading">
-          <q-tooltip>Actualizar</q-tooltip>
+        <q-btn v-if="unreadCount > 0" color="white" text-color="primary" icon="done_all" label="Marcar todas leídas" class="text-weight-bold shadow-2" rounded @click="markAllAsRead" :loading="loadingAction" />
+        <q-btn flat round color="white" icon="refresh" @click="fetchNotifications" :loading="loading">
+          <q-tooltip class="bg-dark text-white">Actualizar</q-tooltip>
         </q-btn>
       </div>
     </div>
 
     <!-- Filtros -->
-    <q-card flat bordered class="q-mb-md">
-      <q-card-section class="row q-col-gutter-sm items-center">
+    <q-card class="filter-card my-card q-mb-lg no-shadow">
+      <q-card-section class="row q-col-gutter-md items-center">
         <div class="col-12 col-sm-4">
           <q-select
             v-model="filter"
@@ -26,52 +30,57 @@
             label="Filtrar por"
             outlined
             dense
+            color="primary"
+            class="glass-input text-weight-medium"
             emit-value
             map-options
             @update:model-value="fetchNotifications"
-          />
+          >
+            <template v-slot:prepend><q-icon name="filter_list" color="grey-6" /></template>
+          </q-select>
         </div>
       </q-card-section>
     </q-card>
 
     <!-- Loading -->
-    <div v-if="loading" class="text-center q-pa-xl">
-      <q-spinner color="primary" size="3em" />
-      <p class="text-grey-6 q-mt-md">Cargando notificaciones...</p>
-    </div>
+    <q-card v-if="loading" class="my-card no-shadow q-pa-xl text-center">
+      <q-spinner color="primary" size="4em" />
+      <p class="text-h6 text-primary text-weight-medium q-mt-md">Cargando notificaciones...</p>
+    </q-card>
 
     <!-- Empty -->
-    <div v-else-if="notifications.length === 0" class="text-center q-pa-xl">
-      <q-icon name="notifications_off" size="5em" color="grey-5" class="q-mb-md" />
-      <p class="text-h6 text-grey-6 q-mb-xs">No tienes notificaciones</p>
-      <p class="text-grey-5">Aquí aparecerán las notificaciones sobre tu etapa productiva.</p>
-    </div>
+    <q-card v-else-if="notifications.length === 0" class="my-card no-shadow text-center q-pa-xl">
+      <q-icon name="notifications_off" size="5em" color="grey-4" class="q-mb-md" />
+      <p class="text-h5 text-grey-8 text-weight-bold q-mb-xs">No tienes notificaciones</p>
+      <p class="text-grey-6 text-subtitle1">Aquí aparecerán las notificaciones sobre tu etapa productiva.</p>
+    </q-card>
 
     <!-- Lista de Notificaciones -->
-    <q-list v-else separator bordered class="rounded-borders">
+    <q-list v-else separator class="rounded-borders bg-white shadow-1 my-card no-shadow q-pa-sm">
       <q-item
         v-for="n in notifications"
         :key="n._id"
         clickable
-        :class="n.isRead ? '' : 'bg-blue-1'"
+        class="q-pa-md notif-item transition-all rounded-borders q-mb-xs"
+        :class="n.isRead ? 'bg-white' : 'bg-blue-50 border-left-primary'"
         @click="markAsRead(n)"
       >
         <q-item-section avatar>
-          <q-icon :name="iconForType(n.type)" :color="iconColorForType(n.type)" size="sm" />
+          <q-icon :name="iconForType(n.type)" :color="iconColorForType(n.type)" size="md" class="q-pa-xs rounded-borders shadow-1" style="background: rgba(255,255,255,0.8);" />
         </q-item-section>
         <q-item-section>
-          <q-item-label class="text-weight-bold">
+          <q-item-label class="text-weight-bold text-subtitle1 text-primary">
             {{ n.title }}
-            <q-badge v-if="!n.isRead" color="primary" rounded class="q-ml-sm" />
+            <q-badge v-if="!n.isRead" color="primary" rounded class="q-ml-sm shadow-1" />
           </q-item-label>
-          <q-item-label caption class="q-mt-xs">{{ n.message }}</q-item-label>
-          <q-item-label caption class="text-caption text-grey-6 q-mt-xs">
-            {{ formatNotifDate(n.createdAt) }}
+          <q-item-label caption class="q-mt-sm text-body2 text-grey-9" v-html="n.message"></q-item-label>
+          <q-item-label caption class="text-caption text-weight-bold text-grey-6 q-mt-sm">
+            <q-icon name="schedule" class="q-mr-xs"/>{{ formatNotifDate(n.createdAt) }}
           </q-item-label>
         </q-item-section>
         <q-item-section side v-if="!n.isRead">
-          <q-btn flat round dense size="sm" color="primary" icon="mark_email_read" @click.stop="markAsRead(n)">
-            <q-tooltip>Marcar como leída</q-tooltip>
+          <q-btn flat round dense size="md" color="primary" icon="mark_email_read" class="action-btn" @click.stop="markAsRead(n)">
+            <q-tooltip class="bg-primary text-white shadow-4">Marcar como leída</q-tooltip>
           </q-btn>
         </q-item-section>
       </q-item>
@@ -221,8 +230,75 @@ onMounted(fetchNotifications);
 </script>
 
 <style scoped>
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
+
 .notificaciones-container {
-  max-width: 900px;
+  max-width: 1000px;
   margin: 0 auto;
+  font-family: 'Outfit', sans-serif;
+  animation: fadeIn 0.5s ease-out;
 }
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Premium Header */
+.page-header {
+  background: linear-gradient(135deg, #093028 0%, #237A57 100%);
+  border-radius: 20px;
+  padding: 30px;
+  position: relative;
+  overflow: hidden;
+}
+
+.cover-overlay {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-image: radial-gradient(circle at 2px 2px, rgba(255,255,255,0.1) 1px, transparent 0);
+  background-size: 20px 20px;
+  pointer-events: none;
+}
+
+.shadow-text { text-shadow: 2px 2px 8px rgba(0,0,0,0.4); }
+.opacity-80 { opacity: 0.8; }
+
+/* Cards & Glassmorphism */
+.my-card {
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(15px);
+  border: 1px solid rgba(0,0,0,0.03);
+  box-shadow: 0 10px 40px rgba(0,0,0,0.06) !important;
+  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.3s ease;
+}
+
+/* Inputs */
+.glass-input :deep(.q-field__control) {
+  border-radius: 12px;
+  transition: all 0.3s ease;
+  background: #f8fcfb;
+}
+
+.glass-input:focus-within :deep(.q-field__control) {
+  transform: scale(1.02);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+  background: #fff;
+}
+
+/* List Items */
+.notif-item {
+  transition: all 0.2s ease;
+}
+
+.notif-item:hover {
+  transform: translateX(4px);
+  background: #f8fcfb !important;
+}
+
+.action-btn { transition: all 0.2s ease; }
+.action-btn:hover { transform: scale(1.15); }
+
+.border-left-primary { border-left: 4px solid var(--q-primary); }
 </style>

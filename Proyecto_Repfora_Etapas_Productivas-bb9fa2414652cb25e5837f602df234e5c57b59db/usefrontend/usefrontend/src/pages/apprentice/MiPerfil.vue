@@ -1,96 +1,132 @@
 <template>
   <div class="profile-container q-pa-md">
-    <div class="row items-center q-mb-lg">
-      <div class="col">
-        <h2 class="text-h4 text-black text-weight-bold q-my-none">Mi Perfil</h2>
-        <p class="text-grey-7 q-my-sm">Consulta y actualiza tu información personal.</p>
+    <!-- Premium Header with Gradient Cover -->
+    <div class="cover-image relative-position rounded-borders overflow-hidden q-mb-xl shadow-4">
+      <div class="cover-overlay"></div>
+      <div class="header-content absolute-bottom q-pa-lg text-white">
+        <h2 class="text-h3 text-weight-bolder q-my-none shadow-text">Mi Perfil</h2>
+        <p class="text-subtitle1 q-my-sm opacity-80">Consulta y actualiza tu información personal en un entorno seguro.</p>
       </div>
     </div>
 
-    <div class="row q-col-gutter-lg">
+    <div class="row q-col-gutter-xl">
+      <!-- User Info Card -->
       <div class="col-12 col-md-4">
-        <q-card flat bordered class="text-center q-pa-xl">
-          <q-avatar size="100px" color="teal" text-color="white" class="text-h3 q-mb-md">
-            {{ initial }}
-          </q-avatar>
-          <div class="text-h6 text-weight-bold q-mb-xs">{{ user?.fullName }}</div>
-          <q-chip color="teal" text-color="white" dense>Aprendiz</q-chip>
-          <q-separator class="q-my-lg" />
-          <q-list dense>
-            <q-item v-if="user?.nationalId">
-              <q-item-section avatar><q-icon name="badge" color="grey" /></q-item-section>
-              <q-item-section>
-                <q-item-label caption>Documento</q-item-label>
-                <q-item-label>{{ user.nationalId }}</q-item-label>
-              </q-item-section>
-            </q-item>
-            <q-item v-if="user?.email">
-              <q-item-section avatar><q-icon name="email" color="grey" /></q-item-section>
-              <q-item-section>
-                <q-item-label caption>Correo</q-item-label>
-                <q-item-label class="text-caption">{{ user.email }}</q-item-label>
-              </q-item-section>
-            </q-item>
-            <q-item v-if="user?.enrollmentNumber">
-              <q-item-section avatar><q-icon name="numbers" color="grey" /></q-item-section>
-              <q-item-section>
-                <q-item-label caption>Ficha</q-item-label>
-                <q-item-label>{{ user.enrollmentNumber }}</q-item-label>
-              </q-item-section>
-            </q-item>
-            <q-item v-if="user?.program">
-              <q-item-section avatar><q-icon name="school" color="grey" /></q-item-section>
-              <q-item-section>
-                <q-item-label caption>Programa</q-item-label>
-                <q-item-label class="text-caption">{{ user.program }}</q-item-label>
-              </q-item-section>
-            </q-item>
-            <q-item v-if="user?.trainingCenter">
-              <q-item-section avatar><q-icon name="location_city" color="grey" /></q-item-section>
-              <q-item-section>
-                <q-item-label caption>Centro</q-item-label>
-                <q-item-label>{{ user.trainingCenter }}</q-item-label>
-              </q-item-section>
-            </q-item>
-            <q-item v-if="user?.trainingLevel">
-              <q-item-section avatar><q-icon name="bar_chart" color="grey" /></q-item-section>
-              <q-item-section>
-                <q-item-label caption>Nivel</q-item-label>
-                <q-item-label>{{ user.trainingLevel === 'TECHNICIAN' ? 'Técnico' : 'Tecnólogo' }}</q-item-label>
-              </q-item-section>
-            </q-item>
-          </q-list>
+        <q-card class="user-card my-card text-center relative-position no-shadow">
+          <div class="avatar-wrapper">
+            <q-avatar size="120px" class="user-avatar shadow-10" font-size="52px" text-color="white">
+              {{ initial }}
+            </q-avatar>
+          </div>
+          
+          <q-card-section class="q-pt-xl q-mt-md">
+            <div class="text-h5 text-weight-bolder text-primary q-mb-xs">{{ user?.fullName }}</div>
+            <q-chip color="secondary" text-color="white" class="text-weight-bold shadow-2 q-mb-md" icon="school">
+              Aprendiz
+            </q-chip>
+            
+            <q-separator class="q-my-md opacity-20" />
+            
+            <q-list class="text-left info-list">
+              <q-item v-if="user?.nationalId" v-ripple class="info-item rounded-borders q-mb-sm">
+                <q-item-section avatar><q-icon name="badge" color="primary" size="sm" /></q-item-section>
+                <q-item-section>
+                  <q-item-label caption class="text-uppercase text-weight-bold text-grey-6">Documento</q-item-label>
+                  <q-item-label class="text-weight-medium text-dark">{{ user.nationalId }}</q-item-label>
+                </q-item-section>
+              </q-item>
+              
+              <q-item v-if="user?.email" v-ripple class="info-item rounded-borders q-mb-sm">
+                <q-item-section avatar><q-icon name="email" color="primary" size="sm" /></q-item-section>
+                <q-item-section>
+                  <q-item-label caption class="text-uppercase text-weight-bold text-grey-6">Correo</q-item-label>
+                  <q-item-label class="text-weight-medium text-dark text-break">{{ user.email }}</q-item-label>
+                </q-item-section>
+              </q-item>
+              
+              <q-item v-if="user?.enrollmentNumber" v-ripple class="info-item rounded-borders q-mb-sm">
+                <q-item-section avatar><q-icon name="numbers" color="primary" size="sm" /></q-item-section>
+                <q-item-section>
+                  <q-item-label caption class="text-uppercase text-weight-bold text-grey-6">Ficha</q-item-label>
+                  <q-item-label class="text-weight-medium text-dark">{{ user.enrollmentNumber }}</q-item-label>
+                </q-item-section>
+              </q-item>
+              
+              <q-item v-if="user?.program" v-ripple class="info-item rounded-borders q-mb-sm">
+                <q-item-section avatar><q-icon name="laptop_chromebook" color="primary" size="sm" /></q-item-section>
+                <q-item-section>
+                  <q-item-label caption class="text-uppercase text-weight-bold text-grey-6">Programa</q-item-label>
+                  <q-item-label class="text-weight-medium text-dark">{{ user.program }}</q-item-label>
+                </q-item-section>
+              </q-item>
+
+              <q-item v-if="user?.trainingCenter" v-ripple class="info-item rounded-borders q-mb-sm">
+                <q-item-section avatar><q-icon name="business" color="primary" size="sm" /></q-item-section>
+                <q-item-section>
+                  <q-item-label caption class="text-uppercase text-weight-bold text-grey-6">Centro</q-item-label>
+                  <q-item-label class="text-weight-medium text-dark">{{ user.trainingCenter }}</q-item-label>
+                </q-item-section>
+              </q-item>
+              
+              <q-item v-if="user?.trainingLevel" v-ripple class="info-item rounded-borders">
+                <q-item-section avatar><q-icon name="insights" color="primary" size="sm" /></q-item-section>
+                <q-item-section>
+                  <q-item-label caption class="text-uppercase text-weight-bold text-grey-6">Nivel</q-item-label>
+                  <q-item-label class="text-weight-medium text-dark">
+                    <q-badge :color="user.trainingLevel === 'TECHNICIAN' ? 'info' : 'accent'" rounded class="q-px-sm q-py-xs">
+                      {{ user.trainingLevel === 'TECHNICIAN' ? 'Técnico' : 'Tecnólogo' }}
+                    </q-badge>
+                  </q-item-label>
+                </q-item-section>
+              </q-item>
+            </q-list>
+          </q-card-section>
         </q-card>
       </div>
 
+      <!-- Password Card -->
       <div class="col-12 col-md-8">
-        <q-card flat bordered>
-          <q-card-section>
-            <div class="text-subtitle1 text-weight-bold text-black q-mb-md">
-              <q-icon name="lock" class="q-mr-sm" />Cambiar Contraseña
+        <q-card class="password-card my-card no-shadow">
+          <q-card-section class="bg-primary text-white q-pa-md rounded-top">
+            <div class="text-h6 text-weight-bold row items-center">
+              <q-icon name="lock" class="q-mr-sm" size="sm" />
+              Seguridad de la Cuenta
             </div>
-            <q-form ref="passwordFormRef" @submit.prevent="changePassword">
-              <div class="row q-col-gutter-md">
+          </q-card-section>
+          
+          <q-card-section class="q-pa-lg">
+            <p class="text-grey-8 q-mb-lg">Asegúrate de usar una contraseña fuerte para mantener tu cuenta protegida.</p>
+            
+            <q-form ref="passwordFormRef" @submit.prevent="changePassword" class="password-form">
+              <div class="row q-col-gutter-lg">
                 <div class="col-12">
                   <q-input
                     v-model="passwordForm.currentPassword"
                     label="Contraseña Actual"
                     :type="showCurrent ? 'text' : 'password'"
-                    outlined dense
+                    outlined 
+                    color="primary"
+                    class="glass-input text-weight-medium"
                     lazy-rules
                     :rules="[val => !!val || 'Campo requerido']"
                   >
+                    <template v-slot:prepend>
+                      <q-icon name="vpn_key" color="grey-6" />
+                    </template>
                     <template v-slot:append>
-                      <q-icon :name="showCurrent ? 'visibility_off' : 'visibility'" class="cursor-pointer" @click="showCurrent = !showCurrent" />
+                      <q-icon :name="showCurrent ? 'visibility_off' : 'visibility'" class="cursor-pointer text-grey-6 hover-primary" @click="showCurrent = !showCurrent" />
                     </template>
                   </q-input>
                 </div>
+                
                 <div class="col-12 col-sm-6">
                   <q-input
                     v-model="passwordForm.newPassword"
                     label="Nueva Contraseña"
                     :type="showNew ? 'text' : 'password'"
-                    outlined dense
+                    outlined 
+                    color="primary"
+                    class="glass-input text-weight-medium"
                     lazy-rules
                     :rules="[
                       val => !!val || 'Campo requerido',
@@ -101,43 +137,53 @@
                       val => /[@$!%*?&]/.test(val) || 'Debe tener al menos un carácter especial'
                     ]"
                   >
+                    <template v-slot:prepend>
+                      <q-icon name="lock_outline" color="grey-6" />
+                    </template>
                     <template v-slot:append>
-                      <q-icon :name="showNew ? 'visibility_off' : 'visibility'" class="cursor-pointer" @click="showNew = !showNew" />
+                      <q-icon :name="showNew ? 'visibility_off' : 'visibility'" class="cursor-pointer text-grey-6 hover-primary" @click="showNew = !showNew" />
                     </template>
                   </q-input>
                 </div>
+                
                 <div class="col-12 col-sm-6">
                   <q-input
                     v-model="passwordForm.confirmPassword"
                     label="Confirmar Nueva Contraseña"
                     :type="showConfirm ? 'text' : 'password'"
-                    outlined dense
+                    outlined 
+                    color="primary"
+                    class="glass-input text-weight-medium"
                     lazy-rules
                     :rules="[
                       val => !!val || 'Campo requerido',
                       val => val === passwordForm.newPassword || 'Las contraseñas no coinciden'
                     ]"
                   >
+                    <template v-slot:prepend>
+                      <q-icon name="check_circle_outline" color="grey-6" />
+                    </template>
                     <template v-slot:append>
-                      <q-icon :name="showConfirm ? 'visibility_off' : 'visibility'" class="cursor-pointer" @click="showConfirm = !showConfirm" />
+                      <q-icon :name="showConfirm ? 'visibility_off' : 'visibility'" class="cursor-pointer text-grey-6 hover-primary" @click="showConfirm = !showConfirm" />
                     </template>
                   </q-input>
                 </div>
               </div>
 
-              <div class="q-mt-sm q-gutter-xs">
-                <q-chip v-for="hint in passwordHints" :key="hint.label"
-                  :color="hint.ok ? 'positive' : 'grey-4'"
-                  :text-color="hint.ok ? 'white' : 'grey-7'"
-                  dense size="sm"
-                  :icon="hint.ok ? 'check' : 'close'"
-                >
-                  {{ hint.label }}
-                </q-chip>
-              </div>
+              <q-separator class="q-my-xl opacity-20" />
 
-              <div class="row justify-end q-mt-md">
-                <q-btn type="submit" color="secondary" label="Actualizar Contraseña" icon="lock_reset" :loading="savingPassword" />
+              <div class="row justify-end">
+                <q-btn 
+                  type="submit" 
+                  color="secondary" 
+                  label="Actualizar Contraseña" 
+                  icon="lock_reset" 
+                  :loading="savingPassword" 
+                  class="submit-btn text-weight-bold shadow-4" 
+                  padding="10px 30px"
+                  rounded
+                  unelevated
+                />
               </div>
             </q-form>
           </q-card-section>
@@ -172,15 +218,6 @@ const user = computed(() => authStore.user);
 
 const initial = computed(() => user.value?.fullName?.charAt(0)?.toUpperCase() || '?');
 
-const passwordHints = computed(() => [
-  { label: '8+ caracteres', ok: passwordForm.value.newPassword.length >= 8 },
-  { label: 'Mayúscula', ok: /[A-Z]/.test(passwordForm.value.newPassword) },
-  { label: 'Minúscula', ok: /[a-z]/.test(passwordForm.value.newPassword) },
-  { label: 'Número', ok: /[0-9]/.test(passwordForm.value.newPassword) },
-  { label: 'Carácter esp.', ok: /[@$!%*?&]/.test(passwordForm.value.newPassword) },
-  { label: 'Coinciden', ok: !!passwordForm.value.confirmPassword && passwordForm.value.newPassword === passwordForm.value.confirmPassword }
-]);
-
 async function changePassword() {
   savingPassword.value = true;
   try {
@@ -208,8 +245,131 @@ async function changePassword() {
 </script>
 
 <style scoped>
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
+
 .profile-container {
-  max-width: 900px;
+  max-width: 1100px;
   margin: 0 auto;
+  font-family: 'Outfit', sans-serif;
+  animation: fadeIn 0.5s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Cover Image */
+.cover-image {
+  height: 220px;
+  background: linear-gradient(135deg, #093028 0%, #237A57 100%);
+  border-radius: 20px;
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+.cover-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: radial-gradient(circle at 2px 2px, rgba(255,255,255,0.1) 1px, transparent 0);
+  background-size: 20px 20px;
+}
+
+.shadow-text {
+  text-shadow: 2px 2px 8px rgba(0,0,0,0.4);
+}
+
+.opacity-80 {
+  opacity: 0.8;
+}
+
+.opacity-20 {
+  opacity: 0.2;
+}
+
+/* Cards */
+.my-card {
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(15px);
+  border: 1px solid rgba(0,0,0,0.03);
+  box-shadow: 0 10px 40px rgba(0,0,0,0.06) !important;
+  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.3s ease;
+}
+
+.my-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 15px 50px rgba(0,0,0,0.1) !important;
+}
+
+/* Avatar */
+.avatar-wrapper {
+  position: absolute;
+  top: -60px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+}
+
+.user-avatar {
+  background: linear-gradient(135deg, #00b4db 0%, #0083b0 100%);
+  border: 6px solid #fff;
+  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.user-card:hover .user-avatar {
+  transform: scale(1.08) rotate(5deg);
+}
+
+/* List Items */
+.info-item {
+  transition: all 0.2s ease;
+  border-left: 4px solid transparent;
+}
+
+.info-item:hover {
+  background: #f8fcfb;
+  border-left-color: var(--q-primary);
+  transform: translateX(6px);
+}
+
+.text-break {
+  word-break: break-all;
+}
+
+/* Password Form */
+.rounded-top {
+  border-top-left-radius: 20px;
+  border-top-right-radius: 20px;
+  background: linear-gradient(to right, #093028, var(--q-primary));
+}
+
+.glass-input :deep(.q-field__control) {
+  border-radius: 12px;
+  transition: all 0.3s ease;
+  background: #f8fcfb;
+}
+
+.glass-input:focus-within :deep(.q-field__control) {
+  transform: scale(1.02);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+  background: #fff;
+}
+
+.hover-primary:hover {
+  color: var(--q-primary) !important;
+}
+
+.submit-btn {
+  background: linear-gradient(135deg, var(--q-secondary), #00b4db);
+  transition: all 0.3s ease;
+}
+
+.submit-btn:hover {
+  transform: scale(1.03);
+  box-shadow: 0 8px 25px rgba(0,180,219,0.3) !important;
 }
 </style>
