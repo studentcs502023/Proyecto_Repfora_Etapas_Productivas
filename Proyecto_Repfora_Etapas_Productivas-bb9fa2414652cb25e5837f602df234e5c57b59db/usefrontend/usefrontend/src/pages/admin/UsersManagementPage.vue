@@ -78,15 +78,17 @@
     </q-card>
 
     <!-- Users Table -->
-    <q-card class="table-card my-card no-shadow">
+    <q-card class="table-card my-card no-shadow" style="overflow-x: auto;">
       <q-table
         :rows="users"
         :columns="columns"
         :loading="loading"
         row-key="_id"
         flat
-        class="custom-table bg-transparent"
+        dense
+        class="custom-table bg-transparent full-width"
         table-header-class="custom-table-header"
+        table-style="min-width: 800px; table-layout: fixed;"
         v-model:pagination="pagination"
         @request="onRequest"
       >
@@ -142,28 +144,28 @@
         </template>
 
         <template v-slot:body-cell-actions="props">
-          <q-td :props="props" class="q-gutter-xs">
-            <q-btn size="sm" flat round color="secondary" icon="edit" class="action-btn" @click="editUser(props.row)">
+          <q-td :props="props" class="q-gutter-xs" style="white-space: nowrap;">
+            <q-btn size="xs" flat round color="secondary" icon="edit" class="action-btn" @click="editUser(props.row)">
               <q-tooltip class="bg-secondary text-white shadow-4">Editar usuario</q-tooltip>
             </q-btn>
 
-            <q-btn v-if="activeTab === 'APPRENTICES'" size="sm" flat round color="accent" icon="assignment_ind" class="action-btn" @click="openAssignModal(props.row)">
+            <q-btn v-if="activeTab === 'APPRENTICES'" size="xs" flat round color="accent" icon="assignment_ind" class="action-btn" @click="openAssignModal(props.row)">
               <q-tooltip class="bg-accent text-white shadow-4">Asignar instructor</q-tooltip>
             </q-btn>
 
-            <q-btn v-if="activeTab === 'INSTRUCTORS' && props.row.isActive && props.row.status === 'ACTIVE'" size="sm" flat round color="warning" icon="block" class="action-btn" @click="confirmDisableInstructor(props.row)">
+            <q-btn v-if="activeTab === 'INSTRUCTORS' && props.row.isActive && props.row.status === 'ACTIVE'" size="xs" flat round color="warning" icon="block" class="action-btn" @click="confirmDisableInstructor(props.row)">
               <q-tooltip class="bg-warning text-white shadow-4">Deshabilitar instructor</q-tooltip>
             </q-btn>
 
-            <q-btn v-if="activeTab === 'INSTRUCTORS' && props.row.isActive && props.row.status === 'INACTIVE'" size="sm" flat round color="positive" icon="check_circle" class="action-btn" @click="confirmEnableInstructor(props.row)">
+            <q-btn v-if="activeTab === 'INSTRUCTORS' && props.row.isActive && props.row.status === 'INACTIVE'" size="xs" flat round color="positive" icon="check_circle" class="action-btn" @click="confirmEnableInstructor(props.row)">
               <q-tooltip class="bg-positive text-white shadow-4">Habilitar instructor</q-tooltip>
             </q-btn>
 
-            <q-btn v-if="!props.row.isActive" size="sm" flat round color="positive" icon="restore_from_trash" class="action-btn" @click="confirmActivateUser(props.row)">
+            <q-btn v-if="!props.row.isActive" size="xs" flat round color="positive" icon="restore_from_trash" class="action-btn" @click="confirmActivateUser(props.row)">
               <q-tooltip class="bg-positive text-white shadow-4">Restaurar usuario eliminado</q-tooltip>
             </q-btn>
 
-            <q-btn v-if="props.row.isActive" size="sm" flat round color="negative" icon="delete" class="action-btn" @click="confirmDeleteUser(props.row)">
+            <q-btn v-if="props.row.isActive" size="xs" flat round color="negative" icon="delete" class="action-btn" @click="confirmDeleteUser(props.row)">
               <q-tooltip class="bg-negative text-white shadow-4">Eliminar usuario</q-tooltip>
             </q-btn>
           </q-td>
@@ -528,12 +530,12 @@ const userForm = ref({
 
 // Table Config
 const columns = [
-  { name: 'nationalId', label: 'Cédula', field: 'nationalId', align: 'left' },
-  { name: 'fullName', label: 'Nombre Completo', field: 'fullName', align: 'left' },
-  { name: 'email', label: 'Correo', field: 'email', align: 'left' },
-  { name: 'role', label: 'Rol', field: 'role', align: 'center' },
-  { name: 'status', label: 'Estado', field: 'status', align: 'center' },
-  { name: 'actions', label: 'Acciones', align: 'center' }
+  { name: 'nationalId', label: 'Documento', field: 'nationalId', align: 'left', style: 'width: 110px;' },
+  { name: 'fullName', label: 'Nombre Completo', field: 'fullName', align: 'left', style: 'width: 180px;' },
+  { name: 'email', label: 'Correo', field: 'email', align: 'left', style: 'width: 190px;' },
+  { name: 'role', label: 'Rol', field: 'role', align: 'center', style: 'width: 100px;' },
+  { name: 'status', label: 'Estado', field: 'status', align: 'center', style: 'width: 110px;' },
+  { name: 'actions', label: 'Acciones', align: 'center', style: 'width: 130px;' }
 ];
 
 let searchTimeout = null;
@@ -563,7 +565,7 @@ async function fetchUsers() {
       page: pagination.value.page,
       limit: pagination.value.rowsPerPage,
       search: filter.value || undefined,
-      isActive: showInactive.value ? 'all' : true
+      isActive: showInactive.value ? false : true
     };
 
     let response;
@@ -953,6 +955,7 @@ async function activateUser(user) {
 
 .custom-table :deep(.q-table__container) {
   background: transparent;
+  overflow-x: auto;
 }
 
 .custom-table :deep(th) {
@@ -961,6 +964,7 @@ async function activateUser(user) {
   letter-spacing: 0.5px;
   color: #4a5568;
   border-bottom: 2px solid rgba(0,0,0,0.05);
+  white-space: nowrap;
 }
 
 .custom-table :deep(tbody tr) {
@@ -974,6 +978,10 @@ async function activateUser(user) {
 
 .custom-table :deep(td) {
   border-bottom: 1px solid rgba(0,0,0,0.03);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 0;
 }
 
 /* Chips & Badges */

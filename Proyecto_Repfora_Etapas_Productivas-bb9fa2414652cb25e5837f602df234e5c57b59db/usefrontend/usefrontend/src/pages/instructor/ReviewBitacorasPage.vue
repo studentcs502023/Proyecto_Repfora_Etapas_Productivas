@@ -21,74 +21,113 @@
       <q-tab name="REJECTED" label="Rechazadas" />
     </q-tabs>
 
-    <!-- Table -->
-    <q-card flat bordered>
-      <q-table
-        :rows="bitacoras"
-        :columns="columns"
-        :loading="loading"
-        row-key="_id"
-        flat
-        v-model:pagination="pagination"
-        @request="onRequest"
-      >
-        <template v-slot:body-cell-apprentice="props">
-          <q-td :props="props">
-            <div class="text-weight-bold">{{ props.row.apprentice?.fullName }}</div>
-            <div class="text-caption text-grey-7">Ficha: {{ props.row.apprentice?.enrollmentNumber }}</div>
-          </q-td>
-        </template>
+    <!-- Summary Cards -->
+    <div class="column q-gutter-md q-mb-md">
+      <q-card flat bordered class="summary-card pending-card cursor-pointer full-width" @click="activeTab = 'PENDING'; pagination.page = 1; fetchBitacoras();">
+        <q-card-section class="row items-center">
+          <q-icon name="hourglass_empty" color="orange" size="md" class="q-mr-md" />
+          <div>
+            <div class="text-caption text-grey-7">Pendientes de revisión</div>
+            <div class="text-h4 text-weight-bold">{{ counts.pending }}</div>
+          </div>
+        </q-card-section>
+      </q-card>
+      <q-card flat bordered class="summary-card approved-card cursor-pointer full-width" @click="activeTab = 'APPROVED'; pagination.page = 1; fetchBitacoras();">
+        <q-card-section class="row items-center">
+          <q-icon name="check_circle" color="positive" size="md" class="q-mr-md" />
+          <div>
+            <div class="text-caption text-grey-7">Aprobadas</div>
+            <div class="text-h4 text-weight-bold">{{ counts.approved }}</div>
+          </div>
+        </q-card-section>
+      </q-card>
+      <q-card flat bordered class="summary-card rejected-card cursor-pointer full-width" @click="activeTab = 'REJECTED'; pagination.page = 1; fetchBitacoras();">
+        <q-card-section class="row items-center">
+          <q-icon name="cancel" color="negative" size="md" class="q-mr-md" />
+          <div>
+            <div class="text-caption text-grey-7">Rechazadas</div>
+            <div class="text-h4 text-weight-bold">{{ counts.rejected }}</div>
+          </div>
+        </q-card-section>
+      </q-card>
+    </div>
 
-        <template v-slot:body-cell-logbookNumber="props">
-          <q-td :props="props">
-            <div class="text-weight-bold">Bitácora #{{ props.value }}</div>
-            <q-badge v-if="props.row.isAdditional" color="warning" label="Extra" />
-          </q-td>
-        </template>
-        
-        <template v-slot:body-cell-period="props">
-          <q-td :props="props">
-            {{ formatDate(props.row.periodStart) }} al {{ formatDate(props.row.periodEnd) }}
-          </q-td>
-        </template>
+    <!-- Bitacoras Grid -->
+    <div v-if="loading" class="flex flex-center q-pa-xl">
+      <q-spinner color="primary" size="3em" />
+      <div class="q-ml-md text-grey">Cargando bitácoras...</div>
+    </div>
 
-        <template v-slot:body-cell-assignedHours="props">
-          <q-td :props="props" class="text-center">
-            <q-badge v-if="props.value" color="positive" :label="props.value + ' hrs'" />
-            <span v-else class="text-grey">-</span>
-          </q-td>
-        </template>
+    <div v-else-if="bitacoras.length === 0" class="flex flex-center text-grey q-pa-xl">
+      <q-icon size="2em" name="check_circle" class="q-mr-sm" />
+      No hay bitácoras {{ activeTab === 'PENDING' ? 'pendientes de revisión' : activeTab === 'APPROVED' ? 'aprobadas' : 'rechazadas' }}.
+    </div>
 
-        <template v-slot:body-cell-comments="props">
-          <q-td :props="props" class="text-center">
-            <q-badge v-if="props.row.reviewComments?.length" color="info" :label="props.row.reviewComments.length" />
-            <span v-else class="text-grey">-</span>
-          </q-td>
-        </template>
+    <div v-else class="column q-gutter-md q-mb-md">
+      <div v-for="b in bitacoras" :key="b._id">
+        <q-card flat bordered class="bitacora-card full-width">
+          <q-card-section class="q-pb-none">
+            <div class="row items-center justify-between">
+              <div>
+                <div class="text-weight-bold text-subtitle1">{{ b.apprentice?.fullName || 'Sin nombre' }}</div>
+                <div class="text-caption text-grey-7">Ficha: {{ b.apprentice?.enrollmentNumber || '-' }}</div>
+              </div>
+              <q-badge :color="getStatusColor(b.status)" :label="getStatusLabel(b.status)" class="q-px-sm" />
+            </div>
+          </q-card-section>
 
-        <template v-slot:body-cell-reviewedAt="props">
-          <q-td :props="props">
-            {{ formatDateTime(props.value) }}
-          </q-td>
-        </template>
+          <q-separator class="q-my-sm" />
 
-        <template v-slot:body-cell-actions="props">
-          <q-td :props="props" class="q-gutter-xs">
-            <q-btn v-if="activeTab === 'PENDING'" size="sm" color="primary" label="Evaluar" @click="openReviewModal(props.row)" />
-            <q-btn size="sm" flat color="grey" icon="visibility" @click="viewHistory(props.row)">
+          <q-card-section class="q-py-none">
+            <div class="row items-center q-mb-xs">
+              <q-icon name="article" size="xs" color="grey" class="q-mr-xs" />
+              <span class="text-weight-bold">Bitácora #{{ b.logbookNumber }}</span>
+              <q-badge v-if="b.isAdditional" color="warning" label="Extra" class="q-ml-sm" />
+            </div>
+            <div class="row items-center q-mb-xs">
+              <q-icon name="date_range" size="xs" color="grey" class="q-mr-xs" />
+              <span class="text-caption">{{ formatDate(b.periodStart) }} — {{ formatDate(b.periodEnd) }}</span>
+            </div>
+            <div class="row items-center q-mb-xs">
+              <q-icon name="schedule" size="xs" color="grey" class="q-mr-xs" />
+              <span class="text-caption">Enviada: {{ formatDateTime(b.submittedAt) }}</span>
+            </div>
+            <div v-if="b.assignedHours" class="row items-center q-mb-xs">
+              <q-icon name="timer" size="xs" color="positive" class="q-mr-xs" />
+              <span class="text-caption text-positive text-weight-bold">{{ b.assignedHours }} hrs asignadas</span>
+            </div>
+            <div v-if="b.reviewedAt" class="row items-center q-mb-xs">
+              <q-icon name="done_all" size="xs" color="grey" class="q-mr-xs" />
+              <span class="text-caption">Revisada: {{ formatDateTime(b.reviewedAt) }}</span>
+            </div>
+            <div v-if="b.reviewComments?.length" class="row items-center q-mb-xs">
+              <q-icon name="chat" size="xs" color="info" class="q-mr-xs" />
+              <span class="text-caption">{{ b.reviewComments.length }} comentario(s)</span>
+            </div>
+          </q-card-section>
+
+          <q-card-actions align="right" class="q-pt-none">
+            <q-btn v-if="activeTab === 'PENDING'" color="primary" label="Evaluar" size="sm" @click="openReviewModal(b)" />
+            <q-btn flat color="grey" icon="visibility" size="sm" @click="viewHistory(b)">
               <q-tooltip>Ver historial</q-tooltip>
             </q-btn>
-          </q-td>
-        </template>
-        
-        <template v-slot:no-data>
-          <div class="full-width row flex-center text-grey q-pa-lg">
-            <q-icon size="2em" name="check_circle" class="q-mr-sm" />
-            No hay bitácoras {{ activeTab === 'PENDING' ? 'pendientes de revisión' : activeTab === 'APPROVED' ? 'aprobadas' : 'rechazadas' }}.
-          </div>
-        </template>
-      </q-table>
-    </q-card>
+          </q-card-actions>
+        </q-card>
+      </div>
+    </div>
+
+    <!-- Pagination -->
+    <div v-if="bitacoras.length > 0" class="flex flex-center q-mt-md">
+      <q-pagination
+        v-model="pagination.page"
+        :max="Math.ceil(pagination.rowsNumber / pagination.rowsPerPage) || 1"
+        :max-pages="6"
+        direction-links
+        boundary-links
+        color="primary"
+        @update:model-value="fetchBitacoras"
+      />
+    </div>
 
     <!-- Modal: Review -->
     <q-dialog v-model="showReviewModal" persistent maximized>
@@ -210,7 +249,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, onActivated, watch } from 'vue';
+import { ref, onMounted, onUnmounted, onActivated, watch } from 'vue';
 import bitacoraService from '../../api/bitacora.service';
 import { useQuasar } from 'quasar';
 
@@ -221,37 +260,20 @@ const bitacoras = ref([]);
 const loading = ref(false);
 const pagination = ref({ page: 1, rowsPerPage: 10, rowsNumber: 0 });
 
+const counts = ref({ pending: 0, approved: 0, rejected: 0 });
+
 const showReviewModal = ref(false);
 const selectedBitacora = ref(null);
 const processing = ref(false);
 const rejectReason = ref('');
 const readonlyMode = ref(false);
 
-const baseColumns = [
-  { name: 'apprentice', label: 'Aprendiz', field: 'apprentice', align: 'left' },
-  { name: 'logbookNumber', label: 'Número', field: 'logbookNumber', align: 'left' },
-  { name: 'period', label: 'Periodo', align: 'left' },
-  { name: 'submittedAt', label: 'Enviada El', field: row => formatDateTime(row.submittedAt), align: 'left' },
-];
-
-const reviewedColumns = [
-  { name: 'assignedHours', label: 'Horas', field: 'assignedHours', align: 'center' },
-  { name: 'reviewedAt', label: 'Revisada El', field: row => formatDateTime(row.reviewedAt), align: 'left' },
-  { name: 'comments', label: 'Coment.', field: 'comments', align: 'center' },
-];
-
-const columns = computed(() => {
-  if (activeTab.value === 'PENDING') {
-    return [...baseColumns, { name: 'actions', label: 'Acciones', align: 'center' }];
-  }
-  return [...baseColumns, ...reviewedColumns, { name: 'actions', label: 'Acciones', align: 'center' }];
-});
-
 let pollInterval = null;
 
 onMounted(() => {
   fetchBitacoras();
-  pollInterval = setInterval(fetchBitacoras, 60000);
+  fetchCounts();
+  pollInterval = setInterval(() => { fetchBitacoras(); fetchCounts(); }, 60000);
 });
 
 onUnmounted(() => {
@@ -260,6 +282,7 @@ onUnmounted(() => {
 
 onActivated(() => {
   fetchBitacoras();
+  fetchCounts();
 });
 
 watch(activeTab, () => {
@@ -286,11 +309,19 @@ async function fetchBitacoras() {
   }
 }
 
-function onRequest(props) {
-  const { page, rowsPerPage } = props.pagination;
-  pagination.value.page = page;
-  pagination.value.rowsPerPage = rowsPerPage;
-  fetchBitacoras();
+async function fetchCounts() {
+  try {
+    const [pending, approved, rejected] = await Promise.all([
+      bitacoraService.getByStatus('PENDING', { limit: 1 }),
+      bitacoraService.getByStatus('APPROVED', { limit: 1 }),
+      bitacoraService.getByStatus('REJECTED', { limit: 1 })
+    ]);
+    counts.value.pending = pending.data?.pagination?.total ?? 0;
+    counts.value.approved = approved.data?.pagination?.total ?? 0;
+    counts.value.rejected = rejected.data?.pagination?.total ?? 0;
+  } catch (error) {
+    console.error('Error al obtener conteos de bitácoras:', error);
+  }
 }
 
 function formatDate(dateStr) {
@@ -400,5 +431,32 @@ function getStatusLabel(status) {
 }
 .h-full {
   height: 100%;
+}
+
+.summary-card {
+  border-radius: 16px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.summary-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+.pending-card {
+  border-left: 4px solid #ff9800;
+}
+.approved-card {
+  border-left: 4px solid #4caf50;
+}
+.rejected-card {
+  border-left: 4px solid #f44336;
+}
+
+.bitacora-card {
+  border-radius: 16px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.bitacora-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(0,0,0,0.1);
 }
 </style>
