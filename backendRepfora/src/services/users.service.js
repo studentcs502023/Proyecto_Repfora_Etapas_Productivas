@@ -451,8 +451,74 @@ class UserService {
     }
 
     /**
+     * Obtiene lista de aprendices filtrada para un instructor específico
+     * Solo devuelve aprendices que tengan una EP asignada a ese instructor
+     */
+    async getApprenticesForInstructor(instructorId, filters = {}) {
+        const {
+            search,
+            enrollmentNumber,
+            program,
+            isActive,
+            page = 1,
+            limit = 20,
+        } = filters;
+
+        const ProductiveStage = (await import('../models/ProductiveStage.model.js')).default;
+
+        const assignedEPs = await ProductiveStage.find({
+            isActive: true,
+            $or: [
+                { followupInstructor: instructorId },
+                { technicalInstructor: instructorId },
+                { projectInstructor: instructorId }
+            ]
+        }).select('apprentice').lean();
+
+        const apprenticeIds = [...new Set(assignedEPs.map(ep => ep.apprentice.toString()))];
+
+        const query = { _id: { $in: apprenticeIds }, role: 'APPRENTICE' };
+
+        if (isActive !== undefined && isActive !== 'all') {
+            query.isActive = isActive === 'true' || isActive === true;
+        }
+
+        if (enrollmentNumber) query.enrollmentNumber = enrollmentNumber;
+        if (program) query.program = { $regex: program, $options: 'i' };
+
+        if (search) {
+            query.$or = [
+                { nationalId: { $regex: search, $options: 'i' } },
+                { fullName: { $regex: search, $options: 'i' } },
+                { enrollmentNumber: { $regex: search, $options: 'i' } },
+            ];
+        }
+
+        const skip = (page - 1) * limit;
+        const [apprentices, total] = await Promise.all([
+            User.find(query)
+                .select('-password')
+                .sort({ fullName: 1 })
+                .skip(skip)
+                .limit(Number(limit)),
+            User.countDocuments(query),
+        ]);
+
+        return {
+            apprentices,
+            pagination: {
+                total,
+                page: Number(page),
+                limit: Number(limit),
+                pages: Math.ceil(total / limit),
+            },
+        };
+    }
+
+    /**
      * Obtiene detalle de un aprendiz por ID
      */
+
     async getApprenticeById(id) {
         const apprentice = await User.findOne({
             _id: id,

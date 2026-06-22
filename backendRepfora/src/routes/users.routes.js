@@ -110,7 +110,7 @@ router.post("/apprentices/import",
 );
 
 router.get("/apprentices",
-    checkRole("ADMIN"),
+    checkRole("ADMIN", "INSTRUCTOR"),
     [
         query("page").optional().isInt({ min: 1 }),
         query("limit").optional().isInt({ min: 1, max: 100 }),
