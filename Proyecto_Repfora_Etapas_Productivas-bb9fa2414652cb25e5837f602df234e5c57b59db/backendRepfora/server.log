@@ -1,0 +1,10 @@
+
+> proyecto-complementarias@1.0.0 start
+> node index.js
+
+[dotenv@17.3.1] injecting env (4) from .env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+🚀 Servidor corriendo en: http://localhost:3000
+📂 Base de datos: Etapa Productiva
+✅ Mongo conectado
+⏰ Scheduled jobs initialized
+✅ Configuraciones del sistema inicializadas correctamente.

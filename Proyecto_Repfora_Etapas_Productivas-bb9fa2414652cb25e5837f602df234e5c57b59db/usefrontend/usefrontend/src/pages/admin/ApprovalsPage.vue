@@ -453,7 +453,7 @@ async function preloadInstructors() {
     const allInstructors = resData.instructors || resData;
     
     const list = Array.isArray(allInstructors) ? allInstructors : [];
-    instructors.value.followup = list.filter(i => i.instructorType === 'FOLLOWUP');
+    instructors.value.followup = [...list];
     instructors.value.technical = list.filter(i => i.instructorType === 'TECHNICAL');
     instructors.value.project = list.filter(i => i.instructorType === 'PROJECT');
   } catch (error) {

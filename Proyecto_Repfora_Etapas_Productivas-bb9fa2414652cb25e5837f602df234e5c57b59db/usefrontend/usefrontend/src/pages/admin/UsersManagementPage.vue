@@ -176,7 +176,7 @@
     <!-- Modal: Nuevo/Editar Usuario -->
     <q-dialog v-model="showUserModal" persistent transition-show="scale" transition-hide="scale">
       <q-card class="modal-card" :style="activeTab === 'APPRENTICES' ? 'width: 750px; max-width: 95vw;' : 'width: 550px; max-width: 90vw;'">
-        <q-form @submit="saveUser">
+        <q-form @submit="saveUser" style="display: flex; flex-direction: column; max-height: 85vh;">
           <q-card-section class="bg-primary text-white row items-center">
             <div class="text-h6 text-weight-bold">
               <q-icon :name="isEditing ? 'edit' : 'add_circle'" class="q-mr-sm" size="sm"/>
@@ -186,7 +186,7 @@
             <q-btn icon="close" flat round dense v-close-popup />
           </q-card-section>
           
-          <q-card-section class="q-pa-lg q-gutter-md">
+          <q-card-section class="q-pa-lg q-gutter-md" style="flex: 1; overflow-y: auto;">
             <!-- Campos comunes -->
             <div class="text-subtitle2 text-primary text-uppercase text-weight-bold q-mb-sm"><q-icon name="person" class="q-mr-xs"/>Datos Personales</div>
             <div class="row q-col-gutter-md">
@@ -212,7 +212,7 @@
                 <div class="col-12 col-md-6">
                   <q-select 
                     v-model="userForm.instructorType" 
-                    :options="[{ label: 'Seguimiento', value: 'FOLLOWUP' }, { label: 'Técnico', value: 'TECHNICAL' }, { label: 'Proyecto', value: 'PROJECT' }]" 
+                    :options="[{ label: 'Técnico', value: 'TECHNICAL' }, { label: 'Proyecto', value: 'PROJECT' }]" 
                     option-label="label"
                     option-value="value"
                     emit-value
@@ -360,7 +360,6 @@
               color="accent"
               class="glass-input"
               emit-value 
-              map-options 
               :rules="[val => !!val || 'Requerido']" 
             >
               <template v-slot:prepend><q-icon name="school" color="accent" /></template>
@@ -620,7 +619,7 @@ function resetForm() {
     fullName: '',
     email: '',
     phone: '',
-    instructorType: 'FOLLOWUP',
+    instructorType: 'TECHNICAL',
     knowledgeArea: '',
     enrollmentNumber: '',
     program: '',
