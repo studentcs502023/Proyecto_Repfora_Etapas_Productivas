@@ -1,31 +1,43 @@
 <template>
   <div class="manage-trackings-container q-pa-md">
-    <div class="row items-center q-mb-md">
-      <div class="col">
-        <h2 class="text-h4 text-black text-weight-bold q-my-none">Gestión de Seguimientos</h2>
-        <p class="text-grey-7 q-my-sm">Registra y gestiona los seguimientos obligatorios por aprendiz.</p>
-      </div>
-      <div class="col-auto q-gutter-sm">
-        <q-btn color="warning" outline icon="warning" label="Extraordinario" @click="openExtraordinaryModal" />
-        <q-btn color="primary" icon="add" label="Programar Seguimiento" @click="openCreateModal" />
+    <!-- Premium Header -->
+    <div class="page-header q-mb-xl shadow-4">
+      <div class="cover-overlay"></div>
+      <div class="header-content text-white">
+        <div class="row items-center justify-between">
+          <div>
+            <h2 class="text-h3 text-weight-bolder q-my-none shadow-text">
+              <q-icon name="co_present" class="q-mr-sm" size="md"/>Gestión de Seguimientos
+            </h2>
+            <p class="text-subtitle1 opacity-80 q-mt-xs q-mb-none">
+              Registra, programa y ejecuta los seguimientos obligatorios de tus aprendices.
+            </p>
+          </div>
+          <div class="row q-gutter-sm">
+            <q-btn color="warning" unelevated rounded icon="warning" label="Extraordinario" class="action-header-btn" @click="openExtraordinaryModal" />
+            <q-btn color="white" text-color="primary" unelevated rounded icon="add" label="Programar Seguimiento" class="action-header-btn" @click="openCreateModal" />
+          </div>
+        </div>
       </div>
     </div>
 
-    <q-card flat bordered class="q-mb-md">
-      <q-card-section class="row q-col-gutter-sm items-center">
-        <div class="col-12 col-sm-5">
+    <!-- Filters Card -->
+    <q-card flat class="filter-card q-mb-lg">
+      <q-card-section class="q-pa-md row q-col-gutter-md items-center">
+        <div class="col-12 col-sm-6">
           <q-input
             v-model="searchFilter"
             dense
             outlined
-            placeholder="Buscar por nombre del aprendiz, ficha o programa..."
+            placeholder="Buscar por nombre, ficha o programa..."
             debounce="300"
             clearable
+            color="primary"
           >
-            <template v-slot:append><q-icon name="search" /></template>
+            <template v-slot:prepend><q-icon name="search" color="primary" /></template>
           </q-input>
         </div>
-        <div class="col-12 col-sm-4">
+        <div class="col-12 col-sm-6">
           <q-select
             v-model="filterModality"
             :options="modalityOptions"
@@ -35,12 +47,14 @@
             emit-value
             map-options
             clearable
+            color="primary"
           />
         </div>
       </q-card-section>
     </q-card>
 
-    <q-card flat bordered>
+    <!-- Table -->
+    <q-card flat class="table-card">
       <q-table
         :rows="filteredApprentices"
         :columns="apprenticeColumns"
@@ -48,22 +62,36 @@
         row-key="_id"
         flat
         :pagination="{ rowsPerPage: 15 }"
+        class="custom-table"
+        table-header-class="custom-table-header"
       >
+        <template v-slot:loading>
+          <q-inner-loading showing color="primary" />
+        </template>
+
         <template v-slot:body-cell-nombre="props">
           <q-td :props="props">
-            <span class="text-weight-bold">{{ props.row.firstNameAndLast }}</span>
+            <div class="row items-center no-wrap">
+              <q-avatar size="36px" color="primary" text-color="white" class="q-mr-md avatar-initial">
+                {{ props.row.fullName?.charAt(0) || '?' }}
+              </q-avatar>
+              <div>
+                <div class="text-weight-bold text-grey-9">{{ props.row.firstNameAndLast }}</div>
+                <div class="text-caption text-grey-5">Ficha: {{ props.row.enrollmentNumber }}</div>
+              </div>
+            </div>
           </q-td>
         </template>
 
         <template v-slot:body-cell-documento="props">
           <q-td :props="props">
-            <span>{{ props.row.nationalId }}</span>
+            <span class="text-weight-medium text-grey-8">{{ props.row.nationalId }}</span>
           </q-td>
         </template>
 
         <template v-slot:body-cell-etapaProductiva="props">
           <q-td :props="props">
-            <q-chip dense size="sm" color="grey-3" text-color="black">
+            <q-chip dense size="sm" color="green-1" text-color="green-9" class="text-weight-bold">
               {{ getModalityLabel(props.row.modality) }}
             </q-chip>
           </q-td>
@@ -71,22 +99,22 @@
 
         <template v-slot:body-cell-seguimientos="props">
           <q-td :props="props">
-            <div class="text-weight-bold">
-              {{ props.row.completedTrackings }} / {{ props.row.requiredTrackings }}
+            <div class="row items-center justify-between no-wrap q-mb-xs">
+              <span class="text-weight-bold text-primary">{{ props.row.completedTrackings }} / {{ props.row.requiredTrackings }}</span>
+              <span class="text-caption text-grey-6">{{ Math.round((props.row.completedTrackings / props.row.requiredTrackings) * 100) }}%</span>
             </div>
             <q-linear-progress
               :value="props.row.requiredTrackings > 0 ? props.row.completedTrackings / props.row.requiredTrackings : 0"
               :color="props.row.completedTrackings >= props.row.requiredTrackings ? 'positive' : 'warning'"
-              size="8px"
+              size="6px"
               rounded
-              class="q-mt-xs"
             />
           </q-td>
         </template>
 
         <template v-slot:body-cell-nivel="props">
           <q-td :props="props">
-            <q-badge :color="props.row.trainingLevel === 'TECHNOLOGIST' ? 'secondary' : 'info'" :label="props.row.trainingLevelLabel" />
+            <q-badge :color="props.row.trainingLevel === 'TECHNOLOGIST' ? 'secondary' : 'info'" :label="props.row.trainingLevelLabel" class="badge-pill q-px-sm" />
           </q-td>
         </template>
 
@@ -94,11 +122,13 @@
           <q-td :props="props" class="text-center">
             <q-btn
               size="sm"
-              color="orange"
-              outline
+              color="warning"
+              unelevated
+              rounded
               icon="chat"
               label="Observaciones"
               @click="openObservationsModal(props.row)"
+              class="action-table-btn"
             >
               <q-badge
                 v-if="props.row.comments?.length"
@@ -114,55 +144,63 @@
           <q-td :props="props" class="text-center">
             <q-btn
               size="sm"
-              color="blue"
-              outline
+              color="primary"
+              unelevated
+              rounded
               icon="folder_open"
-              label="Archivos Subidos"
+              label="Ver Actas"
               @click="openFilesModal(props.row)"
+              class="action-table-btn"
             />
           </q-td>
         </template>
 
         <template v-slot:no-data>
-          <div class="full-width row flex-center text-grey q-pa-lg">
-            No hay aprendices asignados con etapas productivas activas.
+          <div class="full-width column flex-center text-grey q-pa-xl">
+            <q-icon name="group_off" size="5em" color="grey-4" class="q-mb-md" />
+            <div class="text-h6 text-grey-6">No hay aprendices asignados</div>
+            <div class="text-caption">No se encontraron registros de aprendices bajo tu supervisión.</div>
           </div>
         </template>
       </q-table>
     </q-card>
 
     <!-- Modal: Observaciones (Chat) -->
-    <q-dialog v-model="showObservationsModal" persistent>
-      <q-card style="width: 600px; max-width: 90vw;">
-        <q-card-section class="bg-orange text-white row items-center">
-          <div class="text-h6">Observaciones</div>
-          <q-space />
-          <div class="text-subtitle2">{{ selectedApprenticeForObs?.firstNameAndLast }}</div>
-          <q-btn icon="close" flat round dense v-close-popup class="q-ml-md" />
-        </q-card-section>
+    <q-dialog v-model="showObservationsModal" persistent transition-show="scale" transition-hide="scale">
+      <q-card style="width: 600px; max-width: 90vw; border-radius: 20px;" class="overflow-hidden">
+        <div class="bg-warning text-white q-pa-md row items-center justify-between">
+          <div>
+            <div class="text-h6 text-weight-bold"><q-icon name="chat" class="q-mr-xs"/> Observaciones</div>
+            <div class="text-caption opacity-80">{{ selectedApprenticeForObs?.firstNameAndLast }}</div>
+          </div>
+          <q-btn icon="close" flat round dense v-close-popup color="white" />
+        </div>
 
-        <q-card-section class="q-pa-md" style="max-height: 400px; overflow-y: auto;">
-          <div v-if="!observationsList.length" class="text-center text-grey q-pa-lg">
-            <q-icon name="chat_bubble_outline" size="3em" class="q-mb-sm" />
-            <div>No hay observaciones registradas.</div>
-            <div class="text-caption">Los comentarios del administrador o instructor aparecerán aquí.</div>
+        <q-card-section class="q-pa-md bg-grey-1" style="max-height: 400px; overflow-y: auto;">
+          <div v-if="!observationsList.length" class="text-center text-grey q-pa-xl">
+            <q-icon name="chat_bubble_outline" size="4em" color="grey-4" class="q-mb-md" />
+            <div class="text-h6 text-grey-6">Sin observaciones registradas</div>
+            <div class="text-caption">Los comentarios del instructor y administración aparecerán aquí.</div>
           </div>
 
-          <q-chat-message
-            v-for="(comment, idx) in observationsList"
-            :key="idx"
-            :name="getCommentAuthorName(comment)"
-            :text="[comment.text]"
-            :sent="isMyComment(comment)"
-            :stamp="formatDateTime(comment.createdAt)"
-            :bg-color="isMyComment(comment) ? 'primary-1' : 'grey-3'"
-            size="10"
-          />
+          <div v-else class="q-gutter-y-md">
+            <q-chat-message
+              v-for="(comment, idx) in observationsList"
+              :key="idx"
+              :name="getCommentAuthorName(comment)"
+              :text="[comment.text]"
+              :sent="isMyComment(comment)"
+              :stamp="formatDateTime(comment.createdAt)"
+              :bg-color="isMyComment(comment) ? 'green-2' : 'white'"
+              :text-color="isMyComment(comment) ? 'green-10' : 'grey-9'"
+              size="10"
+            />
+          </div>
         </q-card-section>
 
         <q-separator />
 
-        <q-card-section class="q-pa-md">
+        <q-card-section class="q-pa-md bg-white">
           <div class="row q-col-gutter-sm items-end">
             <div class="col">
               <q-input
@@ -173,6 +211,7 @@
                 dense
                 rows="2"
                 autogrow
+                color="primary"
                 :disable="savingObs"
               />
             </div>
@@ -181,6 +220,8 @@
                 color="primary"
                 icon="send"
                 label="Enviar"
+                rounded
+                unelevated
                 @click="addObservation"
                 :loading="savingObs"
                 :disable="!newObservation.trim()"
@@ -191,70 +232,94 @@
       </q-card>
     </q-dialog>
 
-    <!-- Modal: Archivos Subidos -->
-    <q-dialog v-model="showFilesModal" persistent>
-      <q-card style="width: 700px; max-width: 90vw;">
-        <q-card-section class="bg-blue text-white row items-center">
-          <div class="text-h6">Archivos Subidos</div>
-          <q-space />
-          <div class="text-subtitle2">{{ selectedApprenticeForFiles?.firstNameAndLast }}</div>
-          <q-btn icon="close" flat round dense v-close-popup class="q-ml-md" />
-        </q-card-section>
+    <!-- Modal: Seguimientos y Archivos -->
+    <q-dialog v-model="showFilesModal" persistent transition-show="scale" transition-hide="scale">
+      <q-card style="width: 700px; max-width: 90vw; border-radius: 20px;" class="overflow-hidden">
+        <div class="bg-primary text-white q-pa-md row items-center justify-between">
+          <div>
+            <div class="text-h6 text-weight-bold"><q-icon name="folder" class="q-mr-xs"/> Seguimientos del Aprendiz</div>
+            <div class="text-caption opacity-80">{{ selectedApprenticeForFiles?.firstNameAndLast }}</div>
+          </div>
+          <q-btn icon="close" flat round dense v-close-popup color="white" />
+        </div>
 
-        <q-card-section class="q-pa-md" style="max-height: 450px; overflow-y: auto;">
-          <div v-if="filesLoading" class="text-center q-pa-lg">
-            <q-spinner color="primary" size="2em" />
-            <div class="text-grey q-mt-sm">Cargando archivos...</div>
+        <q-card-section class="q-pa-md bg-grey-1" style="max-height: 450px; overflow-y: auto;">
+          <div v-if="filesLoading" class="text-center q-pa-xl">
+            <q-spinner color="primary" size="3em" />
+            <div class="text-grey-6 q-mt-sm">Cargando seguimientos...</div>
           </div>
 
-          <div v-else-if="!filesList.length" class="text-center text-grey q-pa-lg">
-            <q-icon name="folder_off" size="3em" class="q-mb-sm" />
-            <div>No hay archivos subidos para este aprendiz.</div>
+          <div v-else-if="!filesList.length" class="text-center text-grey q-pa-xl">
+            <q-icon name="folder_off" size="4em" color="grey-4" class="q-mb-md" />
+            <div class="text-h6 text-grey-6">Sin seguimientos registrados</div>
+            <div class="text-caption">No hay seguimientos vigentes o programados para este aprendiz.</div>
           </div>
 
-          <q-list v-else bordered separator>
-            <q-item v-for="(file, idx) in filesList" :key="idx" class="q-py-sm">
+          <q-list v-else separator class="bg-white rounded-borders border-dashed-container">
+            <q-item v-for="(file, idx) in filesList" :key="idx" class="q-py-md tracking-item">
               <q-item-section avatar>
-                <q-icon :name="file.uploadedBy === 'Aprendiz' ? 'person' : 'school'" :color="file.uploadedBy === 'Aprendiz' ? 'teal' : 'negative'" size="md" />
+                <q-avatar :color="file.status === 'SCHEDULED' ? 'orange-1' : 'green-1'" :text-color="file.status === 'SCHEDULED' ? 'orange' : 'green'">
+                  <q-icon :name="file.status === 'SCHEDULED' ? 'event' : 'task_alt'" />
+                </q-avatar>
               </q-item-section>
+              
               <q-item-section>
-                <q-item-label class="text-weight-bold">
+                <q-item-label class="text-weight-bold text-grey-9">
                   Seguimiento #{{ file.trackingNumber }}
-                  <q-badge v-if="file.isExtraordinary" color="warning" label="Extraordinario" class="q-ml-sm" size="sm" />
-                  <q-badge :color="file.uploadedBy === 'Aprendiz' ? 'teal' : 'primary'" :label="file.uploadedBy" class="q-ml-xs" size="sm" />
+                  <q-badge v-if="file.isExtraordinary" color="warning" label="Extraordinario" class="q-ml-sm" />
+                </q-item-label>
+                <q-item-label caption class="text-grey-7">
+                  {{ file.fileName || 'Acta de Seguimiento' }}
+                </q-item-label>
+                <q-item-label caption class="text-grey-5">
+                  Fecha: {{ formatDateTime(file.uploadedAt || file.executedDate) }}
                 </q-item-label>
                 <q-item-label caption>
-                  {{ file.fileName || 'Acta de seguimiento' }}
-                </q-item-label>
-                <q-item-label caption>
-                  Subido: {{ formatDateTime(file.uploadedAt || file.executedDate) }}
-                </q-item-label>
-                <q-item-label caption>
-                  Estado: {{ getStatusLabel(file.status) }}
+                  Estado: 
+                  <q-badge :color="file.status === 'SCHEDULED' ? 'orange' : 'green'" class="q-ml-xs">
+                    {{ getStatusLabel(file.status) }}
+                  </q-badge>
                 </q-item-label>
               </q-item-section>
+
               <q-item-section side>
-                <div class="q-gutter-xs">
+                <div class="row q-gutter-xs">
+                  <!-- Execute Button for Scheduled trackings -->
                   <q-btn
-                    v-if="file.driveFileUrl"
+                    v-if="file.status === 'SCHEDULED'"
                     size="sm"
                     color="primary"
-                    outline
-                    icon="visibility"
-                    @click="previewFile(file)"
-                  >
-                    <q-tooltip>Visualizar</q-tooltip>
-                  </q-btn>
-                  <q-btn
-                    v-if="file.driveFileUrl"
-                    size="sm"
-                    color="secondary"
-                    outline
-                    icon="download"
-                    @click="downloadFile(file)"
-                  >
-                    <q-tooltip>Descargar PDF</q-tooltip>
-                  </q-btn>
+                    rounded
+                    unelevated
+                    label="Ejecutar"
+                    icon="play_arrow"
+                    @click="openExecuteModal(file)"
+                  />
+                  <!-- Preview and Download for executed trackings -->
+                  <template v-else>
+                    <q-btn
+                      v-if="file.driveFileUrl"
+                      size="sm"
+                      flat
+                      round
+                      color="primary"
+                      icon="visibility"
+                      @click="previewFile(file)"
+                    >
+                      <q-tooltip>Visualizar en Drive</q-tooltip>
+                    </q-btn>
+                    <q-btn
+                      v-if="file.driveFileUrl"
+                      size="sm"
+                      flat
+                      round
+                      color="secondary"
+                      icon="download"
+                      @click="downloadFile(file)"
+                    >
+                      <q-tooltip>Descargar PDF</q-tooltip>
+                    </q-btn>
+                  </template>
                 </div>
               </q-item-section>
             </q-item>
@@ -264,14 +329,14 @@
     </q-dialog>
 
     <!-- Modal: Programar (Ordinario) -->
-    <q-dialog v-model="showCreateModal" persistent>
-      <q-card style="width: 500px; max-width: 90vw;">
+    <q-dialog v-model="showCreateModal" persistent transition-show="scale" transition-hide="scale">
+      <q-card style="width: 500px; max-width: 90vw; border-radius: 20px;" class="overflow-hidden">
         <q-form @submit="createTracking">
-          <q-card-section class="bg-primary text-white">
-            <div class="text-h6">Programar Seguimiento</div>
-          </q-card-section>
+          <div class="bg-primary text-white q-pa-md">
+            <div class="text-h6 text-weight-bold"><q-icon name="event" class="q-mr-xs"/> Programar Seguimiento</div>
+          </div>
 
-          <q-card-section class="q-pa-md q-gutter-md">
+          <q-card-section class="q-pa-lg q-gutter-y-md bg-grey-1">
             <q-select
               v-model="form.productiveStageId"
               :options="myEPsSinContrato"
@@ -279,6 +344,8 @@
               :option-label="opt => `${opt.apprentice?.fullName} - ${opt.companySnapshot?.companyName || 'Sin empresa'}`"
               label="Seleccionar Aprendiz / Etapa"
               outlined dense emit-value map-options
+              color="primary"
+              bg-color="white"
               :rules="[val => !!val || 'Requerido']"
             />
 
@@ -287,33 +354,35 @@
               :options="[{label:'Presencial', value:'IN_PERSON'}, {label:'Virtual', value:'VIRTUAL'}]"
               label="Tipo de Seguimiento"
               outlined dense emit-value map-options
+              color="primary"
+              bg-color="white"
               :rules="[val => !!val || 'Requerido']"
             />
 
-            <q-input v-model="form.scheduledDate" label="Fecha Programada" type="date" outlined dense :rules="[val => !!val || 'Requerido']" />
+            <q-input v-model="form.scheduledDate" label="Fecha Programada" type="date" outlined dense color="primary" bg-color="white" :rules="[val => !!val || 'Requerido']" />
 
-            <q-input v-model="form.notes" label="Notas / Detalles (Opcional)" type="textarea" outlined dense rows="3" />
+            <q-input v-model="form.notes" label="Notas / Detalles (Opcional)" type="textarea" outlined dense rows="3" color="primary" bg-color="white" />
           </q-card-section>
 
-          <q-card-actions align="right" class="q-pa-md">
+          <q-card-actions align="right" class="q-pa-md bg-white">
             <q-btn flat label="Cancelar" color="grey" v-close-popup />
-            <q-btn color="primary" label="Programar" type="submit" :loading="saving" />
+            <q-btn color="primary" label="Programar" rounded unelevated type="submit" :loading="saving" />
           </q-card-actions>
         </q-form>
       </q-card>
     </q-dialog>
 
     <!-- Modal: Solicitar Extraordinario -->
-    <q-dialog v-model="showExtraordinaryModal" persistent>
-      <q-card style="width: 500px; max-width: 90vw;">
+    <q-dialog v-model="showExtraordinaryModal" persistent transition-show="scale" transition-hide="scale">
+      <q-card style="width: 500px; max-width: 90vw; border-radius: 20px;" class="overflow-hidden">
         <q-form @submit="requestExtraordinary">
-          <q-card-section class="bg-warning text-white">
-            <div class="text-h6">Solicitar Seg. Extraordinario</div>
-          </q-card-section>
+          <div class="bg-warning text-white q-pa-md">
+            <div class="text-h6 text-weight-bold"><q-icon name="warning" class="q-mr-xs"/> Solicitar Seg. Extraordinario</div>
+          </div>
 
-          <q-card-section class="q-pa-md q-gutter-md">
-            <q-banner class="bg-orange-1 text-warning q-mb-md rounded-borders text-caption">
-              Los seguimientos extraordinarios requieren la aprobación de la coordinación antes de ser ejecutados.
+          <q-card-section class="q-pa-lg q-gutter-y-md bg-grey-1">
+            <q-banner class="bg-orange-1 text-warning rounded-borders text-caption q-mb-md">
+              <q-icon name="info" class="q-mr-xs"/> Los seguimientos extraordinarios requieren la aprobación de la coordinación antes de ser ejecutados.
             </q-banner>
 
             <q-select
@@ -323,6 +392,8 @@
               :option-label="opt => `${opt.apprentice?.fullName} - ${opt.companySnapshot?.companyName || 'Sin empresa'}`"
               label="Seleccionar Aprendiz / Etapa"
               outlined dense emit-value map-options
+              color="primary"
+              bg-color="white"
               :rules="[val => !!val || 'Requerido']"
             />
 
@@ -331,58 +402,72 @@
               :options="[{label:'Extraordinario (Presencial)', value:'EXTRAORDINARY'}, {label:'Virtual', value:'VIRTUAL'}, {label:'Presencial', value:'IN_PERSON'}]"
               label="Tipo Base"
               outlined dense emit-value map-options
+              color="primary"
+              bg-color="white"
               :rules="[val => !!val || 'Requerido']"
             />
 
-            <q-input v-model="form.scheduledDate" label="Fecha Propuesta" type="date" outlined dense :rules="[val => !!val || 'Requerido']" />
+            <q-input v-model="form.scheduledDate" label="Fecha Propuesta" type="date" outlined dense color="primary" bg-color="white" :rules="[val => !!val || 'Requerido']" />
 
             <q-input v-model="form.extraordinaryReason" label="Motivo de la solicitud *" type="textarea" outlined dense rows="4"
                      placeholder="Explique detalladamente por qué se requiere este seguimiento extra..."
+                     color="primary"
+                     bg-color="white"
                      :rules="[val => !!val && val.length >= 50 || 'Requerido. Mínimo 50 caracteres.']" />
           </q-card-section>
 
-          <q-card-actions align="right" class="q-pa-md">
+          <q-card-actions align="right" class="q-pa-md bg-white">
             <q-btn flat label="Cancelar" color="grey" v-close-popup />
-            <q-btn color="warning" text-color="black" label="Solicitar" type="submit" :loading="saving" />
+            <q-btn color="warning" text-color="black" label="Enviar Solicitud" rounded unelevated type="submit" :loading="saving" />
           </q-card-actions>
         </q-form>
       </q-card>
     </q-dialog>
 
     <!-- Modal: Ejecutar Seguimiento -->
-    <q-dialog v-model="showExecuteModal" persistent maximized>
-      <q-card v-if="selectedTracking" class="column">
-        <q-card-section class="bg-primary text-white row items-center q-pb-none">
-          <div class="text-h6">Ejecutar Seguimiento #{{ selectedTracking.trackingNumber }} - {{ selectedTracking.apprentice?.fullName }}</div>
-          <q-space />
-          <q-btn icon="close" flat round dense v-close-popup>
-            <q-tooltip>Cerrar</q-tooltip>
-          </q-btn>
-        </q-card-section>
+    <q-dialog v-model="showExecuteModal" persistent maximized transition-show="slide-up" transition-hide="slide-down">
+      <q-card v-if="selectedTracking" class="column modal-card">
+        <div class="modal-header">
+          <div class="cover-overlay-sm"></div>
+          <div class="row items-center q-pa-lg text-white" style="position:relative;z-index:1">
+            <q-avatar size="48px" color="white" text-color="primary" class="q-mr-md text-weight-bolder" style="font-size:20px">
+              {{ selectedTracking.apprentice?.fullName?.charAt(0) || '?' }}
+            </q-avatar>
+            <div class="col">
+              <div class="text-h5 text-weight-bolder">
+                Ejecutar Seguimiento #{{ selectedTracking.trackingNumber }}
+              </div>
+              <div class="text-caption opacity-80">{{ selectedTracking.apprentice?.fullName }}</div>
+            </div>
+            <q-btn icon="close" flat round dense v-close-popup color="white">
+              <q-tooltip>Cerrar</q-tooltip>
+            </q-btn>
+          </div>
+        </div>
 
-        <q-card-section class="col q-pa-lg scroll">
-          <q-stepper v-model="executeStep" ref="stepper" color="primary" animated flat bordered class="q-mx-auto" style="max-width: 800px;">
+        <q-card-section class="col q-pa-lg scroll bg-grey-1">
+          <q-stepper v-model="executeStep" ref="stepper" color="primary" animated flat class="q-mx-auto stepper-custom" style="max-width: 800px;">
 
             <q-step :name="1" title="Subir Acta Firmada" icon="upload_file" :done="executeStep > 1 || !!selectedTracking.driveFileUrl">
-              <div class="q-pa-md">
-                <p class="text-subtitle1 text-grey-8">Sube el documento PDF del seguimiento con las firmas correspondientes.</p>
+              <div class="q-pa-md bg-white rounded-borders shadow-1">
+                <p class="text-subtitle1 text-grey-8 text-weight-medium">Sube el documento PDF del seguimiento con las firmas correspondientes.</p>
                 <div v-if="selectedTracking.driveFileUrl" class="bg-green-1 q-pa-md rounded-borders q-mb-md text-positive flex items-center">
                   <q-icon name="check_circle" size="sm" class="q-mr-sm" /> Documento subido previamente. Puedes reemplazarlo o continuar.
                 </div>
 
-                <q-file v-model="executeForm.file" label="Seleccionar Acta PDF" outlined accept=".pdf" class="q-mb-md">
-                  <template v-slot:prepend><q-icon name="picture_as_pdf" /></template>
+                <q-file v-model="executeForm.file" label="Seleccionar Acta PDF" outlined accept=".pdf" class="q-mb-md" color="primary">
+                  <template v-slot:prepend><q-icon name="picture_as_pdf" color="primary" /></template>
                 </q-file>
 
-                <q-btn color="secondary" label="Subir Documento" @click="uploadPDF" :loading="saving" :disable="!executeForm.file" />
+                <q-btn color="primary" label="Subir Documento" rounded unelevated @click="uploadPDF" :loading="saving" :disable="!executeForm.file" class="q-px-md" />
 
                 <div v-if="selectedTracking.driveFileUrl" class="q-mt-md">
                   <q-separator class="q-my-md" />
-                  <p class="text-subtitle1 text-grey-8">Validar documento con inteligencia artificial</p>
+                  <p class="text-subtitle1 text-grey-8 text-weight-medium">Validar documento con inteligencia artificial</p>
 
                   <q-banner v-if="!executeForm.aiValidated" class="bg-blue-1 rounded-borders q-mb-md">
                     <q-icon name="info" size="sm" class="q-mr-sm" />
-                    Presiona <strong>"Verificar con IA"</strong> para analizar el documento. No podrás continuar sin esta validación.
+                    Presiona <strong>"Verificar con IA"</strong> para analizar el documento.
                   </q-banner>
 
                   <q-banner v-if="executeForm.aiValidated && executeForm.aiValid" class="bg-green-1 text-positive rounded-borders q-mb-md">
@@ -397,8 +482,8 @@
 
                   <div v-if="executeForm.aiDetails" class="q-mb-md">
                     <q-card flat bordered class="bg-grey-1">
-                      <q-card-section>
-                        <div class="text-caption text-grey">Detalles de validación:</div>
+                      <q-card-section class="q-pa-md text-grey-8">
+                        <div class="text-caption text-grey-5 text-weight-bold uppercase">Detalles de validación:</div>
                         <div v-if="executeForm.aiDetails.pages">Páginas: {{ executeForm.aiDetails.pages }}</div>
                         <div v-if="executeForm.aiDetails.wordCount">Palabras detectadas: {{ executeForm.aiDetails.wordCount }}</div>
                         <div v-if="executeForm.aiDetails.score !== undefined">Puntaje: {{ executeForm.aiDetails.score }}/100</div>
@@ -410,19 +495,19 @@
                   </div>
 
                   <div class="row q-gutter-md">
-                    <q-btn color="purple" icon="psychology" label="Verificar con IA" @click="validatePDFWithAI" :loading="executeForm.validatingAI" :disable="executeForm.aiValidated && executeForm.aiValid" />
-                    <q-btn v-if="executeForm.aiValidated && !executeForm.aiValid" color="orange" outline label="Volver a Intentar" @click="resetExecuteAI" />
+                    <q-btn color="purple" icon="psychology" label="Verificar con IA" rounded unelevated @click="validatePDFWithAI" :loading="executeForm.validatingAI" :disable="executeForm.aiValidated && executeForm.aiValid" />
+                    <q-btn v-if="executeForm.aiValidated && !executeForm.aiValid" color="orange" outline label="Volver a Intentar" rounded @click="resetExecuteAI" />
                   </div>
                 </div>
               </div>
-              <q-stepper-navigation>
-                <q-btn color="primary" label="Continuar" @click="executeStep = 2" :disable="!selectedTracking.driveFileUrl || !executeForm.aiValidated || !executeForm.aiValid" />
+              <q-stepper-navigation class="q-mt-md">
+                <q-btn color="primary" label="Continuar" rounded unelevated @click="executeStep = 2" :disable="!selectedTracking.driveFileUrl || !executeForm.aiValidated || !executeForm.aiValid" />
               </q-stepper-navigation>
             </q-step>
 
             <q-step :name="2" title="Validar Firmas" icon="draw" :done="executeStep > 2 || selectedTracking.signatureValidatedAt">
-              <div class="q-pa-md">
-                <p class="text-subtitle1 text-grey-8">Confirma que el documento adjunto contiene las firmas requeridas.</p>
+              <div class="q-pa-md bg-white rounded-borders shadow-1">
+                <p class="text-subtitle1 text-grey-8 text-weight-medium">Confirma que el documento adjunto contiene las firmas requeridas.</p>
                 <q-list bordered separator class="rounded-borders q-mb-md">
                   <q-item tag="label" v-ripple>
                     <q-item-section avatar><q-checkbox v-model="executeForm.signedByInstructor" color="primary" /></q-item-section>
@@ -434,22 +519,22 @@
                   </q-item>
                 </q-list>
 
-                <q-btn color="secondary" label="Guardar Validación" @click="validateSignatures" :loading="saving" :disable="!executeForm.signedByInstructor" />
+                <q-btn color="primary" label="Guardar Validación" rounded unelevated @click="validateSignatures" :loading="saving" :disable="!executeForm.signedByInstructor" />
               </div>
-              <q-stepper-navigation>
+              <q-stepper-navigation class="q-mt-md">
                 <q-btn flat color="primary" label="Atrás" @click="executeStep = 1" class="q-mr-sm" />
-                <q-btn color="primary" label="Continuar" @click="executeStep = 3" :disable="!selectedTracking.signatureValidatedAt && !executeForm.signaturesSavedLocal" />
+                <q-btn color="primary" label="Continuar" rounded unelevated @click="executeStep = 3" :disable="!selectedTracking.signatureValidatedAt && !executeForm.signaturesSavedLocal" />
               </q-stepper-navigation>
             </q-step>
 
             <q-step :name="3" title="Finalizar Ejecución" icon="check_circle">
-              <div class="q-pa-md bg-grey-2 rounded-borders text-center">
-                <q-icon name="task_alt" size="4em" color="positive" class="q-mb-md" />
-                <div class="text-h6 text-primary">Todo listo para ejecutar</div>
-                <p class="text-caption text-grey-8">Al confirmar, el seguimiento quedará cerrado, se sumarán las horas a tu cuenta mensual y avanzará el progreso del aprendiz.</p>
-                <q-btn color="positive" size="lg" label="Marcar como Ejecutado" @click="executeTracking" :loading="saving" class="q-mt-md" />
+              <div class="q-pa-xl bg-white rounded-borders shadow-1 text-center">
+                <q-icon name="task_alt" size="5em" color="positive" class="q-mb-md" />
+                <div class="text-h5 text-weight-bold text-primary">¡Todo listo para ejecutar!</div>
+                <p class="text-caption text-grey-7 q-my-md max-w-400">Al confirmar, el seguimiento quedará registrado como ejecutado, se sumarán las horas correspondientes y avanzará el progreso general del aprendiz.</p>
+                <q-btn color="positive" size="lg" label="Confirmar Ejecución" rounded unelevated @click="executeTracking" :loading="saving" class="q-px-xl" />
               </div>
-              <q-stepper-navigation>
+              <q-stepper-navigation class="q-mt-md">
                 <q-btn flat color="primary" label="Atrás" @click="executeStep = 2" />
               </q-stepper-navigation>
             </q-step>
@@ -458,7 +543,6 @@
         </q-card-section>
       </q-card>
     </q-dialog>
-
 
   </div>
 </template>
@@ -487,13 +571,13 @@ const modalityOptions = [
 ];
 
 const apprenticeColumns = [
-  { name: 'nombre', label: 'Nombre', field: 'firstNameAndLast', align: 'left', sortable: true },
+  { name: 'nombre', label: 'Nombre / Ficha', field: 'firstNameAndLast', align: 'left', sortable: true },
   { name: 'documento', label: 'Documento', field: 'nationalId', align: 'left' },
-  { name: 'etapaProductiva', label: 'Etapa Productiva', field: 'modality', align: 'left' },
-  { name: 'seguimientos', label: 'N.º Seguimientos', field: 'completedTrackings', align: 'center' },
-  { name: 'nivel', label: 'Nivel Formación', field: 'trainingLevel', align: 'center' },
+  { name: 'etapaProductiva', label: 'Modalidad Etapa', field: 'modality', align: 'left' },
+  { name: 'seguimientos', label: 'Progreso Seguimientos', field: 'completedTrackings', align: 'center' },
+  { name: 'nivel', label: 'Nivel', field: 'trainingLevel', align: 'center' },
   { name: 'observaciones', label: 'Observaciones', align: 'center' },
-  { name: 'archivos', label: 'Archivos', align: 'center' }
+  { name: 'archivos', label: 'Seguimientos', align: 'center' }
 ];
 
 function getFirstAndLast(fullName) {
@@ -673,32 +757,18 @@ async function openFilesModal(row) {
     const trackings = body.data?.trackings || [];
     const result = [];
     for (const t of trackings) {
-      if (t.apprenticeDriveFileUrl || t.apprenticeDriveFileId) {
-        result.push({
-          trackingNumber: t.trackingNumber,
-          isExtraordinary: t.isExtraordinary,
-          fileName: t.apprenticeFileName || `Seguimiento_${t.trackingNumber}_aprendiz.pdf`,
-          driveFileUrl: t.apprenticeDriveFileUrl,
-          driveFileId: t.apprenticeDriveFileId,
-          status: t.status,
-          executedDate: t.executedDate,
-          uploadedAt: t.apprenticeFileUploadedAt || t.updatedAt,
-          uploadedBy: 'Aprendiz'
-        });
-      }
-      if (t.driveFileUrl || t.driveFileId) {
-        result.push({
-          trackingNumber: t.trackingNumber,
-          isExtraordinary: t.isExtraordinary,
-          fileName: t.fileName || `Acta_Seguimiento_${t.trackingNumber}.pdf`,
-          driveFileUrl: t.driveFileUrl,
-          driveFileId: t.driveFileId,
-          status: t.status,
-          executedDate: t.executedDate,
-          uploadedAt: t.updatedAt || t.executedDate,
-          uploadedBy: 'Instructor'
-        });
-      }
+      result.push({
+        _id: t._id,
+        trackingNumber: t.trackingNumber,
+        isExtraordinary: t.isExtraordinary,
+        fileName: t.apprenticeFileName || t.fileName || `Acta de Seguimiento #${t.trackingNumber}`,
+        driveFileUrl: t.apprenticeDriveFileUrl || t.driveFileUrl,
+        driveFileId: t.apprenticeDriveFileId || t.driveFileId,
+        status: t.status,
+        executedDate: t.executedDate,
+        uploadedAt: t.apprenticeFileUploadedAt || t.updatedAt,
+        uploadedBy: t.apprenticeDriveFileUrl ? 'Aprendiz' : 'Instructor'
+      });
     }
     filesList.value = result;
   } catch (error) {
@@ -727,7 +797,7 @@ function downloadFile(file) {
   }
 }
 
-// ============ Existing Functionality (preserved from original) ============
+// ============ Existing Functionality ============
 const saving = ref(false);
 const showCreateModal = ref(false);
 const showExtraordinaryModal = ref(false);
@@ -819,17 +889,6 @@ async function requestExtraordinary() {
   }
 }
 
-async function fetchTrackingsForEP(epId) {
-  try {
-    const body = await trackingService.getSummary(epId);
-    return body.data?.trackings || [];
-  } catch (error) {
-    console.error(error);
-    $q.notify({ type: 'negative', message: error.message || 'Error al cargar seguimientos.', position: 'top', timeout: 5000 });
-    return [];
-  }
-}
-
 function openExecuteModal(tracking) {
   selectedTracking.value = tracking;
   executeStep.value = tracking.driveFileUrl ? 2 : 1;
@@ -855,6 +914,7 @@ async function uploadPDF() {
     fd.append('file', executeForm.value.file);
     const body = await trackingService.uploadPDF(selectedTracking.value._id, fd);
     selectedTracking.value.driveFileUrl = body.data?.driveFileUrl;
+    selectedTracking.value.driveFileId = body.data?.driveFileId;
     $q.notify({ type: 'positive', message: 'Documento subido correctamente.', position: 'top', timeout: 5000 });
     executeStep.value = 2;
   } catch (error) {
@@ -925,6 +985,10 @@ async function executeTracking() {
     await trackingService.execute(selectedTracking.value._id);
     $q.notify({ type: 'positive', message: 'Seguimiento ejecutado exitosamente. Horas asignadas.', position: 'top', timeout: 5000 });
     showExecuteModal.value = false;
+    // Refresh modal list data as well
+    if (selectedApprenticeForFiles.value) {
+      openFilesModal(selectedApprenticeForFiles.value);
+    }
     fetchMyEPs();
   } catch (error) {
     console.error(error);
@@ -933,12 +997,144 @@ async function executeTracking() {
     saving.value = false;
   }
 }
-
 </script>
 
 <style scoped>
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
+
 .manage-trackings-container {
   max-width: 1300px;
+  margin: 0 auto;
+  font-family: 'Outfit', sans-serif;
+  animation: fadeIn 0.5s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ─── Header ─────────────────────────────────────── */
+.page-header {
+  background: linear-gradient(135deg, #093028 0%, #237A57 100%);
+  border-radius: 20px;
+  padding: 28px 32px;
+  position: relative;
+  overflow: hidden;
+}
+.cover-overlay {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-image: radial-gradient(circle at 2px 2px, rgba(255,255,255,0.1) 1px, transparent 0);
+  background-size: 20px 20px;
+  pointer-events: none;
+}
+.header-content { position: relative; z-index: 1; }
+.shadow-text { text-shadow: 2px 2px 8px rgba(0,0,0,0.4); }
+.opacity-80 { opacity: 0.8; }
+
+.action-header-btn {
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  transition: all 0.2s ease;
+}
+.action-header-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(255,255,255,0.2);
+}
+
+/* ─── Filters Card ────────────────────────────────── */
+.filter-card {
+  border-radius: 16px;
+  border: 1px solid rgba(0,0,0,0.06);
+  background: white;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.04) !important;
+}
+
+/* ─── Table Card ──────────────────────────────────── */
+.table-card {
+  border-radius: 20px;
+  border: 1px solid rgba(0,0,0,0.06);
+  background: white;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.06) !important;
+  overflow: hidden;
+}
+
+.custom-table :deep(.q-table__container) { background: transparent; }
+.custom-table :deep(th) {
+  font-weight: 700;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: #6b7280;
+  background: #f9fafb;
+  border-bottom: 2px solid rgba(0,0,0,0.05);
+}
+.custom-table :deep(tbody tr) {
+  transition: all 0.2s ease;
+}
+.custom-table :deep(tbody tr:hover) {
+  background-color: #f0fdf4 !important;
+}
+.custom-table :deep(td) {
+  border-bottom: 1px solid rgba(0,0,0,0.04);
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+
+.avatar-initial {
+  font-weight: 700;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.badge-pill {
+  border-radius: 20px;
+  font-weight: 600;
+}
+
+.action-table-btn {
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+.action-table-btn:hover {
+  transform: translateY(-1px);
+}
+
+/* ─── Modal Custom Styles ─────────────────────────── */
+.border-dashed-container {
+  border: 1px dashed rgba(0,0,0,0.1);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.tracking-item {
+  transition: all 0.2s ease;
+}
+.tracking-item:hover {
+  background: #f9fafb;
+}
+
+/* Stepper customization */
+.stepper-custom {
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.05) !important;
+}
+
+.modal-header {
+  background: linear-gradient(135deg, #093028 0%, #237A57 100%);
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.cover-overlay-sm {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-image: radial-gradient(circle at 2px 2px, rgba(255,255,255,0.08) 1px, transparent 0);
+  background-size: 18px 18px;
+}
+.max-w-400 {
+  max-width: 400px;
   margin: 0 auto;
 }
 </style>
