@@ -223,7 +223,7 @@
                 <q-chip :color="getStatusColor(selectedNovelty?.status)" text-color="white" dense size="sm" class="badge-pill q-px-sm">{{ getStatusLabel(selectedNovelty?.status) }}</q-chip>
               </div>
             </div>
-          </q-card-section>
+          </q-card>
           
           <div class="text-subtitle2 text-primary text-weight-bold q-mb-sm">Descripción del Instructor</div>
           <div class="bg-white q-pa-md rounded-borders border q-mb-md text-grey-8" style="white-space: pre-wrap; font-size: 13.5px; border-radius: 12px; line-height: 1.5;">{{ selectedNovelty?.description }}</div>
@@ -336,7 +336,6 @@ const attachFiles = ref(null);
 let pollInterval = null;
 
 onMounted(() => {
-  fetchNovelties();
   fetchMyEPs();
   pollInterval = setInterval(fetchNovelties, 60000);
 });
@@ -358,7 +357,7 @@ async function fetchNovelties() {
       limit: pagination.value.rowsPerPage
     };
     const body = await noveltyService.getAll(params);
-    novelties.value = body.data?.novelties || body.data || [];
+    novelties.value = body.data?.novelties || [];
     if (body.data?.total) pagination.value.rowsNumber = body.data.total;
   } catch (error) {
     console.error(error);
@@ -377,8 +376,8 @@ function onRequest(props) {
 async function fetchMyEPs() {
   try {
     const body = await productiveStageService.getAllEPs({ limit: 100 });
-    const all = body.data?.eps || body.data || [];
-    myEPs.value = all.filter(ep => ep.status !== 'COMPLETED' && ep.status !== 'ARCHIVED');
+    const all = body.data?.eps || [];
+    myEPs.value = Array.isArray(all) ? all.filter(ep => ep.status !== 'COMPLETED' && ep.status !== 'ARCHIVED') : [];
   } catch (error) {
     console.error('Error fetching EPs', error);
     $q.notify({ type: 'negative', message: error.message || 'Error al cargar etapas productivas.', position: 'top', timeout: 5000 });

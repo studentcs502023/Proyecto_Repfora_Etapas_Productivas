@@ -25,14 +25,6 @@
       <q-btn color="primary" icon="app_registration" label="Registrar Etapa" to="/register-ep" class="q-mt-md header-btn text-weight-bold shadow-2" rounded />
     </q-card>
 
-    <!-- Project Modality -->
-    <q-card v-else-if="isProjectModality" class="my-card no-shadow bg-amber-1 text-center q-pa-xl">
-      <q-icon name="engineering" size="5em" color="warning" class="q-mb-md" />
-      <div class="text-h5 text-warning text-weight-bold">Modalidad de Proyecto o Pasantía</div>
-      <p class="text-grey-8 q-mt-sm">En esta modalidad los avances se registran mediante <strong>seguimientos</strong> programados por tu instructor, no mediante bitácoras.</p>
-      <q-btn color="warning" text-color="black" icon="co_present" label="Ir a Mis Seguimientos" to="/seguimientos" class="q-mt-md header-btn text-weight-bold shadow-2" rounded />
-    </q-card>
-
     <!-- Bitacoras List -->
     <div v-else>
       <!-- Progress Card -->

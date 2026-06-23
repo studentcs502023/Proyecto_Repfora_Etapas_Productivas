@@ -122,7 +122,14 @@ in<template>
                 target="_blank"
                 flat round color="primary" icon="picture_as_pdf" size="sm"
               >
-                <q-tooltip>Ver Acta Firmada</q-tooltip>
+                <q-tooltip>Ver Seguimiento Firmado</q-tooltip>
+              </q-btn>
+              <q-btn
+                v-else-if="props.row.status === 'SCHEDULED'"
+                flat round color="positive" icon="cloud_upload" size="sm"
+                @click="openUploadPDFModal(props.row)"
+              >
+                <q-tooltip>Subir PDF</q-tooltip>
               </q-btn>
               <span v-else class="text-grey">-</span>
             </q-td>
@@ -159,6 +166,38 @@ in<template>
         </q-table>
       </q-card>
     </div>
+
+    <!-- Modal: Subir PDF de Seguimiento -->
+    <q-dialog v-model="showUploadPDFModal" persistent>
+      <q-card style="width: 500px; max-width: 90vw;">
+        <q-form @submit="uploadTrackingPDF">
+          <q-card-section class="bg-positive text-white">
+            <div class="text-h6">Subir PDF - Seguimiento #{{ selectedTracking?.trackingNumber }}</div>
+          </q-card-section>
+          
+          <q-card-section class="q-pa-md q-gutter-md">
+            <q-banner class="bg-grey-2 q-mb-md rounded-borders text-caption">
+              Sube el seguimiento firmado en formato PDF (m&aacute;x. 10MB).
+            </q-banner>
+
+            <q-file 
+              v-model="trackingPDFFile" 
+              label="Seguimiento Firmado (PDF)" 
+              outlined dense 
+              accept=".pdf"
+              :rules="[val => !!val || 'El archivo es requerido', val => !val || val.size <= 10 * 1024 * 1024 || 'Máximo 10MB']"
+            >
+              <template v-slot:prepend><q-icon name="picture_as_pdf" /></template>
+            </q-file>
+          </q-card-section>
+          
+          <q-card-actions align="right" class="q-pa-md">
+            <q-btn flat label="Cancelar" color="grey" v-close-popup />
+            <q-btn color="positive" label="Subir PDF" type="submit" :loading="uploadingPDF" />
+          </q-card-actions>
+        </q-form>
+      </q-card>
+    </q-dialog>
 
     <!-- Modal: Subir Avances de Proyecto -->
     <q-dialog v-model="showAdvancesModal" persistent>
@@ -212,6 +251,10 @@ const selectedTracking = ref(null);
 const advancesFile = ref(null);
 const uploadingAdvances = ref(false);
 
+const showUploadPDFModal = ref(false);
+const trackingPDFFile = ref(null);
+const uploadingPDF = ref(false);
+
 const isProjectModality = computed(() => {
   if (!ep.value) return false;
   return ['INDIVIDUAL_PRODUCTIVE_PROJECT', 'GROUP_PRODUCTIVE_PROJECT'].includes(ep.value.modality);
@@ -234,7 +277,7 @@ const columns = computed(() => {
   if (isProjectModality.value) {
     base.push({ name: 'advances', label: 'Avances', align: 'center' });
   } else {
-    base.push({ name: 'document', label: 'Acta', align: 'center' });
+    base.push({ name: 'document', label: 'Seguimiento', align: 'center' });
   }
   return base;
 });
@@ -343,6 +386,34 @@ async function uploadAdvances() {
     $q.notify({ position: 'top', timeout: 5000, type: 'negative', message: msg });
   } finally {
     uploadingAdvances.value = false;
+  }
+}
+
+function openUploadPDFModal(tracking) {
+  selectedTracking.value = tracking;
+  trackingPDFFile.value = null;
+  showUploadPDFModal.value = true;
+}
+
+async function uploadTrackingPDF() {
+  if (!trackingPDFFile.value || !selectedTracking.value) return;
+  uploadingPDF.value = true;
+  try {
+    const formData = new FormData();
+    formData.append('file', trackingPDFFile.value);
+
+    await trackingService.uploadPDF(selectedTracking.value._id, formData);
+    $q.notify({ position: 'top', timeout: 5000, type: 'positive', message: 'PDF subido exitosamente.' });
+    
+    showUploadPDFModal.value = false;
+    trackingPDFFile.value = null;
+    await loadData();
+  } catch (error) {
+    console.error(error);
+    const msg = error.response?.data?.message || 'Error al subir el PDF.';
+    $q.notify({ position: 'top', timeout: 5000, type: 'negative', message: msg });
+  } finally {
+    uploadingPDF.value = false;
   }
 }
 </script>

@@ -524,8 +524,12 @@ class TrackingService {
       throw error;
     }
 
-    if (tracking.instructor.toString() !== reqUser.id.toString()) {
-      const error = new Error('Forbidden: Only the instructor can mark their tracking as paid');
+    const isOwnerOrApprentice = 
+      tracking.instructor.toString() === reqUser.id.toString() ||
+      tracking.apprentice.toString() === reqUser.id.toString();
+
+    if (!isOwnerOrApprentice) {
+      const error = new Error('Forbidden: You are not authorized for this tracking');
       error.statusCode = 403;
       throw error;
     }

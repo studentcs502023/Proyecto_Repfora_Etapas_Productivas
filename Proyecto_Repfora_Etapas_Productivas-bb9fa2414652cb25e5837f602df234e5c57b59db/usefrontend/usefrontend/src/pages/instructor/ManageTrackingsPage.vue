@@ -148,7 +148,7 @@
               unelevated
               rounded
               icon="folder_open"
-              label="Ver Actas"
+              label="Ver Seguimientos"
               @click="openFilesModal(props.row)"
               class="action-table-btn"
             />
@@ -269,7 +269,7 @@
                   <q-badge v-if="file.isExtraordinary" color="warning" label="Extraordinario" class="q-ml-sm" />
                 </q-item-label>
                 <q-item-label caption class="text-grey-7">
-                  {{ file.fileName || 'Acta de Seguimiento' }}
+                   {{ file.fileName || 'Seguimiento' }}
                 </q-item-label>
                 <q-item-label caption class="text-grey-5">
                   Fecha: {{ formatDateTime(file.uploadedAt || file.executedDate) }}
@@ -448,18 +448,22 @@
         <q-card-section class="col q-pa-lg scroll bg-grey-1">
           <q-stepper v-model="executeStep" ref="stepper" color="primary" animated flat class="q-mx-auto stepper-custom" style="max-width: 800px;">
 
-            <q-step :name="1" title="Subir Acta Firmada" icon="upload_file" :done="executeStep > 1 || !!selectedTracking.driveFileUrl">
+            <q-step :name="1" title="Seguimiento del Aprendiz" icon="description" :done="executeStep > 1 || !!selectedTracking.driveFileUrl">
               <div class="q-pa-md bg-white rounded-borders shadow-1">
-                <p class="text-subtitle1 text-grey-8 text-weight-medium">Sube el documento PDF del seguimiento con las firmas correspondientes.</p>
+                <p class="text-subtitle1 text-grey-8 text-weight-medium">El aprendiz debe subir el seguimiento firmado con sus datos y firmas correspondientes.</p>
+                
                 <div v-if="selectedTracking.driveFileUrl" class="bg-green-1 q-pa-md rounded-borders q-mb-md text-positive flex items-center">
-                  <q-icon name="check_circle" size="sm" class="q-mr-sm" /> Documento subido previamente. Puedes reemplazarlo o continuar.
+                  <q-icon name="check_circle" size="sm" class="q-mr-sm" /> El aprendiz ya subi&oacute; el seguimiento firmado. Puedes reemplazarlo si es necesario.
+                </div>
+                <div v-else class="bg-orange-1 q-pa-md rounded-borders q-mb-md text-orange flex items-center">
+                  <q-icon name="hourglass_empty" size="sm" class="q-mr-sm" /> Esperando que el aprendiz suba el seguimiento firmado.
                 </div>
 
-                <q-file v-model="executeForm.file" label="Seleccionar Acta PDF" outlined accept=".pdf" class="q-mb-md" color="primary">
+                <q-file v-model="executeForm.file" label="Reemplazar Seguimiento (PDF)" outlined accept=".pdf" class="q-mb-md" color="primary">
                   <template v-slot:prepend><q-icon name="picture_as_pdf" color="primary" /></template>
                 </q-file>
 
-                <q-btn color="primary" label="Subir Documento" rounded unelevated @click="uploadPDF" :loading="saving" :disable="!executeForm.file" class="q-px-md" />
+                <q-btn v-if="executeForm.file" color="primary" label="Reemplazar Documento" rounded unelevated @click="uploadPDF" :loading="saving" class="q-px-md" />
 
                 <div v-if="selectedTracking.driveFileUrl" class="q-mt-md">
                   <q-separator class="q-my-md" />
@@ -507,15 +511,15 @@
 
             <q-step :name="2" title="Validar Firmas" icon="draw" :done="executeStep > 2 || selectedTracking.signatureValidatedAt">
               <div class="q-pa-md bg-white rounded-borders shadow-1">
-                <p class="text-subtitle1 text-grey-8 text-weight-medium">Confirma que el documento adjunto contiene las firmas requeridas.</p>
+                <p class="text-subtitle1 text-grey-8 text-weight-medium">Confirma que el seguimiento contiene las firmas del aprendiz y del instructor.</p>
                 <q-list bordered separator class="rounded-borders q-mb-md">
-                  <q-item tag="label" v-ripple>
-                    <q-item-section avatar><q-checkbox v-model="executeForm.signedByInstructor" color="primary" /></q-item-section>
-                    <q-item-section><q-item-label>Firma del Instructor (Mi firma)</q-item-label></q-item-section>
-                  </q-item>
                   <q-item tag="label" v-ripple>
                     <q-item-section avatar><q-checkbox v-model="executeForm.signedByApprentice" color="primary" /></q-item-section>
                     <q-item-section><q-item-label>Firma del Aprendiz / Jefe Inmediato</q-item-label></q-item-section>
+                  </q-item>
+                  <q-item tag="label" v-ripple>
+                    <q-item-section avatar><q-checkbox v-model="executeForm.signedByInstructor" color="primary" /></q-item-section>
+                    <q-item-section><q-item-label>Firma del Instructor (Mi firma)</q-item-label></q-item-section>
                   </q-item>
                 </q-list>
 
@@ -763,7 +767,7 @@ async function openFilesModal(row) {
         _id: t._id,
         trackingNumber: t.trackingNumber,
         isExtraordinary: t.isExtraordinary,
-        fileName: t.apprenticeFileName || t.fileName || `Acta de Seguimiento #${t.trackingNumber}`,
+        fileName: t.apprenticeFileName || t.fileName || `Seguimiento #${t.trackingNumber}`,
         driveFileUrl: t.apprenticeDriveFileUrl || t.driveFileUrl,
         driveFileId: t.apprenticeDriveFileId || t.driveFileId,
         status: t.status,

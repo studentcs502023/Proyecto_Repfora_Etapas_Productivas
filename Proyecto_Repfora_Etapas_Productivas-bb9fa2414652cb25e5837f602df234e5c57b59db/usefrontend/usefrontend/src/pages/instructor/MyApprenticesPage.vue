@@ -209,7 +209,7 @@
                         <q-icon name="co_present" size="2.5em" color="secondary" />
                       </div>
                       <div class="text-h6 text-weight-bold q-mt-md">Seguimientos</div>
-                      <div class="text-caption text-grey-6 q-mt-xs">Programar o ejecutar actas</div>
+                      <div class="text-caption text-grey-6 q-mt-xs">Programar o ejecutar seguimientos</div>
                     </q-card-section>
                     <div class="action-bar bg-secondary"></div>
                   </q-card>
