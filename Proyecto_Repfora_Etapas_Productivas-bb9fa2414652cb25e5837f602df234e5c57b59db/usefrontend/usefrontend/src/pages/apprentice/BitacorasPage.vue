@@ -42,8 +42,20 @@
             <div class="text-h6 text-weight-bold text-primary">Progreso de Bitácoras</div>
             <div class="text-caption text-grey-7 q-mt-xs">Debes completar {{ ep.maxBitacoras || '?' }} bitácoras en total.</div>
           </div>
-          <div class="text-h3 text-positive text-weight-bolder">
-            {{ ep.completedBitacoras }} <span class="text-h5 text-grey-6">/ {{ ep.maxBitacoras || '?' }}</span>
+          <div class="row items-center q-gutter-md">
+            <div class="text-h3 text-positive text-weight-bolder">
+              {{ ep.completedBitacoras }} <span class="text-h5 text-grey-6">/ {{ ep.maxBitacoras || '?' }}</span>
+            </div>
+            <q-btn
+              color="positive"
+              icon="add_circle"
+              label="Subir Bitácora"
+              :disable="!canSubmit"
+              @click="openUploadModal"
+              class="header-btn text-weight-bold shadow-2"
+              rounded
+              padding="sm lg"
+            />
           </div>
         </q-card-section>
         <q-linear-progress :value="(ep.completedBitacoras / (ep.maxBitacoras || 1))" color="positive" size="8px" class="q-mx-lg q-mb-lg" style="border-radius:8px" />
@@ -402,6 +414,11 @@ async function openResubmitModal(bitacora) {
     selectedBitacora.value = bitacora;
   }
   resubmitFile.value = null;
+}
+
+function openUploadModal() {
+  form.value = { periodStart: '', periodEnd: '', file: null };
+  showUploadModal.value = true;
 }
 
 async function submitBitacora() {

@@ -28,7 +28,7 @@ in<template>
 
     <div v-else>
       <!-- Project Modality Info Banner -->
-      <q-card class="my-card no-shadow q-mb-lg bg-amber-1" v-if="isProjectModality">
+      <q-card class="my-card no-shadow q-mb-lg bg-amber-1" v-if="isProjectModality && !isNoRegularTracking">
         <q-card-section class="row items-center q-pa-lg">
           <q-icon name="info" color="warning" size="lg" class="q-mr-md" />
           <div>
@@ -38,8 +38,19 @@ in<template>
         </q-card-section>
       </q-card>
 
+      <!-- No Regular Tracking Banner -->
+      <q-card class="my-card no-shadow q-mb-lg bg-blue-1" v-if="isNoRegularTracking">
+        <q-card-section class="row items-center q-pa-lg">
+          <q-icon name="info" color="primary" size="lg" class="q-mr-md" />
+          <div>
+            <div class="text-subtitle1 text-weight-bold text-primary">Solo Seguimientos Extraordinarios</div>
+            <div class="text-caption text-grey-8 q-mt-xs">En tu modalidad no aplican seguimientos regulares. Solo se mostrar&aacute;n seguimientos extraordinarios solicitados por tu instructor.</div>
+          </div>
+        </q-card-section>
+      </q-card>
+
       <!-- Summary KPI -->
-      <div class="row q-col-gutter-lg q-mb-lg" v-if="summary">
+      <div class="row q-col-gutter-lg q-mb-lg" v-if="summary && !isNoRegularTracking">
         <div class="col-12 col-md-4">
           <q-card class="my-card no-shadow text-center q-pa-lg kpi-card">
             <q-icon name="format_list_numbered" color="primary" size="lg" class="q-mb-sm" />
@@ -141,7 +152,8 @@ in<template>
           
           <template v-slot:no-data>
             <div class="full-width row flex-center text-grey q-pa-lg">
-              No tienes seguimientos programados. El instructor te notificar&aacute; cuando programe uno.
+              <span v-if="isNoRegularTracking">No tienes seguimientos extraordinarios programados. Tu instructor puede solicitar uno si es necesario.</span>
+              <span v-else>No tienes seguimientos programados. El instructor te notificar&aacute; cuando programe uno.</span>
             </div>
           </template>
         </q-table>
@@ -205,6 +217,11 @@ const isProjectModality = computed(() => {
   return ['INDIVIDUAL_PRODUCTIVE_PROJECT', 'GROUP_PRODUCTIVE_PROJECT'].includes(ep.value.modality);
 });
 
+const isNoRegularTracking = computed(() => {
+  if (!ep.value) return false;
+  return ['APPRENTICESHIP_CONTRACT', 'LABOR_LINK'].includes(ep.value.modality);
+});
+
 const columns = computed(() => {
   const base = [
     { name: 'trackingNumber', label: 'Número', field: 'trackingNumber', align: 'left' },
@@ -240,7 +257,10 @@ async function loadData() {
 
     if (ep.value && ep.value._id) {
       const trackRes = await trackingService.getTrackings({ productiveStageId: ep.value._id });
-      trackings.value = trackRes.data?.trackings || [];
+      const allTrackings = trackRes.data?.trackings || [];
+      trackings.value = isNoRegularTracking.value
+        ? allTrackings.filter(t => t.isExtraordinary)
+        : allTrackings;
 
       try {
         const sumRes = await trackingService.getSummary(ep.value._id);

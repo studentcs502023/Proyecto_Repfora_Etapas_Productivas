@@ -594,13 +594,15 @@ function getTrainingLevelLabel(level) {
   return level || 'Operario';
 }
 
+const noTrackingModalities = ['APPRENTICESHIP_CONTRACT', 'LABOR_LINK'];
+
 const myEPsSinContrato = computed(() =>
-  myEPs.value.filter(ep => ep.modality !== 'APPRENTICESHIP_CONTRACT')
+  myEPs.value.filter(ep => !noTrackingModalities.includes(ep.modality))
 );
 
 const filteredApprentices = computed(() => {
   let rows = myEPs.value
-    .filter(ep => ep.modality !== 'APPRENTICESHIP_CONTRACT')
+    .filter(ep => !noTrackingModalities.includes(ep.modality))
     .map(ep => ({
     _id: ep._id,
     apprenticeId: ep.apprentice?._id || (typeof ep.apprentice === 'string' ? ep.apprentice : ''),

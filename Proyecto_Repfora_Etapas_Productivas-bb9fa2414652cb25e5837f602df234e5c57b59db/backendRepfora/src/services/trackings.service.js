@@ -65,6 +65,12 @@ class TrackingService {
       throw error;
     }
 
+    if (['APPRENTICESHIP_CONTRACT', 'LABOR_LINK'].includes(ep.modality)) {
+      const error = new Error('Regular trackings are not available for this modality. Only extraordinary trackings are allowed.');
+      error.statusCode = 400;
+      throw error;
+    }
+
     // Count existing non-extraordinary trackings
     const existingCount = await Tracking.countDocuments({
       productiveStage: productiveStageId,
