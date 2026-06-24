@@ -9,7 +9,7 @@
     "test": "cross-env NODE_ENV=test NODE_OPTIONS=--experimental-vm-modules jest --runInBand",
     "test:watch": "cross-env NODE_ENV=test NODE_OPTIONS=--experimental-vm-modules jest --watchAll",
     "build": "cross-env NODE_ENV=production webpack --config build/webpack.config.js",
-    "dev": "cross-env NODE_ENV=development node server.js"
+    "dev": "cross-env NODE_ENV=development node index.js"
   },
   "dependencies": {
     "axios": "^1.13.6",
@@ -19,6 +19,7 @@
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
     "express-validator": "^7.3.1",
+    "googleapis": "^173.0.0",
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.3.3",
     "morgan": "^1.10.1",

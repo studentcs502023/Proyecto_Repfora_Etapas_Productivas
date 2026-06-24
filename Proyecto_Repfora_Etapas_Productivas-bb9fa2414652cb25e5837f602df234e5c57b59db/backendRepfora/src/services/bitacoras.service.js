@@ -8,14 +8,7 @@ import { getConfig } from '../utils/configHelper.util.js';
 import productiveStagesService from './productiveStages.service.js';
 import notificationService from './notifications.service.js';
 import { AUDIT_ACTIONS } from '../utils/enums.js';
-
-// MOCK: Google Drive integration
-const mockDriveUpload = async (file, folderPath) => {
-  return {
-    driveFileId: `mock_drive_id_${Date.now()}`,
-    driveFileUrl: `https://drive.google.com/file/d/mock_drive_id_${Date.now()}/view`
-  };
-};
+import { uploadToApprenticeFolder } from '../utils/googleDrive.util.js';
 
 class BitacoraService {
   /**
@@ -78,8 +71,18 @@ class BitacoraService {
         throw error;
     }
 
-    // 5. Upload PDF to Drive (Mock)
-    const driveRes = await mockDriveUpload(file, `bitacoras/${ep._id}`);
+    // 5. Upload PDF to Drive
+    let driveRes;
+    try {
+      driveRes = await uploadToApprenticeFolder(file, reqUser.nationalId, 'bitacoras');
+    } catch (driveErr) {
+      console.error('[Google Drive] Error uploading bitacora:', driveErr.message);
+      driveRes = {
+        fileName: file.originalname || 'bitacora.pdf',
+        driveFileId: null,
+        driveFileUrl: null
+      };
+    }
 
     // 6. Create bitacora
     const bitacora = new Bitacora({
@@ -89,7 +92,7 @@ class BitacoraService {
       logbookNumber,
       periodStart: new Date(periodStart),
       periodEnd: new Date(periodEnd),
-      fileName: file.originalname,
+      fileName: driveRes.fileName,
       driveFileId: driveRes.driveFileId,
       driveFileUrl: driveRes.driveFileUrl,
       submittedAt: new Date(),
@@ -418,9 +421,19 @@ class BitacoraService {
 
     // Upload new PDF to Drive
     const version = bitacora.reviewComments.length + 1;
-    const driveRes = await mockDriveUpload(file, `bitacoras/${bitacora.productiveStage}_v${version}`);
+    let driveRes;
+    try {
+      driveRes = await uploadToApprenticeFolder(file, reqUser.nationalId, 'bitacoras');
+    } catch (driveErr) {
+      console.error('[Google Drive] Error uploading resubmitted bitacora:', driveErr.message);
+      driveRes = {
+        fileName: file.originalname || 'bitacora.pdf',
+        driveFileId: null,
+        driveFileUrl: null
+      };
+    }
 
-    bitacora.fileName = file.originalname;
+    bitacora.fileName = driveRes.fileName;
     bitacora.driveFileId = driveRes.driveFileId;
     bitacora.driveFileUrl = driveRes.driveFileUrl;
     bitacora.submittedAt = new Date();

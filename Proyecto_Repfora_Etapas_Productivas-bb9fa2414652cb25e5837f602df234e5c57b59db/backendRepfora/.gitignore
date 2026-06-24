@@ -14,3 +14,15 @@ backendRepfora/public/assets/
 # Archivos de sistema
 .DS_Store
 Thumbs.db
+
+# Credenciales de Google Drive
+google-credentials.json
+
+#credenciales token
+get-refresh-token.js
+
+#google credentciales
+
+google-credentials.json
+generate_oauth2_url.js
+generate_oauth2_token.js

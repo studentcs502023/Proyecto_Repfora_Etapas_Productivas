@@ -1,17 +1,10 @@
 import Novelty from '../models/Novelty.model.js';
 import ProductiveStage from '../models/ProductiveStage.model.js';
+import User from '../models/User.model.js';
 import { recordAuditLog } from '../utils/auditLog.util.js';
 import pdfGenerator from '../utils/pdfGenerator.util.js';
 import { NOVELTY_STATUSES } from '../utils/enums.js';
-
-// MOCK: Google Drive integration
-const mockDriveUpload = async (file, folderPath) => {
-  return {
-    driveFileId: `mock_drive_id_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
-    driveFileUrl: `https://drive.google.com/file/d/mock_drive_id_${Date.now()}/view`,
-    fileName: file.originalname
-  };
-};
+import { uploadToApprenticeFolder } from '../utils/googleDrive.util.js';
 
 // MOCK: Notifications integration
 const mockSendNotification = async (type, payload) => {
@@ -53,8 +46,17 @@ class NoveltyService {
     const attachments = [];
     if (files && files.length > 0) {
       for (const file of files) {
-        const driveFile = await mockDriveUpload(file, `ep-${ep._id}/novedades`);
-        attachments.push(driveFile);
+        try {
+          const driveFile = await uploadToApprenticeFolder(file, ep.apprentice.nationalId, 'novedades');
+          attachments.push(driveFile);
+        } catch (driveErr) {
+          console.error('[Google Drive] Error uploading novelty attachment:', driveErr.message);
+          attachments.push({
+            fileName: file.originalname || 'archivo.pdf',
+            driveFileId: null,
+            driveFileUrl: null
+          });
+        }
       }
     }
 
@@ -246,9 +248,19 @@ class NoveltyService {
 
     // Upload files
     if (files && files.length > 0) {
+      const apprentice = await User.findById(novelty.apprentice).select('nationalId');
       for (const file of files) {
-        const driveFile = await mockDriveUpload(file, `ep-${novelty.productiveStage}/novedades`);
-        novelty.attachments.push(driveFile);
+        try {
+          const driveFile = await uploadToApprenticeFolder(file, apprentice.nationalId, 'novedades');
+          novelty.attachments.push(driveFile);
+        } catch (driveErr) {
+          console.error('[Google Drive] Error uploading novelty attachment:', driveErr.message);
+          novelty.attachments.push({
+            fileName: file.originalname || 'archivo.pdf',
+            driveFileId: null,
+            driveFileUrl: null
+          });
+        }
       }
     }
 

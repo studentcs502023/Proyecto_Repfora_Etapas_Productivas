@@ -1,4 +1,5 @@
 import PDFDocument from 'pdfkit';
+import User from '../models/User.model.js';
 
 /**
  * Generate a PDF buffer from structured data.
@@ -57,13 +58,48 @@ const generatePdf = ({ title, subtitle, sections, summary }) => {
 };
 
 /**
- * Stub for novelty PDF (backward compatibility with existing service calls)
+ * Generate a novelty report PDF and upload to Google Drive
  */
 const generateNoveltyPDF = async (noveltyData) => {
-  return {
-    driveFileId: `mock-pdf-id-${Date.now()}`,
-    driveFileUrl: `https://drive.google.com/mock-pdf-url-${Date.now()}`
+  const sections = [
+    {
+      heading: 'Datos de la Novedad',
+      rows: [
+        ['Tipo', noveltyData.type || 'N/D'],
+        ['Descripcion', noveltyData.description || 'N/D'],
+        ['Fecha de Ocurrencia', noveltyData.occurrenceDate ? new Date(noveltyData.occurrenceDate).toLocaleDateString('es-CO') : 'N/D'],
+        ['Estado', noveltyData.status || 'PENDING'],
+      ]
+    }
+  ];
+
+  const pdfBuffer = await generatePdf({
+    title: 'Reporte de Novedad',
+    subtitle: `Novedad #${noveltyData._id || 'N/D'}`,
+    sections,
+    summary: {
+      'Reportado por': noveltyData.reportedBy || 'N/D',
+      'Fecha de reporte': new Date().toLocaleString('es-CO'),
+    }
+  });
+
+  const file = {
+    originalname: `novedad_${noveltyData._id || Date.now()}.pdf`,
+    buffer: pdfBuffer,
+    mimetype: 'application/pdf',
   };
+
+  const { uploadToApprenticeFolder } = await import('./googleDrive.util.js');
+  const apprentice = await User.findById(noveltyData.apprentice).select('nationalId');
+  if (!apprentice) {
+    return { driveFileId: null, driveFileUrl: null, fileName: null };
+  }
+  try {
+    return await uploadToApprenticeFolder(file, apprentice.nationalId, 'novedades');
+  } catch (driveErr) {
+    console.error('[Google Drive] Error uploading novelty PDF:', driveErr.message);
+    return { driveFileId: null, driveFileUrl: null, fileName: file.originalname };
+  }
 };
 
 export default {

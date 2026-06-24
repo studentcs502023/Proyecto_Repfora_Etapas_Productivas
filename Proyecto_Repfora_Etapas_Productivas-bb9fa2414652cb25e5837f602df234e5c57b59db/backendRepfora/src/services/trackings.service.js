@@ -12,18 +12,11 @@ import { promisify } from 'util';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+import { uploadToApprenticeFolder } from '../utils/googleDrive.util.js';
 
 const execAsync = promisify(exec);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
-// MOCK: Google Drive integration
-const mockDriveUpload = async (file, folderPath) => {
-  return {
-    driveFileId: `mock_drive_id_${Date.now()}`,
-    driveFileUrl: `https://drive.google.com/file/d/mock_drive_id_${Date.now()}/view`
-  };
-};
 
 class TrackingService {
   /**
@@ -327,9 +320,20 @@ class TrackingService {
       throw error;
     }
 
-    const driveRes = await mockDriveUpload(file, `trackings/${tracking.productiveStage}`);
-    
-    tracking.fileName = file.originalname;
+    const apprentice = await User.findById(tracking.apprentice).select('nationalId');
+    let driveRes;
+    try {
+      driveRes = await uploadToApprenticeFolder(file, apprentice.nationalId, 'seguimientos');
+    } catch (driveErr) {
+      console.error('[Google Drive] Error uploading tracking PDF:', driveErr.message);
+      driveRes = {
+        fileName: file.originalname || 'seguimiento.pdf',
+        driveFileId: null,
+        driveFileUrl: null
+      };
+    }
+
+    tracking.fileName = driveRes.fileName;
     tracking.driveFileId = driveRes.driveFileId;
     tracking.driveFileUrl = driveRes.driveFileUrl;
     await tracking.save();
@@ -367,9 +371,19 @@ class TrackingService {
       throw error;
     }
 
-    const driveRes = await mockDriveUpload(file, `trackings/${tracking.productiveStage}_advances`);
+    let driveRes;
+    try {
+      driveRes = await uploadToApprenticeFolder(file, reqUser.nationalId, 'seguimientos');
+    } catch (driveErr) {
+      console.error('[Google Drive] Error uploading apprentice advances:', driveErr.message);
+      driveRes = {
+        fileName: file.originalname || 'avances.pdf',
+        driveFileId: null,
+        driveFileUrl: null
+      };
+    }
 
-    tracking.apprenticeFileName = file.originalname;
+    tracking.apprenticeFileName = driveRes.fileName;
     tracking.apprenticeDriveFileId = driveRes.driveFileId;
     tracking.apprenticeDriveFileUrl = driveRes.driveFileUrl;
     tracking.apprenticeFileUploadedAt = new Date();

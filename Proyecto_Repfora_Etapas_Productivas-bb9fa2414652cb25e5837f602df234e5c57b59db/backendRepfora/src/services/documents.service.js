@@ -3,14 +3,7 @@ import ProductiveStage from '../models/ProductiveStage.model.js';
 import hourService from './hours.service.js';
 import { recordAuditLog } from '../utils/auditLog.util.js';
 import { getConfig } from '../utils/configHelper.util.js';
-
-// MOCK: Google Drive integration
-const mockDriveUpload = async (file, folderPath) => {
-  return {
-    driveFileId: `mock_drive_id_${Date.now()}`,
-    driveFileUrl: `https://drive.google.com/file/d/mock_drive_id_${Date.now()}/view`
-  };
-};
+import { uploadToApprenticeFolder } from '../utils/googleDrive.util.js';
 
 // MOCK: Notifications integration
 const mockSendNotification = async (type, payload) => {
@@ -51,14 +44,24 @@ export const createDocument = async (reqUser, productiveStageId, documentType, f
     throw new Error('409|A document of this type already exists. If rejected, you can resubmit it');
   }
 
-  const driveRes = await mockDriveUpload(file, `certificacion/${documentType}`);
+  let driveRes;
+  try {
+    driveRes = await uploadToApprenticeFolder(file, reqUser.nationalId, 'documentos');
+  } catch (driveErr) {
+    console.error('[Google Drive] Error uploading document:', driveErr.message);
+    driveRes = {
+      fileName: file.originalname || 'documento.pdf',
+      driveFileId: null,
+      driveFileUrl: null
+    };
+  }
 
   const document = new Document({
     productiveStage: productiveStageId,
     apprentice: ep.apprentice._id,
     uploadedBy: reqUser.id,
     documentType,
-    fileName: file.originalname,
+    fileName: driveRes.fileName,
     driveFileId: driveRes.driveFileId,
     driveFileUrl: driveRes.driveFileUrl
   });
@@ -260,9 +263,19 @@ export const resubmitDocument = async (reqUser, id, file) => {
   }
   if (!file) throw new Error('400|Validation error: file is required');
 
-  const driveRes = await mockDriveUpload(file, `certificacion/${document.documentType}_v2`);
+  let driveRes;
+  try {
+    driveRes = await uploadToApprenticeFolder(file, reqUser.nationalId, 'documentos');
+  } catch (driveErr) {
+    console.error('[Google Drive] Error uploading resubmitted document:', driveErr.message);
+    driveRes = {
+      fileName: file.originalname || 'documento.pdf',
+      driveFileId: null,
+      driveFileUrl: null
+    };
+  }
 
-  document.fileName = file.originalname;
+  document.fileName = driveRes.fileName;
   document.driveFileId = driveRes.driveFileId;
   document.driveFileUrl = driveRes.driveFileUrl;
   document.uploadedAt = new Date();
