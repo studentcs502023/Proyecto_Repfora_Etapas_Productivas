@@ -6,6 +6,7 @@ import { calculateEpDeadline, daysUntil } from "../utils/dateHelper.util.js";
 import { recordAuditLog } from "../utils/auditLog.util.js";
 import { AUDIT_ACTIONS, EP_STATUSES } from "../utils/enums.js";
 import notificationService from "./notifications.service.js";
+import { findOrCreateFolder, getRootFolderId, getDriveClient } from "../utils/googleDrive.util.js";
 
 class ProductiveStageService {
     /**
@@ -231,9 +232,23 @@ class ProductiveStageService {
         if (data.startDate) ep.startDate = data.startDate;
         if (data.estimatedEndDate) ep.estimatedEndDate = data.estimatedEndDate;
 
-        // 3. Google Drive (Mock)
-        ep.driveFolderId = `folder_ep_${ep._id}`;
-        ep.driveFolderUrl = `https://drive.google.com/mock/${ep._id}`;
+        // 3. Google Drive - Crear carpeta real para el aprendiz
+        try {
+            const rootId = getRootFolderId();
+            const nationalId = ep.apprentice?.nationalId;
+            if (nationalId && rootId) {
+                const folderId = await findOrCreateFolder(getDriveClient(), nationalId, rootId);
+                ep.driveFolderId = folderId;
+                ep.driveFolderUrl = `https://drive.google.com/drive/folders/${folderId}`;
+            } else {
+                ep.driveFolderId = null;
+                ep.driveFolderUrl = null;
+            }
+        } catch (driveErr) {
+            console.warn('[productiveStages.service] No se pudo crear carpeta Drive para EP:', driveErr.message);
+            ep.driveFolderId = null;
+            ep.driveFolderUrl = null;
+        }
 
         await ep.save();
 
@@ -611,6 +626,20 @@ class ProductiveStageService {
                 await company.save();
             }
 
+            // Crear carpeta en Google Drive para el aprendiz
+            let driveFolderId = null;
+            let driveFolderUrl = null;
+            try {
+                const rootId = getRootFolderId();
+                if (rootId && apprentice.nationalId) {
+                    const folderId = await findOrCreateFolder(getDriveClient(), apprentice.nationalId, rootId);
+                    driveFolderId = folderId;
+                    driveFolderUrl = `https://drive.google.com/drive/folders/${folderId}`;
+                }
+            } catch (driveErr) {
+                console.warn('[productiveStages.service] No se pudo crear carpeta Drive para EP:', driveErr.message);
+            }
+
             // Crear una nueva etapa productiva activa
             ep = new ProductiveStage({
                 apprentice: apprenticeId,
@@ -633,8 +662,8 @@ class ProductiveStageService {
                     supervisorEmail: "supervisor@pruebas.com",
                     supervisorPhone: "3001234567"
                 },
-                driveFolderId: `folder_ep_${apprenticeId}`,
-                driveFolderUrl: `https://drive.google.com/mock/${apprenticeId}`
+                driveFolderId,
+                driveFolderUrl
             });
             await ep.save();
         }

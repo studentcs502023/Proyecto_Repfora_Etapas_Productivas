@@ -4,10 +4,19 @@ import hourService from './hours.service.js';
 import { recordAuditLog } from '../utils/auditLog.util.js';
 import { getConfig } from '../utils/configHelper.util.js';
 import { uploadToApprenticeFolder } from '../utils/googleDrive.util.js';
+import notificationService from './notifications.service.js';
+import User from '../models/User.model.js';
 
-// MOCK: Notifications integration
-const mockSendNotification = async (type, payload) => {
-  console.log(`[MOCK NOTIFICATION] ${type}:`, payload);
+const notifyAdmins = async (type, title, message, metadata = {}) => {
+  try {
+    const admins = await User.find({ role: 'ADMIN', isActive: true }).select('_id');
+    const recipients = admins.map(a => a._id.toString());
+    if (recipients.length > 0) {
+      await notificationService.send({ type, recipients, title, message, metadata });
+    }
+  } catch (err) {
+    console.warn('[documents.service] Error notificando admins:', err.message);
+  }
 };
 
 export const createDocument = async (reqUser, productiveStageId, documentType, file) => {
@@ -68,9 +77,7 @@ export const createDocument = async (reqUser, productiveStageId, documentType, f
 
   await document.save();
 
-  await mockSendNotification('DOCUMENTS_REMINDER', {
-    message: `New document submitted: ${documentType} by ${ep.apprentice.fullName}`
-  });
+  await notifyAdmins('DOCUMENTS_REMINDER', 'Nuevo documento', `Nuevo documento ${documentType} enviado por ${ep.apprentice.fullName}`);
 
   await recordAuditLog({
     action: 'DOCUMENT_SUBMITTED',
@@ -191,15 +198,19 @@ export const approveDocument = async (reqUser, id) => {
         amount
       });
     }
-    await mockSendNotification('DOCUMENTS_APPROVED', {
-      apprenticeId: document.apprentice,
-      message: 'All required documents have been approved. EP ready for final completion.'
+    await notificationService.send({
+      type: 'DOCUMENTS_APPROVED',
+      recipients: [document.apprentice.toString()],
+      title: 'Documentos aprobados',
+      message: 'Todos los documentos requeridos han sido aprobados. EP lista para completar.'
     });
   }
 
-  await mockSendNotification('DOCUMENTS_APPROVED', {
-    apprenticeId: document.apprentice,
-    message: `Document ${document.documentType} was approved.`
+  await notificationService.send({
+    type: 'DOCUMENTS_APPROVED',
+    recipients: [document.apprentice.toString()],
+    title: 'Documento aprobado',
+    message: `Documento ${document.documentType} fue aprobado.`
   });
 
   await recordAuditLog({
@@ -233,9 +244,11 @@ export const rejectDocument = async (reqUser, id, comment) => {
   
   await document.save();
 
-  await mockSendNotification('DOCUMENTS_REJECTED', {
-    apprenticeId: document.apprentice,
-    message: `Document ${document.documentType} was rejected. Reason: ${comment}`
+  await notificationService.send({
+    type: 'DOCUMENTS_REJECTED',
+    recipients: [document.apprentice.toString()],
+    title: 'Documento rechazado',
+    message: `Documento ${document.documentType} fue rechazado. Razón: ${comment}`
   });
 
   await recordAuditLog({
@@ -283,9 +296,7 @@ export const resubmitDocument = async (reqUser, id, file) => {
 
   await document.save();
 
-  await mockSendNotification('DOCUMENTS_REMINDER', {
-    message: `Document resubmitted: ${document.documentType}`
-  });
+  await notifyAdmins('DOCUMENTS_REMINDER', 'Documento reenviado', `Documento ${document.documentType} fue reenviado`);
 
   await recordAuditLog({
     action: 'DOCUMENT_SUBMITTED',
@@ -327,9 +338,7 @@ export const requestDeletion = async (reqUser, id, reason) => {
   document.deletionReason = reason;
   await document.save();
 
-  await mockSendNotification('NEW_CRITICAL_NOVELTY', {
-    message: `Deletion requested for document ${document.documentType} by instructor`
-  });
+  await notifyAdmins('NEW_CRITICAL_NOVELTY', 'Solicitud de eliminación', `Eliminación solicitada para documento ${document.documentType} por instructor`);
 
   return document;
 };

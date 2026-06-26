@@ -4,6 +4,10 @@ import Bitacora from '../models/Bitacora.model.js';
 import Tracking from '../models/Tracking.model.js';
 import { recordAuditLog } from '../utils/auditLog.util.js';
 import { getConfig } from '../utils/configHelper.util.js';
+import pdfGenerator from '../utils/pdfGenerator.util.js';
+import { findOrCreateFolder, getRootFolderId, uploadToFolder, getDriveClient } from '../utils/googleDrive.util.js';
+
+const { generatePdf } = pdfGenerator;
 
 class HourService {
   /**
@@ -319,15 +323,69 @@ class HourService {
       return { reportDriveUrl: record.reportDriveUrl };
     }
 
-    // Generate PDF (Mock logic for now as pdfGenerator.util.js is likely a placeholder or basic)
-    // In a real scenario we would call pdfGenerator.generateMonthlyReport(...)
-    
-    const mockReportUrl = `https://drive.google.com/report_${instructorId}_${year}_${month}`;
-    record.reportDriveUrl = mockReportUrl;
-    record.reportDriveId = `mock_report_id_${Date.now()}`;
+    // Generate PDF
+    const instructor = await User.findById(instructorId, 'fullName nationalId');
+    if (!instructor) {
+      const error = new Error('Instructor no encontrado');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    const mesLetra = new Date(year, month - 1).toLocaleString('es-CO', { month: 'long' });
+    const pdfBuffer = await generatePdf({
+      title: `Reporte Mensual de Horas`,
+      subtitle: `${mesLetra} ${year} - ${instructor.fullName}`,
+      sections: [
+        {
+          heading: 'Detalle de Horas',
+          rows: [
+            ['Bitácoras', String(record.bitacoraHours)],
+            ['Seguimientos', String(record.trackingHours)],
+            ['Certificaciones', String(record.certificationHours)],
+            ['Extraordinarias', String(record.extraordinaryHours)],
+            ['TOTAL', String(record.totalHours)]
+          ]
+        },
+        {
+          heading: 'Estado de Pagos',
+          rows: [
+            ['Pagadas', String(record.paidHours)],
+            ['Pendientes', String(record.pendingPaymentHours)]
+          ]
+        }
+      ],
+      summary: {
+        'Exceso': record.excessHours,
+        'Acumulado': record.carriedOverHours,
+        'Último Pago': record.lastPaymentDate ? record.lastPaymentDate.toLocaleDateString('es-CO') : 'No registrado'
+      }
+    });
+
+    let driveFileUrl = null;
+    let driveFileId = null;
+    try {
+      const rootId = getRootFolderId();
+      if (rootId) {
+        const dClient = getDriveClient();
+        const instructorFolderId = await findOrCreateFolder(dClient, `instructor_${instructor.nationalId}`, rootId);
+        const reportsFolderId = await findOrCreateFolder(dClient, 'reportes', instructorFolderId);
+        const driveResult = await uploadToFolder(
+          { buffer: pdfBuffer, mimetype: 'application/pdf', originalname: `reporte_${year}_${month}.pdf` },
+          reportsFolderId,
+          `reporte_horas_${instructor.nationalId}_${year}_${String(month).padStart(2, '0')}.pdf`
+        );
+        driveFileUrl = driveResult.driveFileUrl;
+        driveFileId = driveResult.driveFileId;
+      }
+    } catch (driveErr) {
+      console.warn('[hours.service] No se pudo subir reporte a Drive:', driveErr.message);
+    }
+
+    record.reportDriveUrl = driveFileUrl;
+    record.reportDriveId = driveFileId;
     await record.save();
 
-    return { reportDriveUrl: mockReportUrl };
+    return { reportDriveUrl: driveFileUrl };
   }
 }
 

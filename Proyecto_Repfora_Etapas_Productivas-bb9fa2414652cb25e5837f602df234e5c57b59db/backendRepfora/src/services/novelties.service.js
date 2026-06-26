@@ -5,11 +5,7 @@ import { recordAuditLog } from '../utils/auditLog.util.js';
 import pdfGenerator from '../utils/pdfGenerator.util.js';
 import { NOVELTY_STATUSES } from '../utils/enums.js';
 import { uploadToApprenticeFolder } from '../utils/googleDrive.util.js';
-
-// MOCK: Notifications integration
-const mockSendNotification = async (type, payload) => {
-  console.log(`[MOCK NOTIFICATION] ${type}:`, payload);
-};
+import notificationService from './notifications.service.js';
 
 class NoveltyService {
   async createNovelty(noveltyData, files, reporterId) {
@@ -80,14 +76,21 @@ class NoveltyService {
     await novelty.save();
 
     // 5. Send priority notification to ADMIN
-    await mockSendNotification('NEW_CRITICAL_NOVELTY', {
-      apprenticeName: ep.apprentice.fullName,
-      enrollmentNumber: ep.apprentice.enrollmentNumber,
-      noveltyType: type,
-      instructorId: reporterId,
-      description: description.substring(0, 200),
-      noveltyId: novelty._id
-    });
+    try {
+      const admins = await User.find({ role: 'ADMIN', isActive: true }).select('_id');
+      const adminIds = admins.map(a => a._id.toString());
+      if (adminIds.length > 0) {
+        await notificationService.send({
+          type: 'NEW_CRITICAL_NOVELTY',
+          recipients: adminIds,
+          title: `Novedad crítica: ${type}`,
+          message: `${ep.apprentice.fullName} (Ficha ${ep.apprentice.enrollmentNumber}) - ${description.substring(0, 200)}`,
+          metadata: { noveltyId: novelty._id, instructorId: reporterId }
+        });
+      }
+    } catch (err) {
+      console.warn('[novelties.service] Error notificando novedad:', err.message);
+    }
 
     // 6. Record in AuditLog
     await recordAuditLog({
@@ -208,10 +211,17 @@ class NoveltyService {
     await novelty.save();
 
     // Notify instructor
-    await mockSendNotification('DOCUMENTS_REMINDER', { // Reusing a general type or specific if exists
-      recipient: novelty.reportedBy,
-      message: `Novelty for ${novelty.apprentice.fullName} updated to ${status}`
-    });
+    try {
+      await notificationService.send({
+        type: 'NOVELTY_STATUS_UPDATED',
+        recipients: [novelty.reportedBy.toString()],
+        title: 'Novedad actualizada',
+        message: `Novedad de ${novelty.apprentice.fullName} actualizada a ${status}`,
+        metadata: { noveltyId: novelty._id }
+      });
+    } catch (err) {
+      console.warn('[novelties.service] Error notificando estado:', err.message);
+    }
 
     // Record Audit Log
     await recordAuditLog({

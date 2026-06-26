@@ -3,6 +3,7 @@ import User from "../models/User.model.js";
 import ProductiveStage from "../models/ProductiveStage.model.js";
 import { recordAuditLog } from "../utils/auditLog.util.js";
 import { AUDIT_ACTIONS } from "../utils/enums.js";
+import { findOrCreateFolder, getRootFolderId, getDriveClient } from "../utils/googleDrive.util.js";
 import emailService from "./email.service.js";
 
 import { parseCSV, validateApprenticeRow } from "../utils/importParser.util.js";
@@ -54,9 +55,16 @@ class UserService {
             firstLogin: false,
         });
 
-        // 3. Integración Google Drive (MOCK por ahora)
-        // TODO: Implementar googleDriveService.createInstructorFolder
-        instructor.driveFolderId = `mock_folder_${nationalId}`;
+        // 3. Integración Google Drive - Crear carpeta real
+        try {
+            const rootId = getRootFolderId();
+            const folderName = `instructor_${nationalId}`;
+            const folderId = await findOrCreateFolder(getDriveClient(), folderName, rootId);
+            instructor.driveFolderId = folderId;
+        } catch (driveErr) {
+            console.warn('[users.service] No se pudo crear carpeta en Drive para el instructor:', driveErr.message);
+            instructor.driveFolderId = null;
+        }
 
         await instructor.save();
 

@@ -205,4 +205,4 @@ async function deleteFile(fileId) {
   }
 }
 
-export { uploadToApprenticeFolder, uploadToFolder, deleteFile };
+export { uploadToApprenticeFolder, uploadToFolder, deleteFile, findOrCreateFolder, getRootFolderId, getDriveClient };
