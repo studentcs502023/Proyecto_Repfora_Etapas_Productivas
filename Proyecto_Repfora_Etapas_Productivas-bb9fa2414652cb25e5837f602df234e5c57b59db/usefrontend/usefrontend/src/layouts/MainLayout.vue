@@ -230,6 +230,10 @@
               <q-item-section avatar><q-icon name="gavel" /></q-item-section>
               <q-item-section>Novedades</q-item-section>
             </q-item>
+            <q-item clickable v-ripple to="/admin/extraordinary-trackings">
+              <q-item-section avatar><q-icon name="emergency" /></q-item-section>
+              <q-item-section>Seg. Extraordinarios</q-item-section>
+            </q-item>
             <q-item clickable v-ripple to="/admin/close-ep">
               <q-item-section avatar><q-icon name="task_alt" /></q-item-section>
               <q-item-section>Cierre de Etapa</q-item-section>

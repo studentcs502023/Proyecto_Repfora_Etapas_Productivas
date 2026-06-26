@@ -204,6 +204,92 @@ class TrackingService {
   }
 
   /**
+   * Request an extraordinary tracking WITH file upload (one-step)
+   */
+  async requestExtraordinaryWithFile(reqUser, data, file) {
+    const { productiveStageId, type, scheduledDate, extraordinaryReason } = data;
+
+    const ep = await ProductiveStage.findById(productiveStageId);
+    if (!ep) {
+      const error = new Error('ProductiveStage not found');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    const isAssigned = [
+      ep.followupInstructor?.toString(),
+      ep.technicalInstructor?.toString(),
+      ep.projectInstructor?.toString()
+    ].includes(reqUser.id.toString());
+
+    if (!isAssigned) {
+      const error = new Error('Forbidden: You are not assigned to this ProductiveStage');
+      error.statusCode = 403;
+      throw error;
+    }
+
+    const existingExtraCount = await Tracking.countDocuments({
+      productiveStage: productiveStageId,
+      isExtraordinary: true,
+      isActive: true
+    });
+
+    const tracking = new Tracking({
+      productiveStage: productiveStageId,
+      apprentice: ep.apprentice,
+      instructor: reqUser.id,
+      trackingNumber: existingExtraCount + 1,
+      type,
+      scheduledDate: new Date(scheduledDate),
+      isExtraordinary: true,
+      extraordinaryReason: extraordinaryReason || 'Seguimiento extraordinario solicitado por el instructor',
+      approvedByAdmin: false,
+      status: 'SCHEDULED'
+    });
+
+    if (file) {
+      const apprentice = await User.findById(ep.apprentice).select('nationalId');
+      let driveRes;
+      try {
+        driveRes = await uploadToApprenticeFolder(file, apprentice.nationalId, 'seguimientos');
+      } catch (driveErr) {
+        console.error('[Google Drive] Error uploading extraordinary tracking PDF:', driveErr.message);
+        driveRes = {
+          fileName: file.originalname || 'seguimiento.pdf',
+          driveFileId: null,
+          driveFileUrl: null
+        };
+      }
+      tracking.fileName = driveRes.fileName;
+      tracking.driveFileId = driveRes.driveFileId;
+      tracking.driveFileUrl = driveRes.driveFileUrl;
+    }
+
+    await tracking.save();
+
+    const admins = await User.find({ role: 'ADMIN', isActive: true }).select('_id');
+    if (admins.length > 0) {
+      await notificationService.send({
+        type: 'NEW_CRITICAL_NOVELTY',
+        recipients: admins.map(a => a._id.toString()),
+        title: 'Solicitud de Seguimiento Extraordinario',
+        message: `El instructor ${reqUser.fullName} solicita un seguimiento extraordinario para el aprendiz ${ep.apprentice?.fullName || 'N/D'}. Motivo: ${extraordinaryReason || 'No especificado'}`,
+        metadata: { entity: 'Tracking', entityId: tracking._id }
+      });
+    }
+
+    await recordAuditLog({
+      action: 'TRACKING_EXTRAORDINARY_REQUESTED',
+      entity: 'Tracking',
+      entityId: tracking._id,
+      performedBy: reqUser.id,
+      details: { extraordinaryReason: extraordinaryReason || 'Seguimiento extraordinario', hasFile: !!file }
+    });
+
+    return tracking;
+  }
+
+  /**
    * Admin approves an extraordinary tracking
    */
   async approveExtraordinaryTracking(reqUser, id) {
@@ -805,6 +891,100 @@ class TrackingService {
       pending: ep.requiredTrackings - completed,
       trackings
     };
+  }
+
+  /**
+   * Get the next tracking number for a productive stage
+   */
+  async getNextTrackingNumber(reqUser, productiveStageId) {
+    const ep = await ProductiveStage.findById(productiveStageId);
+    if (!ep) {
+      const error = new Error('ProductiveStage not found');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    const existingCount = await Tracking.countDocuments({
+      productiveStage: productiveStageId,
+      isExtraordinary: false,
+      isActive: true
+    });
+
+    return {
+      productiveStageId,
+      requiredTrackings: ep.requiredTrackings || 3,
+      completedTrackings: ep.completedTrackings || 0,
+      existingScheduled: existingCount,
+      nextTrackingNumber: existingCount + 1,
+      maxReached: existingCount >= (ep.requiredTrackings || 3)
+    };
+  }
+
+  /**
+   * Get all extraordinary trackings for admin control table
+   */
+  async getExtraordinaryTrackings(query = {}) {
+    const { page = 1, limit = 50, status, approvedByAdmin } = query;
+    const filter = { isExtraordinary: true, isActive: true };
+
+    if (status) filter.status = status;
+    if (approvedByAdmin !== undefined) filter.approvedByAdmin = approvedByAdmin === 'true' || approvedByAdmin === true;
+
+    const total = await Tracking.countDocuments(filter);
+    const trackings = await Tracking.find(filter)
+      .populate('instructor', 'fullName nationalId email')
+      .populate('apprentice', 'fullName nationalId enrollmentNumber program')
+      .populate('approvedBy', 'fullName')
+      .populate('requirementsValidatedBy', 'fullName')
+      .populate('productiveStage', 'modality companySnapshot')
+      .sort({ scheduledDate: -1 })
+      .skip((page - 1) * limit)
+      .limit(Number(limit));
+
+    return {
+      trackings,
+      pagination: { total, page: Number(page), limit: Number(limit), pages: Math.ceil(total / limit) }
+    };
+  }
+
+  /**
+   * Admin validates requirements for a tracking
+   */
+  async validateRequirements(reqUser, id, data) {
+    const tracking = await Tracking.findById(id);
+    if (!tracking || !tracking.isActive) {
+      const error = new Error('Tracking not found');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    if (!tracking.isExtraordinary) {
+      const error = new Error('This tracking is not extraordinary');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    tracking.requirementsValidated = data.validated !== undefined ? data.validated : true;
+    tracking.requirementsValidatedAt = new Date();
+    tracking.requirementsValidatedBy = reqUser.id;
+
+    if (data.notes) {
+      tracking.notes = tracking.notes
+        ? `${tracking.notes}\n[Validación]: ${data.notes}`
+        : `[Validación]: ${data.notes}`;
+    }
+
+    await tracking.save();
+
+    await recordAuditLog({
+      action: 'TRACKING_REQUIREMENTS_VALIDATED',
+      entity: 'Tracking',
+      entityId: tracking._id,
+      performedBy: reqUser.id,
+      details: { validated: tracking.requirementsValidated }
+    });
+
+    return tracking;
   }
 }
 

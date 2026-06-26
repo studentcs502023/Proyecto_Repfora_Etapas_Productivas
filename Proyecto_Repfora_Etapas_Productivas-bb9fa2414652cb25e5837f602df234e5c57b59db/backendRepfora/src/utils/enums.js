@@ -34,7 +34,8 @@ const BITACORA_STATUSES = [
 const TRACKING_STATUSES = [
   'SCHEDULED',   // date set but not yet done
   'EXECUTED',    // tracking done, pending payment
-  'PAID'         // hours discounted / paid
+  'PAID',        // hours discounted / paid
+  'CANCELLED'    // rejected or cancelled
 ];
 
 const TRACKING_TYPES = [

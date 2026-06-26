@@ -132,6 +132,12 @@ const routes = [
         meta: { role: 'ADMIN' }
       },
       {
+        path: 'admin/extraordinary-trackings',
+        name: 'admin-extraordinary-trackings',
+        component: () => import('../pages/admin/ExtraordinaryTrackingsPage.vue'),
+        meta: { role: 'ADMIN' }
+      },
+      {
         path: 'admin/close-ep',
         name: 'admin-close-ep',
         component: () => import('../pages/admin/CloseProductiveStagePage.vue'),

@@ -35,6 +35,10 @@ const trackingSchema = new Schema({
   isPaid:               { type: Boolean, default: false },
   paidAt:               { type: Date, default: null },
 
+  requirementsValidated: { type: Boolean, default: false },
+  requirementsValidatedAt: { type: Date, default: null },
+  requirementsValidatedBy: { type: Schema.Types.ObjectId, ref: 'User', default: null },
+
   notes:                { type: String, default: null },
 
   isActive:             { type: Boolean, default: true }

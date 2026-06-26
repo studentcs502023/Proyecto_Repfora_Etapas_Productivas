@@ -508,11 +508,28 @@ class ProductiveStageService {
 
         await ep.save();
 
+        const recipients = new Set();
+        recipients.add(ep.apprentice.toString());
+
+        // Notificar instructores asignados si el comentario no viene de ellos
+        const authorId = performedBy.toString();
+        const instructorIds = [
+            ep.followupInstructor?.toString(),
+            ep.technicalInstructor?.toString(),
+            ep.projectInstructor?.toString()
+        ].filter(Boolean);
+
+        for (const instId of instructorIds) {
+            if (instId !== authorId) {
+                recipients.add(instId);
+            }
+        }
+
         notificationService.send({
             type: "EP_COMMENT_ADDED",
-            recipients: [ep.apprentice.toString()],
-            title: "Nuevo Comentario en tu Etapa",
-            message: `Has recibido un nuevo comentario en tu etapa productiva: "${text.substring(0, 120)}"`,
+            recipients: [...recipients],
+            title: "Nuevo Comentario en Etapa Productiva",
+            message: `Nuevo comentario en la etapa de ${ep.apprentice?.fullName || 'N/D'}: "${text.substring(0, 120)}"`,
             metadata: { entity: "ProductiveStage", entityId: ep._id }
         });
 

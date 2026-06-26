@@ -21,6 +21,15 @@ class TrackingController {
     }
   }
 
+  async requestExtraordinaryWithFile(req, res) {
+    try {
+      const tracking = await trackingService.requestExtraordinaryWithFile(req.user, req.body, req.file);
+      return successResponse(res, 201, 'Extraordinary tracking requested with file', { tracking });
+    } catch (error) {
+      return errorResponse(res, error.statusCode || 500, error.message);
+    }
+  }
+
   async approveExtraordinaryTracking(req, res) {
     try {
       const tracking = await trackingService.approveExtraordinaryTracking(req.user, req.params.id);
@@ -133,6 +142,33 @@ class TrackingController {
     try {
       const templateUrl = await getConfig('TRACKING_TEMPLATE_DRIVE_URL');
       return successResponse(res, 200, 'Template URL retrieved', { templateUrl });
+    } catch (error) {
+      return errorResponse(res, error.statusCode || 500, error.message);
+    }
+  }
+
+  async getNextTrackingNumber(req, res) {
+    try {
+      const data = await trackingService.getNextTrackingNumber(req.user, req.params.productiveStageId);
+      return successResponse(res, 200, 'Next tracking number retrieved', data);
+    } catch (error) {
+      return errorResponse(res, error.statusCode || 500, error.message);
+    }
+  }
+
+  async getExtraordinaryTrackings(req, res) {
+    try {
+      const data = await trackingService.getExtraordinaryTrackings(req.query);
+      return successResponse(res, 200, 'Extraordinary trackings retrieved', data);
+    } catch (error) {
+      return errorResponse(res, error.statusCode || 500, error.message);
+    }
+  }
+
+  async validateRequirements(req, res) {
+    try {
+      const tracking = await trackingService.validateRequirements(req.user, req.params.id, req.body);
+      return successResponse(res, 200, 'Requirements validated', { tracking });
     } catch (error) {
       return errorResponse(res, error.statusCode || 500, error.message);
     }

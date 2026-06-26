@@ -25,7 +25,9 @@ router.get('/',
 );
 
 router.get('/template', trackingController.getTemplate);
+router.get('/next-number/:productiveStageId', trackingController.getNextTrackingNumber);
 router.get('/summary/:productiveStageId', trackingController.getTrackingSummary);
+router.get('/extraordinary/all', checkRole('ADMIN'), trackingController.getExtraordinaryTrackings);
 router.get('/:id', trackingController.getTrackingById);
 
 // Instructor actions
@@ -50,6 +52,19 @@ router.post('/extraordinary/request',
         validateFields
     ],
     trackingController.requestExtraordinaryTracking
+);
+
+router.post('/extraordinary/request-with-file',
+    checkRole('INSTRUCTOR'),
+    upload.single('file'),
+    [
+        body('productiveStageId').isMongoId(),
+        body('type').isIn(TRACKING_TYPES),
+        body('scheduledDate').isISO8601(),
+        body('extraordinaryReason').isString().isLength({ min: 30 }).optional(),
+        validateFields
+    ],
+    trackingController.requestExtraordinaryWithFile
 );
 
 router.patch('/:id/upload-pdf',
@@ -99,6 +114,11 @@ router.patch('/:id/approve-extraordinary',
 router.patch('/:id/reject-extraordinary',
     checkRole('ADMIN'),
     trackingController.rejectExtraordinaryTracking
+);
+
+router.patch('/:id/validate-requirements',
+    checkRole('ADMIN'),
+    trackingController.validateRequirements
 );
 
 export default router;
