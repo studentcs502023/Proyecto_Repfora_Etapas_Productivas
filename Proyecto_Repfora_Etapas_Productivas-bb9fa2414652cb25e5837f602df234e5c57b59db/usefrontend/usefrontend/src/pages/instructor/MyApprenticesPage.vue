@@ -103,16 +103,10 @@
 
         <template v-slot:body-cell-acciones="props">
           <q-td :props="props" class="text-center">
-            <q-btn
-              size="sm"
-              color="primary"
-              outline
-              label="Ver Progreso"
-              icon="visibility"
-              @click="viewProgress(props.row)"
-              class="action-btn"
-              rounded
-            />
+            <div class="q-gutter-xs">
+              <q-btn size="sm" color="primary" outline label="Ver Progreso" icon="visibility" @click="viewProgress(props.row)" class="action-btn" rounded />
+              <q-btn size="sm" color="negative" outline label="Novedad" icon="gavel" @click="openNoveltyModal(props.row)" class="action-btn" rounded />
+            </div>
           </q-td>
         </template>
 
@@ -248,12 +242,115 @@
       </q-card>
     </q-dialog>
 
+    <!-- Modal: Registrar Novedad -->
+    <q-dialog v-model="showNoveltyModal" persistent transition-show="scale" transition-hide="scale">
+      <q-card class="modal-card" style="width: 600px; max-width: 95vw;">
+        <q-form @submit="submitNovelty" style="display: flex; flex-direction: column; max-height: 85vh;">
+          <q-card-section class="bg-negative text-white row items-center">
+            <div class="text-h6 text-weight-bold">
+              <q-icon name="gavel" class="q-mr-sm" size="sm"/>Registrar Novedad
+            </div>
+            <q-space />
+            <q-btn icon="close" flat round dense v-close-popup />
+          </q-card-section>
+
+          <q-card-section class="q-pa-lg q-gutter-md" style="flex:1; overflow-y: auto; max-height: 60vh;">
+            <div class="bg-orange-1 q-pa-md rounded-borders row items-center">
+              <q-avatar color="primary" text-color="white" size="md" class="q-mr-md">{{ novelEp?.apprentice?.fullName?.charAt(0) }}</q-avatar>
+              <div>
+                <div class="text-weight-bold">{{ novelEp?.apprentice?.fullName }}</div>
+                <div class="text-caption text-grey-7">Ficha: {{ novelEp?.apprentice?.enrollmentNumber }} | {{ novelEp?.apprentice?.program }}</div>
+              </div>
+            </div>
+
+            <q-select
+              v-model="noveltyForm.type"
+              :options="noveltyTypeOptions"
+              label="Tipo de Novedad *"
+              outlined dense emit-value map-options
+              color="negative"
+              class="glass-input"
+              :rules="[val => !!val || 'Requerido']"
+            >
+              <template v-slot:prepend><q-icon name="category" color="negative"/></template>
+            </q-select>
+
+            <q-select
+              v-model="noveltyForm.severity"
+              :options="severityOptions"
+              label="Gravedad"
+              outlined dense emit-value map-options
+              color="negative"
+              class="glass-input"
+            >
+              <template v-slot:prepend><q-icon name="warning" color="negative"/></template>
+            </q-select>
+
+            <q-input
+              v-model="noveltyForm.occurrenceDate"
+              type="date"
+              label="Fecha del Incidente *"
+              outlined dense
+              color="negative"
+              class="glass-input"
+              stack-label
+              :rules="[val => !!val || 'Requerido']"
+            />
+
+            <q-input
+              v-model="noveltyForm.description"
+              label="Descripcion detallada *"
+              type="textarea"
+              outlined
+              dense
+              rows="5"
+              color="negative"
+              class="glass-input"
+              hint="Describa la situacion del aprendiz (minimo 50 caracteres)"
+              :rules="[val => !!val && val.length >= 50 || 'Minimo 50 caracteres']"
+            />
+
+            <q-input
+              v-model="noveltyForm.contactAttempts"
+              label="Intentos de Contacto"
+              type="textarea"
+              outlined
+              dense
+              rows="2"
+              color="negative"
+              class="glass-input"
+              hint="Describa los intentos de comunicacion con el aprendiz"
+            />
+
+            <q-input
+              v-model="noveltyForm.recommendations"
+              label="Recomendaciones"
+              type="textarea"
+              outlined
+              dense
+              rows="2"
+              color="negative"
+              class="glass-input"
+              hint="Sugiera acciones a tomar por el administrador"
+            />
+          </q-card-section>
+
+          <q-separator class="opacity-20"/>
+          <q-card-actions align="right" class="q-pa-md bg-grey-1">
+            <q-btn flat label="Cancelar" color="grey-8" class="text-weight-bold" v-close-popup />
+            <q-btn color="negative" label="Registrar Novedad" type="submit" :loading="submittingNovelty" class="text-weight-bold shadow-2" rounded padding="xs lg"/>
+          </q-card-actions>
+        </q-form>
+      </q-card>
+    </q-dialog>
+
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, onActivated } from 'vue';
 import productiveStageService from '../../api/productiveStage.service';
+import noveltyService from '../../api/novelty.service';
 import { useQuasar } from 'quasar';
 import { useRouter } from 'vue-router';
 
@@ -266,6 +363,31 @@ const filter = ref('');
 
 const showProgressModal = ref(false);
 const selectedEp = ref(null);
+
+const showNoveltyModal = ref(false);
+const novelEp = ref(null);
+const submittingNovelty = ref(false);
+const noveltyForm = ref({
+  type: '',
+  severity: 'MEDIA',
+  occurrenceDate: new Date().toISOString().split('T')[0],
+  description: '',
+  contactAttempts: '',
+  recommendations: ''
+});
+
+const noveltyTypeOptions = [
+  { label: 'Desercion / Abandono', value: 'DESERTION' },
+  { label: 'Problemas de Desempeno / Disciplinario', value: 'DISCIPLINARY_ISSUE' },
+  { label: 'Cambios en Cronograma / Condiciones Empresariales', value: 'COMPANY_CONDITIONS_CHANGE' },
+  { label: 'Otra (especificar en descripcion)', value: 'OTHER' }
+];
+
+const severityOptions = [
+  { label: 'Gravedad Alta', value: 'ALTA' },
+  { label: 'Gravedad Media', value: 'MEDIA' },
+  { label: 'Gravedad Baja', value: 'BAJA' }
+];
 
 const columns = [
   { name: 'nombre', label: 'Nombre', field: 'apprentice', align: 'left', sortable: true },
@@ -374,6 +496,48 @@ function formatDate(dateStr) {
 function viewProgress(ep) {
   selectedEp.value = ep;
   showProgressModal.value = true;
+}
+
+function openNoveltyModal(ep) {
+  novelEp.value = ep;
+  noveltyForm.value = {
+    type: '',
+    severity: 'MEDIA',
+    occurrenceDate: new Date().toISOString().split('T')[0],
+    description: '',
+    contactAttempts: '',
+    recommendations: ''
+  };
+  showNoveltyModal.value = true;
+}
+
+async function submitNovelty() {
+  if (!noveltyForm.value.type || !noveltyForm.value.description || noveltyForm.value.description.length < 50) return;
+  submittingNovelty.value = true;
+  try {
+    const formData = new FormData();
+    formData.append('productiveStageId', novelEp.value._id);
+    formData.append('type', noveltyForm.value.type);
+    formData.append('description', noveltyForm.value.description.trim());
+    formData.append('occurrenceDate', noveltyForm.value.occurrenceDate);
+    formData.append('severity', noveltyForm.value.severity);
+    if (noveltyForm.value.contactAttempts.trim()) {
+      formData.append('contactAttempts', noveltyForm.value.contactAttempts.trim());
+    }
+    if (noveltyForm.value.recommendations.trim()) {
+      formData.append('recommendations', noveltyForm.value.recommendations.trim());
+    }
+
+    await noveltyService.create(formData);
+    $q.notify({ type: 'positive', message: 'Novedad registrada exitosamente. El administrador ha sido notificado.', position: 'top', timeout: 5000 });
+    showNoveltyModal.value = false;
+  } catch (error) {
+    console.error(error);
+    const msg = error.response?.data?.message || 'Error al registrar novedad.';
+    $q.notify({ type: 'negative', message: msg, position: 'top', timeout: 5000 });
+  } finally {
+    submittingNovelty.value = false;
+  }
 }
 </script>
 

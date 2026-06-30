@@ -11,6 +11,7 @@ export const userService = {
   createInstructor: (data) => api.post('/users/instructors', data),
   updateInstructor: (id, data) => api.patch(`/users/instructors/${id}`, data),
   changeInstructorStatus: (id, status, reason) => api.patch(`/users/instructors/${id}/status`, { status, reason }),
+  reassignApprentices: (id, newInstructorId, productiveStageIds) => api.post(`/users/instructors/${id}/reassign`, { newInstructorId, productiveStageIds }),
   deactivateInstructor: (id) => api.patch(`/users/instructors/${id}/deactivate`),
   activateInstructor: (id) => api.patch(`/users/instructors/${id}/activate`),
 

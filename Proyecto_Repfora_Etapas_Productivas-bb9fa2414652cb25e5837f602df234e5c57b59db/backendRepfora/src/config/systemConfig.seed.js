@@ -14,6 +14,7 @@ const defaults = [
     { key: 'REQUIRED_TRACKINGS_TECHNICIAN',     value: 3,   valueType: 'NUMBER',  description: 'Seguimientos requeridos para nivel Técnico' },
     { key: 'REQUIRED_TRACKINGS_TECHNOLOGIST',   value: 3,   valueType: 'NUMBER',  description: 'Seguimientos requeridos para nivel Tecnólogo' },
     { key: 'MAX_MONTHLY_HOURS_INSTRUCTOR',      value: 160, valueType: 'NUMBER',  description: 'Máximo de horas mensuales permitidas por instructor' },
+    { key: 'HOURS_LIMIT_WARNING_PERCENT',       value: 80,  valueType: 'NUMBER',  description: 'Porcentaje del límite (0-100) que dispara la alerta de aproximación (ej: 80 = notificar al alcanzar 80% del tope)' },
     { key: 'EXPIRY_ALERT_DAYS_YELLOW',          value: 30,  valueType: 'NUMBER',  description: 'Días antes del vencimiento para alerta Amarilla' },
     { key: 'EXPIRY_ALERT_DAYS_ORANGE',          value: 15,  valueType: 'NUMBER',  description: 'Días antes del vencimiento para alerta Naranja' },
     { key: 'EXPIRY_ALERT_DAYS_RED',             value: 7,   valueType: 'NUMBER',  description: 'Días antes del vencimiento para alerta Roja' },

@@ -2,10 +2,12 @@ import HourRecord from '../models/HourRecord.model.js';
 import User from '../models/User.model.js';
 import Bitacora from '../models/Bitacora.model.js';
 import Tracking from '../models/Tracking.model.js';
+import ProductiveStage from '../models/ProductiveStage.model.js';
 import { recordAuditLog } from '../utils/auditLog.util.js';
 import { getConfig } from '../utils/configHelper.util.js';
 import pdfGenerator from '../utils/pdfGenerator.util.js';
 import { findOrCreateFolder, getRootFolderId, uploadToFolder, getDriveClient } from '../utils/googleDrive.util.js';
+import notificationService from './notifications.service.js';
 
 const { generatePdf } = pdfGenerator;
 
@@ -15,6 +17,7 @@ class HourService {
    */
   async addHours({ instructorId, month, year, field, amount }) {
     const maxHours = await getConfig('MAX_MONTHLY_HOURS_INSTRUCTOR') || 160;
+    const warningPercent = await getConfig('HOURS_LIMIT_WARNING_PERCENT') || 80;
 
     let record = await HourRecord.findOne({ instructor: instructorId, month, year });
     if (!record) {
@@ -23,7 +26,6 @@ class HourService {
 
     record[field] = (record[field] || 0) + amount;
     
-    // Recalculate totalHours (sum of all breakdown fields + carriedOverHours)
     record.totalHours = (record.bitacoraHours || 0) + 
                         (record.trackingHours || 0) + 
                         (record.certificationHours || 0) + 
@@ -34,21 +36,56 @@ class HourService {
 
     let isOverLimit = false;
     let excessAmount = 0;
+    const warningThreshold = maxHours * (warningPercent / 100);
 
     if (record.totalHours > maxHours) {
       isOverLimit = true;
       excessAmount = record.totalHours - maxHours;
       record.excessHours = excessAmount;
+      if (!record.overloadWarningSent) {
+        record.overloadWarningSent = true;
+        record.limitWarningSent = true;
+      }
+    } else if (!record.limitWarningSent && record.totalHours >= warningThreshold) {
+      record.limitWarningSent = true;
     } else {
       record.excessHours = 0;
     }
 
     await record.save();
 
-    // Update User accumulatedHours and pendingPaymentHours
     await User.findByIdAndUpdate(instructorId, {
       $inc: { accumulatedHours: amount, pendingPaymentHours: amount }
     });
+
+    if (isOverLimit && record.overloadWarningSent) {
+      const instructor = await User.findById(instructorId).select('fullName email');
+      if (instructor) {
+        notificationService.send({
+          type: 'HOURS_OVERLOAD',
+          recipients: [instructorId],
+          title: 'Límite de horas mensuales excedido',
+          message: `<p><strong>${instructor.fullName}</strong>, has superado el tope de <strong>${maxHours} horas</strong> para el mes en curso.</p>
+            <p>Horas acumuladas: <strong>${record.totalHours}</strong> | Excedente: <strong>${excessAmount} horas</strong>.</p>
+            <p>Las horas excedentes quedarán registradas como exceso y podrán ser gestionadas por el administrador.</p>
+            <p style="color:#e67e22;"><em>Esta alerta es preventiva y no bloquea el registro de actividades.</em></p>`
+        }).catch(err => console.error('[HourService] Error enviando HOURS_OVERLOAD:', err.message));
+      }
+    }
+
+    if (!isOverLimit && record.limitWarningSent && record.totalHours >= warningThreshold && !record.overloadWarningSent) {
+      const instructor = await User.findById(instructorId).select('fullName email');
+      if (instructor) {
+        notificationService.send({
+          type: 'HOURS_LIMIT_ALERT',
+          recipients: [instructorId],
+          title: 'Aproximándose al límite de horas mensuales',
+          message: `<p><strong>${instructor.fullName}</strong>, has alcanzado el <strong>${warningPercent}%</strong> del límite mensual de horas (${record.totalHours} de ${maxHours} horas).</p>
+            <p>Te quedan <strong>${maxHours - record.totalHours} horas</strong> disponibles para este mes.</p>
+            <p style="color:#e67e22;"><em>Esta alerta es preventiva y no bloquea el registro de actividades.</em></p>`
+        }).catch(err => console.error('[HourService] Error enviando HOURS_LIMIT_ALERT:', err.message));
+      }
+    }
 
     return { record, isOverLimit, excessAmount };
   }
@@ -111,7 +148,6 @@ class HourService {
    * GET /api/hours/instructors/:instructorId/month/:year/:month
    */
   async getMonthlyDetail(reqUser, instructorId, year, month) {
-    // Access control
     if (reqUser.role === 'INSTRUCTOR' && reqUser.id.toString() !== instructorId.toString()) {
       const error = new Error('Forbidden');
       error.statusCode = 403;
@@ -120,7 +156,6 @@ class HourService {
 
     let record = await HourRecord.findOne({ instructor: instructorId, year: Number(year), month: Number(month) });
     
-    // If not found, return an empty template
     if (!record) {
       record = {
         instructor: instructorId,
@@ -136,7 +171,6 @@ class HourService {
       };
     }
 
-    // Activity breakdown
     const monthStart = new Date(year, month - 1, 1);
     const monthEnd = new Date(year, month, 0, 23, 59, 59, 999);
 
@@ -145,33 +179,90 @@ class HourService {
         instructor: instructorId, 
         reviewedAt: { $gte: monthStart, $lte: monthEnd },
         status: 'APPROVED' 
-      }).populate('apprentice', 'fullName'),
+      }).populate('apprentice', 'fullName')
+        .populate('productiveStage', 'modality status followupInstructor technicalInstructor projectInstructor'),
       Tracking.find({ 
         instructor: instructorId, 
         executedDate: { $gte: monthStart, $lte: monthEnd },
         status: { $in: ['EXECUTED', 'PAID'] }
       }).populate('apprentice', 'fullName')
+        .populate('productiveStage', 'modality status followupInstructor technicalInstructor projectInstructor')
     ]);
+
+    const getRole = (ep, instructorIdStr) => {
+      const id = instructorIdStr.toString();
+      const roles = [];
+      if (ep.followupInstructor?.toString() === id) roles.push('Seguimiento');
+      if (ep.technicalInstructor?.toString() === id) roles.push('Tecnico');
+      if (ep.projectInstructor?.toString() === id) roles.push('Proyecto');
+      return roles.length > 0 ? roles.join(' / ') : 'Instructor';
+    };
+
+    const detailItems = [
+      ...bitacoras.map(b => ({
+        _id: b._id,
+        source: 'BITACORA',
+        sourceLabel: 'Revision de Bitacora',
+        apprenticeName: b.apprentice?.fullName || '—',
+        productiveStageId: b.productiveStage?._id,
+        modality: b.productiveStage?.modality,
+        instructorRole: b.productiveStage ? getRole(b.productiveStage, instructorId) : '—',
+        date: b.reviewedAt,
+        assignedHours: b.assignedHours || 0,
+        isPaid: b.isPaid,
+        hoursValidated: b.hoursValidated || false,
+        logbookNumber: b.logbookNumber
+      })),
+      ...trackings.map(t => ({
+        _id: t._id,
+        source: 'TRACKING',
+        sourceLabel: t.isExtraordinary ? 'Seguimiento Extraordinario' : 'Seguimiento Presencial/Virtual',
+        apprenticeName: t.apprentice?.fullName || '—',
+        productiveStageId: t.productiveStage?._id,
+        modality: t.productiveStage?.modality,
+        instructorRole: t.productiveStage ? getRole(t.productiveStage, instructorId) : '—',
+        date: t.executedDate,
+        assignedHours: t.assignedHours || 0,
+        isPaid: t.isPaid,
+        hoursValidated: t.hoursValidated || false,
+        trackingNumber: t.trackingNumber,
+        trackingType: t.type,
+        isExtraordinary: t.isExtraordinary
+      }))
+    ].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    const epSummary = {};
+    for (const item of detailItems) {
+      const key = `${item.productiveStageId || 'unknown'}_${item.instructorRole}`;
+      if (!epSummary[key]) {
+        epSummary[key] = {
+          productiveStageId: item.productiveStageId,
+          apprenticeName: item.apprenticeName,
+          modality: item.modality,
+          instructorRole: item.instructorRole,
+          totalHours: 0,
+          validatedHours: 0,
+          unvalidatedHours: 0,
+          pendingHours: 0,
+          paidHours: 0,
+          itemCount: 0
+        };
+      }
+      epSummary[key].totalHours += item.assignedHours;
+      if (item.hoursValidated) {
+        epSummary[key].validatedHours += item.assignedHours;
+      } else {
+        epSummary[key].unvalidatedHours += item.assignedHours;
+      }
+      epSummary[key].pendingHours += item.isPaid ? 0 : item.assignedHours;
+      epSummary[key].paidHours += item.isPaid ? item.assignedHours : 0;
+      epSummary[key].itemCount += 1;
+    }
 
     return {
       record,
-      breakdown: {
-        bitacoras: bitacoras.map(b => ({
-          id: b._id,
-          apprenticeName: b.apprentice.fullName,
-          approvedAt: b.reviewedAt,
-          hours: b.assignedHours,
-          isPaid: b.isPaid
-        })),
-        trackings: trackings.map(t => ({
-          id: t._id,
-          apprenticeName: t.apprentice.fullName,
-          type: t.type,
-          executedAt: t.executedDate,
-          hours: t.assignedHours,
-          isPaid: t.isPaid
-        }))
-      }
+      summaryByEP: Object.values(epSummary).sort((a, b) => b.totalHours - a.totalHours),
+      detailItems
     };
   }
 

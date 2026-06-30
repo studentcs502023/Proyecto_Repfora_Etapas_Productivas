@@ -53,6 +53,15 @@ router.get('/instructor-hours/export',
     reportController.exportInstructorHours
 );
 
+router.get('/instructor-hours/:instructorId/export',
+    [
+        param('instructorId').isMongoId(),
+        query('year').optional().isInt({ min: 2020 }),
+        validateFields
+    ],
+    reportController.exportSingleInstructorHours
+);
+
 // Apprentice Progress
 router.get('/apprentice-progress/:apprenticeId',
     [

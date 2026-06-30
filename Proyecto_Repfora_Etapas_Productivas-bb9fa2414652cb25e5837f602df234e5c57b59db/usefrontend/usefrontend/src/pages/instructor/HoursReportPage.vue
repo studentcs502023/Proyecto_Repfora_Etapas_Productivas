@@ -1,54 +1,68 @@
 <template>
   <div class="hours-report-container q-pa-md">
-    <!-- Premium Header -->
     <div class="page-header q-mb-xl shadow-4">
       <div class="cover-overlay"></div>
       <div class="header-content text-white">
         <h2 class="text-h3 text-weight-bolder q-my-none shadow-text">
-          <q-icon name="schedule" class="q-mr-sm" size="md"/>Mi Reporte de Horas
+          <q-icon name="schedule" class="q-mr-sm" size="md"/>Mi Informe de Horas
         </h2>
         <p class="text-subtitle1 opacity-80 q-mt-xs q-mb-none">
-          Control de horas ejecutadas y aprobadas para facturación y cobro mensual.
+          Horas ejecutadas por etapa productiva. Seleccione un mes para ver el detalle.
         </p>
       </div>
     </div>
 
-    <!-- Filters Card -->
     <q-card flat class="filter-card q-mb-lg">
       <q-card-section class="q-pa-md row q-col-gutter-md items-center">
         <div class="col-12 col-sm-4">
-          <q-input v-model.number="selectedYear" type="number" label="Año" outlined dense color="primary" @update:model-value="fetchData" />
-        </div>
-        <div class="col-12 col-sm-8">
-          <q-select 
-            v-model="selectedMonth" 
-            :options="monthsOptions" 
-            label="Mes (Opcional)" 
-            outlined dense emit-value map-options clearable 
+          <q-select
+            v-model="selectedYear"
+            :options="yearOptions"
+            label="Año"
+            outlined dense
             color="primary"
-            @update:model-value="fetchData" 
+            @update:model-value="fetchDetail"
+          />
+        </div>
+        <div class="col-12 col-sm-5">
+          <q-select
+            v-model="selectedMonth"
+            :options="monthsOptions"
+            label="Mes"
+            outlined dense emit-value map-options
+            color="primary"
+            @update:model-value="fetchDetail"
+          />
+        </div>
+        <div class="col-12 col-sm-3 row justify-end">
+          <q-btn
+            color="primary"
+            icon="refresh"
+            label="Consultar"
+            rounded
+            unelevated
+            :loading="loading"
+            class="text-weight-bold"
+            @click="fetchDetail"
           />
         </div>
       </q-card-section>
     </q-card>
 
-    <!-- Loading State -->
     <div v-if="loading" class="flex flex-center q-pa-xl">
       <q-spinner color="primary" size="4em" />
-      <div class="q-ml-md text-h6 text-primary text-weight-medium">Cargando reporte de horas...</div>
+      <div class="q-ml-md text-h6 text-primary text-weight-medium">Cargando informe...</div>
     </div>
 
-    <!-- Content -->
-    <div v-else-if="records.length > 0">
-      
-      <!-- Summary / Current State -->
+    <div v-else-if="record">
       <div class="row q-col-gutter-md q-mb-lg">
-        <div class="col-12 col-sm-4">
+        <div class="col-12 col-sm-3">
           <q-card flat class="summary-card total-card">
             <q-card-section class="row items-center justify-between q-pa-lg">
               <div>
-                <div class="text-caption text-grey-7 text-uppercase text-weight-bold">Horas Totales (Filtro)</div>
-                <div class="text-h3 text-weight-bolder text-primary q-mt-xs">{{ totalHoursInFilter }}</div>
+                <div class="text-caption text-grey-7 text-uppercase text-weight-bold">Horas Totales del Mes</div>
+                <div class="text-h3 text-weight-bolder text-primary q-mt-xs">{{ record.totalHours || 0 }}</div>
+                <div class="text-caption text-grey-6">Bitacoras: {{ record.bitacoraHours || 0 }}h | Seg: {{ record.trackingHours || 0 }}h | Extra: {{ record.extraordinaryHours || 0 }}h</div>
               </div>
               <div class="icon-circle bg-primary-light">
                 <q-icon name="schedule" color="primary" size="md" />
@@ -56,12 +70,25 @@
             </q-card-section>
           </q-card>
         </div>
-        <div class="col-12 col-sm-4">
+        <div class="col-12 col-sm-3">
+          <q-card flat class="summary-card validated-card">
+            <q-card-section class="row items-center justify-between q-pa-lg">
+              <div>
+                <div class="text-caption text-grey-7 text-uppercase text-weight-bold">Horas Validadas</div>
+                <div class="text-h3 text-weight-bolder text-positive q-mt-xs">{{ validatedHoursTotal }}</div>
+              </div>
+              <div class="icon-circle bg-positive-light">
+                <q-icon name="verified" color="positive" size="md" />
+              </div>
+            </q-card-section>
+          </q-card>
+        </div>
+        <div class="col-12 col-sm-3">
           <q-card flat class="summary-card pending-card">
             <q-card-section class="row items-center justify-between q-pa-lg">
               <div>
-                <div class="text-caption text-grey-7 text-uppercase text-weight-bold">Horas por Cobrar</div>
-                <div class="text-h3 text-weight-bolder text-warning q-mt-xs">{{ totalPendingInFilter }}</div>
+                <div class="text-caption text-grey-7 text-uppercase text-weight-bold">Horas Pend. Pago</div>
+                <div class="text-h3 text-weight-bolder text-warning q-mt-xs">{{ record.pendingPaymentHours || 0 }}</div>
               </div>
               <div class="icon-circle bg-warning-light">
                 <q-icon name="hourglass_empty" color="warning" size="md" />
@@ -69,12 +96,12 @@
             </q-card-section>
           </q-card>
         </div>
-        <div class="col-12 col-sm-4">
+        <div class="col-12 col-sm-3">
           <q-card flat class="summary-card paid-card">
             <q-card-section class="row items-center justify-between q-pa-lg">
               <div>
                 <div class="text-caption text-grey-7 text-uppercase text-weight-bold">Horas Cobradas</div>
-                <div class="text-h3 text-weight-bolder text-positive q-mt-xs">{{ totalPaidInFilter }}</div>
+                <div class="text-h3 text-weight-bolder text-positive q-mt-xs">{{ record.paidHours || 0 }}</div>
               </div>
               <div class="icon-circle bg-positive-light">
                 <q-icon name="check_circle" color="positive" size="md" />
@@ -84,82 +111,154 @@
         </div>
       </div>
 
-      <!-- Detail Table -->
-      <q-card flat class="table-card">
+      <q-card flat class="table-card q-mb-lg">
         <q-table
-          :rows="records"
-          :columns="columns"
-          row-key="_id"
+          :rows="summaryByEP"
+          :columns="epColumns"
+          row-key="productiveStageId"
           flat
           hide-pagination
           :pagination="{ rowsPerPage: 50 }"
           class="custom-table"
           table-header-class="custom-table-header"
         >
-          <template v-slot:body-cell-period="props">
-            <q-td :props="props" class="text-weight-bold text-dark text-subtitle2">
-              {{ getMonthName(props.row.month) }} {{ props.row.year }}
+          <template v-slot:body-cell-apprentice="props">
+            <q-td :props="props">
+              <div class="text-weight-bold">{{ props.row.apprenticeName }}</div>
+              <div class="text-caption text-grey-7">{{ props.row.modality || '—' }}</div>
+            </q-td>
+          </template>
+
+          <template v-slot:body-cell-role="props">
+            <q-td :props="props">
+              <q-badge color="primary" class="text-weight-bold q-px-sm q-py-xs" rounded>
+                {{ props.row.instructorRole }}
+              </q-badge>
             </q-td>
           </template>
 
           <template v-slot:body-cell-totalHours="props">
             <q-td :props="props">
               <q-chip color="primary" text-color="white" dense size="sm" class="text-weight-bold badge-pill q-px-md">
-                {{ props.value }} hrs
+                {{ props.value }}h
               </q-chip>
             </q-td>
           </template>
 
-          <template v-slot:body-cell-breakdown="props">
+          <template v-slot:body-cell-validatedHours="props">
             <q-td :props="props">
-              <div class="row q-gutter-x-sm">
-                <span class="text-caption text-grey-8">Bitácoras: <strong>{{ props.row.bitacoraHours }}h</strong></span>
-                <span class="text-caption text-grey-3">|</span>
-                <span class="text-caption text-grey-8">Seguimientos: <strong>{{ props.row.trackingHours }}h</strong></span>
-              </div>
-              <div class="row q-gutter-x-sm q-mt-xs" v-if="props.row.certificationHours > 0 || props.row.extraordinaryHours > 0">
-                <span class="text-caption text-grey-8" v-if="props.row.certificationHours > 0">Certificación: <strong>{{ props.row.certificationHours }}h</strong></span>
-                <span class="text-caption text-grey-3" v-if="props.row.certificationHours > 0 && props.row.extraordinaryHours > 0">|</span>
-                <span class="text-caption text-warning" v-if="props.row.extraordinaryHours > 0">Extraordinarias: <strong>{{ props.row.extraordinaryHours }}h</strong></span>
-              </div>
+              <q-chip v-if="props.value > 0" color="positive" text-color="white" dense size="sm" class="text-weight-bold badge-pill q-px-md">
+                {{ props.value }}h
+              </q-chip>
+              <span v-else class="text-caption text-grey-6">0h</span>
             </q-td>
           </template>
 
-          <template v-slot:body-cell-financial="props">
+          <template v-slot:body-cell-unvalidatedHours="props">
             <q-td :props="props">
-              <div class="text-caption text-positive text-weight-medium">Cobradas: {{ props.row.paidHours }}h</div>
-              <div class="text-caption text-warning text-weight-bold">Pendientes: {{ props.row.pendingPaymentHours }}h</div>
+              <q-chip v-if="props.value > 0" color="orange" text-color="white" dense size="sm" class="text-weight-bold badge-pill q-px-md">
+                {{ props.value }}h
+              </q-chip>
+              <span v-else class="text-caption text-grey-6">0h</span>
             </q-td>
           </template>
 
           <template v-slot:body-cell-actions="props">
             <q-td :props="props" class="text-center">
-              <q-btn 
+              <q-btn
                 color="primary"
                 unelevated
                 rounded
-                icon="download"
-                label="Reporte PDF"
+                icon="visibility"
+                label="Detalle"
                 size="sm"
                 class="action-btn q-px-md"
-                @click="downloadReport(props.row.year, props.row.month)" 
-                :loading="downloading === `${props.row.year}-${props.row.month}`"
+                @click="openDetailDialog(props.row)"
               />
             </q-td>
           </template>
+
+          <template v-slot:no-data>
+            <div class="full-width row flex-center text-grey-6 q-pa-xl">
+              <q-icon size="4em" name="pending_actions" class="q-mb-md full-width text-center" />
+              <div class="text-h6">No hay horas registradas en este mes.</div>
+            </div>
+          </template>
         </q-table>
       </q-card>
+
+      <div class="row justify-end q-mb-xl">
+        <q-btn
+          color="primary"
+          icon="download"
+          label="Exportar Reporte PDF"
+          rounded
+          unelevated
+          :loading="downloading"
+          class="text-weight-bold q-px-lg"
+          @click="downloadReport"
+        />
+      </div>
     </div>
 
-    <!-- Empty State -->
     <div v-else class="flex flex-center q-pa-xl">
       <q-card flat class="empty-card q-pa-xl text-center">
         <q-icon name="pending_actions" size="4em" color="grey-4" class="q-mb-md" />
-        <div class="text-h6 text-grey-6">No hay registros de horas</div>
-        <div class="text-caption">No tienes horas contabilizadas ni reportes de cobro registrados para el periodo seleccionado.</div>
+        <div class="text-h6 text-grey-6">Seleccione un mes</div>
+        <div class="text-caption">Seleccione ano y mes y presione "Consultar" para ver su informe de horas.</div>
       </q-card>
     </div>
 
+    <q-dialog v-model="showDetailDialog" persistent>
+      <q-card class="modal-card" style="width: 700px; max-width: 95vw;">
+        <q-card-section class="bg-primary text-white row items-center">
+          <div class="text-h6 text-weight-bold">
+            <q-icon name="list_alt" class="q-mr-sm" size="sm"/>Detalle de Actividades
+          </div>
+          <q-space />
+          <q-btn icon="close" flat round dense v-close-popup />
+        </q-card-section>
+        <q-card-section class="q-pa-lg" style="max-height: 60vh; overflow-y: auto;">
+          <div class="bg-blue-grey-1 q-pa-md rounded-borders q-mb-md">
+            <div class="text-subtitle2 text-weight-bold">{{ detailEP?.apprenticeName }}</div>
+            <div class="text-caption text-grey-7">Rol: {{ detailEP?.instructorRole }} | Modalidad: {{ detailEP?.modality || '—' }}</div>
+          </div>
+          <q-table
+            :rows="filteredDetailItems"
+            :columns="detailColumns"
+            row-key="_id"
+            flat
+            hide-pagination
+            dense
+            :pagination="{ rowsPerPage: 50 }"
+            class="custom-table"
+          >
+            <template v-slot:body-cell-date="props">
+              <q-td :props="props">
+                <div class="text-caption">{{ formatDate(props.value) }}</div>
+              </q-td>
+            </template>
+            <template v-slot:body-cell-hours="props">
+              <q-td :props="props">
+                <q-badge color="primary" class="text-weight-bold q-px-sm q-py-xs" rounded>{{ props.value }}h</q-badge>
+              </q-td>
+            </template>
+            <template v-slot:body-cell-validated="props">
+              <q-td :props="props">
+                <q-chip v-if="props.value" color="positive" text-color="white" dense size="sm" class="text-weight-bold">Validado</q-chip>
+                <q-chip v-else color="orange" text-color="white" dense size="sm" class="text-weight-bold">Pend. Validar</q-chip>
+              </q-td>
+            </template>
+            <template v-slot:body-cell-status="props">
+              <q-td :props="props">
+                <q-chip v-if="props.value" color="positive" text-color="white" dense size="sm" class="text-weight-bold">Cobrado</q-chip>
+                <q-chip v-else color="warning" text-color="white" dense size="sm" class="text-weight-bold">Pendiente</q-chip>
+              </q-td>
+            </template>
+          </q-table>
+        </q-card-section>
+      </q-card>
+    </q-dialog>
   </div>
 </template>
 
@@ -172,15 +271,21 @@ import { useQuasar } from 'quasar';
 const $q = useQuasar();
 const authStore = useAuthStore();
 
-const records = ref([]);
-const loading = ref(true);
-const downloading = ref(null);
+const loading = ref(false);
+const downloading = ref(false);
+const record = ref(null);
+const summaryByEP = ref([]);
+const detailItems = ref([]);
 
-const selectedYear = ref(new Date().getFullYear());
-const selectedMonth = ref(null);
+const currentYear = new Date().getFullYear();
+const currentMonth = new Date().getMonth() + 1;
+
+const selectedYear = ref(currentYear);
+const selectedMonth = ref(currentMonth);
+
+const yearOptions = Array.from({ length: 5 }, (_, i) => currentYear - 2 + i);
 
 const monthsOptions = [
-  { label: 'Todos', value: null },
   { label: 'Enero', value: 1 }, { label: 'Febrero', value: 2 },
   { label: 'Marzo', value: 3 }, { label: 'Abril', value: 4 },
   { label: 'Mayo', value: 5 }, { label: 'Junio', value: 6 },
@@ -189,90 +294,110 @@ const monthsOptions = [
   { label: 'Noviembre', value: 11 }, { label: 'Diciembre', value: 12 }
 ];
 
-const columns = [
-  { name: 'period', label: 'Periodo / Mes', align: 'left' },
-  { name: 'totalHours', label: 'Horas Totales', field: 'totalHours', align: 'left' },
-  { name: 'breakdown', label: 'Desglose Detallado', align: 'left' },
-  { name: 'financial', label: 'Estado de Cobro', align: 'left' },
-  { name: 'actions', label: 'Exportar Reporte', align: 'center' }
+const epColumns = [
+  { name: 'apprentice', label: 'Etapa Productiva / Aprendiz', align: 'left' },
+  { name: 'role', label: 'Rol Instructor', align: 'center', style: 'width: 130px;' },
+  { name: 'totalHours', label: 'Total', field: 'totalHours', align: 'center', style: 'width: 70px;' },
+  { name: 'validatedHours', label: 'Validadas', field: 'validatedHours', align: 'center', style: 'width: 80px;' },
+  { name: 'unvalidatedHours', label: 'Por Validar', field: 'unvalidatedHours', align: 'center', style: 'width: 80px;' },
+  { name: 'actions', label: 'Detalle', align: 'center', style: 'width: 80px;' }
 ];
 
-let pollInterval = null;
+const detailColumns = [
+  { name: 'source', label: 'Actividad', field: 'sourceLabel', align: 'left' },
+  { name: 'date', label: 'Fecha', field: 'date', align: 'center', style: 'width: 100px;' },
+  { name: 'hours', label: 'Horas', field: 'assignedHours', align: 'center', style: 'width: 70px;' },
+  { name: 'validated', label: 'Validacion', field: 'hoursValidated', align: 'center', style: 'width: 90px;' },
+  { name: 'status', label: 'Cobro', field: 'isPaid', align: 'center', style: 'width: 90px;' }
+];
+
+const showDetailDialog = ref(false);
+const detailEP = ref(null);
+
+const validatedHoursTotal = computed(() => {
+  return summaryByEP.value.reduce((acc, row) => acc + (row.validatedHours || 0), 0);
+});
+
+const filteredDetailItems = computed(() => {
+  if (!detailEP.value) return [];
+  return detailItems.value.filter(item =>
+    item.productiveStageId === detailEP.value.productiveStageId &&
+    item.instructorRole === detailEP.value.instructorRole
+  );
+});
+
+let pollTimer = null;
 
 onMounted(() => {
   if (authStore.user?.id) {
-    fetchData();
-  } else {
-    loading.value = false;
+    fetchDetail();
   }
-  pollInterval = setInterval(fetchData, 120000);
+  pollTimer = setInterval(() => {
+    if (authStore.user?.id && selectedMonth.value) {
+      fetchDetail();
+    }
+  }, 30000);
 });
 
 onUnmounted(() => {
-  if (pollInterval) clearInterval(pollInterval);
+  if (pollTimer) clearInterval(pollTimer);
 });
 
 onActivated(() => {
-  fetchData();
+  fetchDetail();
 });
 
-async function fetchData() {
+async function fetchDetail() {
   if (!authStore.user?.id) return;
+  if (!selectedMonth.value) return;
   loading.value = true;
   try {
-    const params = { year: selectedYear.value };
-    if (selectedMonth.value) params.month = selectedMonth.value;
-
-    const body = await hourService.getInstructorHours(authStore.user.id, params);
-    records.value = body.data || [];
+    const data = await hourService.getMonthlyDetail(
+      authStore.user.id,
+      selectedYear.value,
+      selectedMonth.value
+    );
+    const resData = data?.data?.data || data?.data || data;
+    record.value = resData.record || null;
+    summaryByEP.value = resData.summaryByEP || [];
+    detailItems.value = resData.detailItems || [];
   } catch (error) {
     console.error(error);
-    $q.notify({ type: 'negative', message: error.message || 'Error al cargar reporte de horas.', position: 'top', timeout: 5000 });
+    $q.notify({ type: 'negative', message: error.response?.data?.message || 'Error al cargar informe.', position: 'top', timeout: 5000 });
   } finally {
     loading.value = false;
   }
 }
 
-const totalHoursInFilter = computed(() => {
-  return records.value.reduce((acc, curr) => acc + (curr.totalHours || 0), 0);
-});
-
-const totalPendingInFilter = computed(() => {
-  return records.value.reduce((acc, curr) => acc + (curr.pendingPaymentHours || 0), 0);
-});
-
-const totalPaidInFilter = computed(() => {
-  return records.value.reduce((acc, curr) => acc + (curr.paidHours || 0), 0);
-});
-
-function getMonthName(m) {
-  const opt = monthsOptions.find(o => o.value === m);
-  return opt ? opt.label : m;
+function openDetailDialog(epRow) {
+  detailEP.value = epRow;
+  showDetailDialog.value = true;
 }
 
-async function downloadReport(year, month) {
-  if (!authStore.user?.id) return;
-  const key = `${year}-${month}`;
-  downloading.value = key;
+function formatDate(date) {
+  if (!date) return '—';
+  return new Date(date).toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+async function downloadReport() {
+  if (!authStore.user?.id || !selectedMonth.value) return;
+  downloading.value = true;
   try {
-    const response = await hourService.getReport(authStore.user.id, year, month);
-    
-    // Create blob link to download
-    const blob = new Blob([response.data], { type: 'application/pdf', position: 'top', timeout: 5000 });
+    const response = await hourService.getReport(authStore.user.id, selectedYear.value, selectedMonth.value);
+    const blob = new Blob([response.data], { type: 'application/pdf' });
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', `Reporte_Horas_${year}_${month}.pdf`);
+    link.setAttribute('download', `Reporte_Horas_${selectedYear.value}_${selectedMonth.value}.pdf`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     window.URL.revokeObjectURL(url);
-    
   } catch (error) {
     console.error(error);
     $q.notify({ type: 'negative', message: 'Error al generar el PDF.', position: 'top', timeout: 5000 });
   } finally {
-    downloading.value = null;
+    downloading.value = false;
   }
 }
 </script>
@@ -281,7 +406,7 @@ async function downloadReport(year, month) {
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
 
 .hours-report-container {
-  max-width: 1000px;
+  max-width: 1200px;
   margin: 0 auto;
   font-family: 'Outfit', sans-serif;
   animation: fadeIn 0.5s ease-out;
@@ -292,7 +417,6 @@ async function downloadReport(year, month) {
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* ─── Header ─────────────────────────────────────── */
 .page-header {
   background: linear-gradient(135deg, #093028 0%, #237A57 100%);
   border-radius: 20px;
@@ -311,7 +435,6 @@ async function downloadReport(year, month) {
 .shadow-text { text-shadow: 2px 2px 8px rgba(0,0,0,0.4); }
 .opacity-80 { opacity: 0.8; }
 
-/* ─── Filters Card ────────────────────────────────── */
 .filter-card {
   border-radius: 16px;
   border: 1px solid rgba(0,0,0,0.06);
@@ -319,7 +442,6 @@ async function downloadReport(year, month) {
   box-shadow: 0 4px 20px rgba(0,0,0,0.04) !important;
 }
 
-/* ─── Summary Cards ──────────────────────────────── */
 .summary-card {
   border-radius: 18px;
   background: white;
@@ -344,13 +466,18 @@ async function downloadReport(year, month) {
 .bg-warning-light   { background: rgba(245,127,23,0.1); }
 .bg-positive-light  { background: rgba(46,125,50,0.1); }
 
-/* ─── Table Card ──────────────────────────────────── */
 .table-card {
   border-radius: 20px;
   border: 1px solid rgba(0,0,0,0.06);
   background: white;
   box-shadow: 0 10px 40px rgba(0,0,0,0.06) !important;
   overflow: hidden;
+}
+
+.modal-card {
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
 }
 
 .custom-table :deep(.q-table__container) { background: transparent; }
@@ -389,7 +516,6 @@ async function downloadReport(year, month) {
   box-shadow: 0 4px 12px rgba(46,125,50,0.2) !important;
 }
 
-/* ─── Empty state ────────────────────────────────── */
 .empty-card {
   border-radius: 20px;
   background: white;

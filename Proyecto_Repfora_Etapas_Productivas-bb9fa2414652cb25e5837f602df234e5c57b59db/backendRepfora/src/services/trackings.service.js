@@ -570,7 +570,7 @@ class TrackingService {
       hoursKey = 'HOURS_PER_IN_PERSON_TRACKING';
     }
 
-    const hoursToAssign = await getConfig(hoursKey) || (tracking.isExtraordinary ? 4 : 2);
+    const hoursToAssign = await getConfig(hoursKey) || 2;
 
     // Update tracking
     tracking.status = 'EXECUTED';

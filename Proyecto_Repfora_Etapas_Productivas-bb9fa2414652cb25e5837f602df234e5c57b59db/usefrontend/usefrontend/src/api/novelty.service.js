@@ -21,6 +21,12 @@ export const noveltyService = {
 
   getByEP: (productiveStageId) => api.get(`/novelties/ep/${productiveStageId}`),
 
+  getStats: () => api.get('/novelties/stats'),
+
+  getDetail: (id) => api.get(`/novelties/${id}/detail`),
+
+  addTimelineEvent: (id, data) => api.post(`/novelties/${id}/timeline`, data),
+
   getHistory: (productiveStageId) => api.get(`/novelties/history/${productiveStageId}`)
 };
 

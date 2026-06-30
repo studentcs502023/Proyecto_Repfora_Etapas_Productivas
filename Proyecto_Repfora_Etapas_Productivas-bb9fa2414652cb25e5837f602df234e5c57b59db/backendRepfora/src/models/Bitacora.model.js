@@ -26,6 +26,9 @@ const bitacoraSchema = new Schema({
   }],
 
   assignedHours:    { type: Number, default: null },
+  hoursValidated:   { type: Boolean, default: false },
+  hoursValidatedBy: { type: Schema.Types.ObjectId, ref: 'User', default: null },
+  hoursValidatedAt: { type: Date, default: null },
   isPaid:           { type: Boolean, default: false },
   paidAt:           { type: Date, default: null },
 
@@ -36,6 +39,7 @@ bitacoraSchema.index({ productiveStage: 1, logbookNumber: 1 });
 bitacoraSchema.index({ apprentice: 1, status: 1 });
 bitacoraSchema.index({ instructor: 1, status: 1 });
 bitacoraSchema.index({ status: 1, submittedAt: 1 });
+bitacoraSchema.index({ hoursValidated: 1, instructor: 1 });
 
 const Bitacora = mongoose.model('Bitacora', bitacoraSchema);
 

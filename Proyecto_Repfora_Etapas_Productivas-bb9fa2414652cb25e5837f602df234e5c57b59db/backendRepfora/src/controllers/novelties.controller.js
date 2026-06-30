@@ -59,11 +59,45 @@ const getNoveltiesByEP = async (req, res) => {
   }
 };
 
+const getNoveltyStats = async (req, res) => {
+  try {
+    const data = await noveltyService.getNoveltyStats();
+    return successResponse(res, 200, 'Novelty stats retrieved successfully', data);
+  } catch (error) {
+    return errorResponse(res, 500, error.message);
+  }
+};
+
+const addTimelineEvent = async (req, res) => {
+  try {
+    const novelty = await noveltyService.addTimelineEvent(req.params.id, {
+      ...req.body,
+      authorId: req.user.id,
+      authorRole: req.user.role
+    });
+    return successResponse(res, 200, 'Timeline event added', novelty);
+  } catch (error) {
+    return errorResponse(res, error.statusCode || 500, error.message);
+  }
+};
+
+const getNoveltyDetail = async (req, res) => {
+  try {
+    const data = await noveltyService.getNoveltyDetail(req.params.id);
+    return successResponse(res, 200, 'Novelty detail retrieved', data);
+  } catch (error) {
+    return errorResponse(res, error.statusCode || 500, error.message);
+  }
+};
+
 export default {
   createNovelty,
   getAllNovelties,
   getNoveltyById,
   updateStatus,
   addAttachments,
-  getNoveltiesByEP
+  getNoveltiesByEP,
+  getNoveltyStats,
+  addTimelineEvent,
+  getNoveltyDetail
 };

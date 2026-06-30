@@ -19,6 +19,10 @@ const hourRecordSchema = new Schema({
   excessHours:            { type: Number, default: 0 },
   carriedOverHours:       { type: Number, default: 0 },
 
+  // === ALERTS ===
+  limitWarningSent:       { type: Boolean, default: false },
+  overloadWarningSent:    { type: Boolean, default: false },
+
   // === PAYMENT ===
   paidHours:              { type: Number, default: 0 },
   pendingPaymentHours:    { type: Number, default: 0 },

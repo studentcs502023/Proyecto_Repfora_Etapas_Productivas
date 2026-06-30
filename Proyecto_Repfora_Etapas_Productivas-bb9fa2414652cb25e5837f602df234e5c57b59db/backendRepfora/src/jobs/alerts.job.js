@@ -126,15 +126,16 @@ const checkBitacoraSchedule = async () => {
  * Sends email alerts based on enrollment expiry deadline with YELLOW/ORANGE/RED levels.
  */
 const checkEnrollmentExpiry = async () => {
-  console.log('[Cron] Verificando vencimiento de matrícula para aprendices sin EP...');
+  console.log('[Cron] Verificando vencimiento de matricula para aprendices sin EP...');
 
-  const [activeApprentices, yellowDays, orangeDays, redDays, monthsNew, yearsOld] = await Promise.all([
+  const [activeApprentices, yellowDays, orangeDays, redDays, monthsNew, yearsOld, admins] = await Promise.all([
     User.find({ role: 'APPRENTICE', isActive: true }),
     getConfig('EXPIRY_ALERT_DAYS_YELLOW').catch(() => 30),
     getConfig('EXPIRY_ALERT_DAYS_ORANGE').catch(() => 15),
     getConfig('EXPIRY_ALERT_DAYS_RED').catch(() => 7),
     getConfig('EP_DEADLINE_MONTHS_NEW_ENROLLMENT').catch(() => 6),
     getConfig('EP_DEADLINE_YEARS_OLD_ENROLLMENT').catch(() => 2),
+    User.find({ role: 'ADMIN', isActive: true })
   ]);
 
   let alertsSent = 0;
@@ -159,18 +160,49 @@ const checkEnrollmentExpiry = async () => {
 
     const remaining = daysUntil(deadline);
 
-    if (remaining <= 0) {
-      const admins = await User.find({ role: 'ADMIN', isActive: true });
-      if (admins.length > 0) {
-        await notificationService.send({
-          type: 'ENROLLMENT_EXPIRY_ALERT',
-          recipients: admins.map(a => a._id.toString()),
-          title: `Plazo vencido: ${apprentice.fullName}`,
-          message: `El plazo para registrar la etapa productiva del aprendiz ${apprentice.fullName} (${apprentice.nationalId}) ha vencido. Fecha límite: ${deadline.toISOString().split('T')[0]}.`,
-          metadata: { entity: 'User', entityId: apprentice._id }
-        });
-        alertsSent++;
+    let instructors = [];
+    try {
+      const anyEP = await ProductiveStage.findOne({
+        apprentice: apprentice._id,
+        $or: [
+          { followupInstructor: { $ne: null } },
+          { technicalInstructor: { $ne: null } },
+          { projectInstructor: { $ne: null } }
+        ]
+      }).select('followupInstructor technicalInstructor projectInstructor');
+
+      if (anyEP) {
+        const ids = [
+          anyEP.followupInstructor,
+          anyEP.technicalInstructor,
+          anyEP.projectInstructor
+        ].filter(Boolean);
+        if (ids.length > 0) {
+          instructors = await User.find({ _id: { $in: ids }, isActive: true, status: 'ACTIVE' }).select('_id fullName email');
+        }
       }
+    } catch (e) {
+      console.error('[Cron] Error buscando instructores para', apprentice.fullName, e.message);
+    }
+
+    const instructorNames = instructors.map(i => i.fullName).join(', ');
+    const instructorIds = instructors.map(i => i._id.toString());
+    const adminIds = admins.map(a => a._id.toString());
+
+    if (remaining <= 0) {
+      const hasInstructors = instructorIds.length > 0;
+      notificationService.send({
+        type: 'NEW_CRITICAL_NOVELTY',
+        recipients: [...adminIds, ...instructorIds],
+        title: `Escalamiento critico: ${apprentice.fullName} - Plazo vencido`,
+        message: `<p><strong>Escalamiento critico:</strong> Aprendiz <strong>${apprentice.fullName}</strong> (${apprentice.nationalId}) en riesgo de perdida de certificacion por vencimiento de ficha.</p>
+          <p>Fecha limite de registro EP: <strong>${deadline.toISOString().split('T')[0]}</strong> (vencida hace ${Math.abs(remaining)} dias).</p>
+          <p>Accion requerida: verificar situacion del aprendiz y tomar medidas correctivas urgentes.</p>
+          ${hasInstructors ? `<p>Instructores responsables: <strong>${instructorNames}</strong></p>` : '<p>No se encontraron instructores asignados historicamente.</p>'}
+          <p style="color:#c62828;"><em>Esta es una notificacion de escalamiento critico automatico.</em></p>`,
+        metadata: { entity: 'User', entityId: apprentice._id }
+      }).catch(err => console.error('[Cron] Error enviando escalamiento critico:', err.message));
+      alertsSent++;
       continue;
     }
 
@@ -182,6 +214,7 @@ const checkEnrollmentExpiry = async () => {
     if (shouldSendAlert || shouldSendMonthly) {
       const monthsRemaining = Math.floor(remaining / 30);
       const daysRemaining = remaining % 30;
+      const hasInstructors = instructorIds.length > 0;
 
       await notificationService.send({
         type: 'ENROLLMENT_EXPIRY_ALERT',
@@ -197,7 +230,36 @@ const checkEnrollmentExpiry = async () => {
         metadata: { entity: 'User', entityId: apprentice._id }
       });
 
-      console.log(`[Cron] Alerta enviada a ${apprentice.fullName}: ${remaining} días restantes, nivel: ${level || 'MENSUAL'}`);
+      if (hasInstructors) {
+        const alertLevel = level ? (level === 'RED' ? 'CRITICA' : level === 'ORANGE' ? 'ALTA' : 'MEDIA') : 'BAJA';
+        notificationService.send({
+          type: 'ENROLLMENT_EXPIRY_ALERT',
+          recipients: instructorIds,
+          title: `Alerta ${alertLevel}: ${apprentice.fullName} - ${remaining} dias para registrar EP`,
+          message: `<p>El aprendiz <strong>${apprentice.fullName}</strong> (${apprentice.nationalId}) aun <strong>no ha registrado su Etapa Productiva</strong>.</p>
+            <p>Dias restantes: <strong>${remaining}</strong> | Fecha limite: <strong>${deadline.toISOString().split('T')[0]}</strong>.</p>
+            <p>Se han enviado ${level === 'RED' ? 'alertas de nivel ROJO (urgentes)' : level === 'ORANGE' ? 'alertas de nivel NARANJA' : 'alertas de nivel AMARILLO (preventivas)'} al aprendiz.</p>
+            ${level === 'RED' ? '<p style="color:#c62828;"><strong>¡ACCION URGENTE REQUERIDA! Coordine con el aprendiz para registrar la EP antes del vencimiento.</strong></p>' : ''}
+            <p style="color:#e67e22;"><em>Notificacion automatica del sistema REPFORA E.P.</em></p>`,
+          metadata: { entity: 'User', entityId: apprentice._id }
+        }).catch(err => console.error('[Cron] Error notificando a instructor:', err.message));
+
+        if (level === 'RED') {
+          notificationService.send({
+            type: 'NEW_CRITICAL_NOVELTY',
+            recipients: adminIds,
+            title: `Escalamiento critico: Aprendiz ${apprentice.fullName} en riesgo`,
+            message: `<p><strong>Escalamiento critico:</strong> Aprendiz <strong>${apprentice.fullName}</strong> (${apprentice.nationalId}) en riesgo de perdida de certificacion por vencimiento de ficha.</p>
+              <p>Dias restantes para registrar EP: <strong>${remaining}</strong> (nivel ROJO).</p>
+              <p>Instructores notificados: <strong>${instructorNames}</strong></p>
+              <p>Se ha enviado copia de esta alerta al instructor responsable.</p>
+              <p style="color:#c62828;"><em>Escalamiento automatico - requiere verificacion administrativa.</em></p>`,
+            metadata: { entity: 'User', entityId: apprentice._id }
+          }).catch(err => console.error('[Cron] Error enviando escalamiento a admin:', err.message));
+        }
+      }
+
+      console.log(`[Cron] Alerta enviada a ${apprentice.fullName}: ${remaining} dias restantes, nivel: ${level || 'MENSUAL'}, instructores: ${instructorIds.length}`);
       alertsSent++;
     }
   }

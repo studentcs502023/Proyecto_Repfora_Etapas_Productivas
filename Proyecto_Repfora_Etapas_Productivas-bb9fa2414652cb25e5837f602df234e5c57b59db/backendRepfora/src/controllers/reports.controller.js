@@ -46,6 +46,21 @@ class ReportController {
     }
   }
 
+  async exportSingleInstructorHours(req, res) {
+    try {
+      const { instructorId } = req.params;
+      const data = await reportService.getInstructorHours({ ...req.query, instructorId });
+      const instructorName = (data.instructors?.[0]?.instructor?.fullName || 'instructor').replace(/\s+/g, '_');
+      const pdfBuffer = await reportService.exportToPdf('INSTRUCTOR_HOURS', data);
+      
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="horas_${instructorName}_${data.period.year}.pdf"`);
+      return res.send(pdfBuffer);
+    } catch (error) {
+      return errorResponse(res, 500, error.message);
+    }
+  }
+
   async getApprenticeProgress(req, res) {
     try {
       const data = await reportService.getApprenticeProgress(req.params.apprenticeId);

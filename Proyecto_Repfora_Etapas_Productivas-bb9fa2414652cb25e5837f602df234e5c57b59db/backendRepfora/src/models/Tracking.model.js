@@ -32,6 +32,9 @@ const trackingSchema = new Schema({
 
   status:               { type: String, enum: TRACKING_STATUSES, default: 'SCHEDULED' },
   assignedHours:        { type: Number, default: null },
+  hoursValidated:       { type: Boolean, default: false },
+  hoursValidatedBy:     { type: Schema.Types.ObjectId, ref: 'User', default: null },
+  hoursValidatedAt:     { type: Date, default: null },
   isPaid:               { type: Boolean, default: false },
   paidAt:               { type: Date, default: null },
 
@@ -49,6 +52,7 @@ trackingSchema.index({ instructor: 1, status: 1 });
 trackingSchema.index({ apprentice: 1 });
 trackingSchema.index({ isExtraordinary: 1, approvedByAdmin: 1 });
 trackingSchema.index({ scheduledDate: 1 });
+trackingSchema.index({ hoursValidated: 1, instructor: 1 });
 
 const Tracking = mongoose.model('Tracking', trackingSchema);
 

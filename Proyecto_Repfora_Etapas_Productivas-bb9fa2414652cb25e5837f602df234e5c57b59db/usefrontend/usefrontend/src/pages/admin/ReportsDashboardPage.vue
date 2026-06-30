@@ -97,6 +97,14 @@
               </q-chip>
             </q-td>
           </template>
+
+          <template v-slot:body-cell-actions="props">
+            <q-td :props="props" class="text-center">
+              <q-btn size="sm" flat round color="primary" icon="picture_as_pdf" class="action-btn" @click="exportSingleInstructorPDF(props.row.instructor?.id)">
+                <q-tooltip class="bg-primary text-white shadow-4">Descargar reporte PDF de {{ props.row.instructor?.fullName }}</q-tooltip>
+              </q-btn>
+            </q-td>
+          </template>
         </q-table>
         <div class="bg-blue-grey-1 q-pa-md text-right text-subtitle1 text-weight-bold shadow-1">
           Total Global de Horas: <span class="text-primary">{{ hourSummary.grandTotals?.totalHours || 0 }}</span> | Pendientes de Pago: <span class="text-negative">{{ hourSummary.grandTotals?.totalPending || 0 }}</span>
@@ -169,7 +177,8 @@ const expiryReport = ref(null);
 const instructorColumns = [
   { name: 'instructor', label: 'Instructor', align: 'left' },
   { name: 'total', label: 'Total Horas (Año)', align: 'center' },
-  { name: 'pending', label: 'Pendientes Pago', align: 'center' }
+  { name: 'pending', label: 'Pendientes Pago', align: 'center' },
+  { name: 'actions', label: 'PDF', align: 'center', style: 'width: 60px;' }
 ];
 
 const expiryColumns = [
@@ -235,6 +244,20 @@ async function exportHours() {
   } catch (error) {
     console.error(error);
     $q.notify({ type: 'negative', message: 'Error al exportar reporte.' });
+  } finally {
+    exporting.value = null;
+  }
+}
+
+async function exportSingleInstructorPDF(instructorId) {
+  if (!instructorId) return;
+  exporting.value = instructorId;
+  try {
+    const response = await reportService.exportSingleInstructorHours(instructorId, { year: new Date().getFullYear() });
+    downloadBlob(response.data, `Reporte_Horas_Instructor_${instructorId}.pdf`);
+  } catch (error) {
+    console.error(error);
+    $q.notify({ type: 'negative', message: 'Error al exportar reporte del instructor.' });
   } finally {
     exporting.value = null;
   }

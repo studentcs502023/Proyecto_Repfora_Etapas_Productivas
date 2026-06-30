@@ -37,6 +37,9 @@ router.post('/',
     body('type').isIn(NOVELTY_TYPES).withMessage('Invalid novelty type'),
     body('description').isLength({ min: 50 }).withMessage('Description must be at least 50 characters'),
     body('occurrenceDate').isISO8601().withMessage('Invalid occurrence date'),
+    body('severity').optional().isIn(['ALTA', 'MEDIA', 'BAJA']).withMessage('Invalid severity'),
+    body('contactAttempts').optional().isString(),
+    body('recommendations').optional().isString(),
     validateFields
   ],
   noveltyController.createNovelty
@@ -73,6 +76,17 @@ router.get('/ep/:productiveStageId',
     validateFields
   ],
   noveltyController.getNoveltiesByEP
+);
+
+/**
+ * @route GET /api/novelties/stats
+ * @desc Dashboard stats for novelty management
+ * @access ADMIN
+ */
+router.get('/stats',
+  verifyToken,
+  checkRole('ADMIN'),
+  noveltyController.getNoveltyStats
 );
 
 /**
@@ -121,6 +135,38 @@ router.post('/:id/attachments',
     validateFields
   ],
   noveltyController.addAttachments
+);
+
+/**
+ * @route GET /api/novelties/:id/detail
+ * @desc Full detail of a novelty including apprentice history
+ * @access ADMIN
+ */
+router.get('/:id/detail',
+  verifyToken,
+  checkRole('ADMIN'),
+  [
+    param('id').isMongoId().withMessage('Invalid novelty ID'),
+    validateFields
+  ],
+  noveltyController.getNoveltyDetail
+);
+
+/**
+ * @route POST /api/novelties/:id/timeline
+ * @desc Add a timeline event to a novelty
+ * @access ADMIN, INSTRUCTOR
+ */
+router.post('/:id/timeline',
+  verifyToken,
+  checkRole('ADMIN', 'INSTRUCTOR'),
+  [
+    param('id').isMongoId().withMessage('Invalid novelty ID'),
+    body('event').isString().notEmpty().withMessage('Event is required'),
+    body('description').optional().isString(),
+    validateFields
+  ],
+  noveltyController.addTimelineEvent
 );
 
 export default router;

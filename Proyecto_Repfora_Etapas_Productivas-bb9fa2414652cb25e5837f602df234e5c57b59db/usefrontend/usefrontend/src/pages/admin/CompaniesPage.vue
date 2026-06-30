@@ -106,7 +106,7 @@
             <q-btn icon="close" flat round dense v-close-popup />
           </q-card-section>
           
-          <q-card-section class="q-pa-lg q-gutter-md">
+          <q-card-section class="q-pa-lg q-gutter-md" style="max-height: 60vh; overflow-y: auto;">
             <div class="text-subtitle2 text-primary text-uppercase text-weight-bold q-mb-sm"><q-icon name="domain" class="q-mr-xs"/>Datos de la Empresa</div>
             <div class="row q-col-gutter-md">
               <div class="col-12 col-md-6">

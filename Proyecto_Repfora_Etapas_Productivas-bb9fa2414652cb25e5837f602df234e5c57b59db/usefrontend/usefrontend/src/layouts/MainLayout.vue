@@ -242,6 +242,10 @@
               <q-item-section avatar><q-icon name="bar_chart" /></q-item-section>
               <q-item-section>Reportes (Panel)</q-item-section>
             </q-item>
+            <q-item clickable v-ripple to="/admin/hour-validation">
+              <q-item-section avatar><q-icon name="verified" /></q-item-section>
+              <q-item-section>Validar Horas</q-item-section>
+            </q-item>
             <q-item clickable v-ripple to="/system-config">
               <q-item-section avatar><q-icon name="settings" /></q-item-section>
               <q-item-section>Configuración</q-item-section>

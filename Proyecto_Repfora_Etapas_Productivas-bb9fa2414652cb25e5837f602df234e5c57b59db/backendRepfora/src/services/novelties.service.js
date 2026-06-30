@@ -1,6 +1,8 @@
 import Novelty from '../models/Novelty.model.js';
 import ProductiveStage from '../models/ProductiveStage.model.js';
 import User from '../models/User.model.js';
+import Bitacora from '../models/Bitacora.model.js';
+import Tracking from '../models/Tracking.model.js';
 import { recordAuditLog } from '../utils/auditLog.util.js';
 import pdfGenerator from '../utils/pdfGenerator.util.js';
 import { NOVELTY_STATUSES } from '../utils/enums.js';
@@ -9,7 +11,7 @@ import notificationService from './notifications.service.js';
 
 class NoveltyService {
   async createNovelty(noveltyData, files, reporterId) {
-    const { productiveStageId, type, description, occurrenceDate } = noveltyData;
+    const { productiveStageId, type, description, occurrenceDate, severity, contactAttempts, recommendations } = noveltyData;
 
     // 1. Find EP and verify
     const ep = await ProductiveStage.findById(productiveStageId).populate('apprentice');
@@ -62,10 +64,20 @@ class NoveltyService {
       apprentice: ep.apprentice._id,
       reportedBy: reporterId,
       type,
+      severity: severity || 'MEDIA',
       description,
       occurrenceDate,
+      contactAttempts: contactAttempts || null,
+      recommendations: recommendations || null,
       attachments,
-      status: 'PENDING'
+      status: 'PENDING',
+      timeline: [{
+        event: 'CREATED',
+        description: 'Novedad registrada por el instructor',
+        author: reporterId,
+        authorRole: 'INSTRUCTOR',
+        createdAt: new Date()
+      }]
     });
 
     // 4. Auto-generate PDF summary
@@ -307,6 +319,152 @@ class NoveltyService {
       .sort({ createdAt: -1 });
 
     return novelties;
+  }
+
+  async getNoveltyStats() {
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
+
+    const [allNovelties, allResolvedThisMonth] = await Promise.all([
+      Novelty.find({ isActive: true }),
+      Novelty.find({ isActive: true, status: 'RESOLVED', resolvedAt: { $gte: startOfMonth } })
+    ]);
+
+    const pending = allNovelties.filter(n => n.status === 'PENDING');
+    const inProgress = allNovelties.filter(n => n.status === 'IN_PROGRESS');
+    const criticalUnattended = pending.filter(n => n.createdAt < threeDaysAgo);
+
+    const byType = {};
+    allNovelties.forEach(n => {
+      byType[n.type] = (byType[n.type] || 0) + 1;
+    });
+
+    const monthlyTrends = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const monthStart = new Date(d.getFullYear(), d.getMonth(), 1);
+      const monthEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999);
+      const created = allNovelties.filter(n => n.createdAt >= monthStart && n.createdAt <= monthEnd).length;
+      const resolved = allNovelties.filter(n => n.resolvedAt && n.resolvedAt >= monthStart && n.resolvedAt <= monthEnd).length;
+      monthlyTrends.push({
+        month: d.toLocaleString('es-CO', { month: 'short' }),
+        year: d.getFullYear(),
+        created,
+        resolved
+      });
+    }
+
+    const byInstructor = {};
+    for (const n of allNovelties) {
+      if (n.reportedBy) {
+        const id = n.reportedBy.toString();
+        if (!byInstructor[id]) byInstructor[id] = { instructorId: id, count: 0 };
+        byInstructor[id].count++;
+      }
+    }
+    const byInstructorList = Object.values(byInstructor)
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+
+    const resolvedNovelties = allNovelties.filter(n => n.status === 'RESOLVED' && n.createdAt && n.resolvedAt);
+    let avgResolutionHours = 0;
+    if (resolvedNovelties.length > 0) {
+      const totalMs = resolvedNovelties.reduce((sum, n) => sum + (new Date(n.resolvedAt) - new Date(n.createdAt)), 0);
+      avgResolutionHours = Math.round(totalMs / resolvedNovelties.length / (1000 * 60 * 60));
+    }
+
+    const urgentAlerts = criticalUnattended
+      .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
+      .map(n => ({
+        _id: n._id,
+        type: n.type,
+        description: n.description.substring(0, 120),
+        createdAt: n.createdAt,
+        apprenticeName: '—',
+        hoursElapsed: Math.round((now - new Date(n.createdAt)) / (1000 * 60 * 60))
+      }))
+      .slice(0, 10);
+
+    return {
+      kpis: {
+        totalActive: allNovelties.filter(n => n.status !== 'RESOLVED').length,
+        pending: pending.length,
+        inProgress: inProgress.length,
+        resolvedThisMonth: allResolvedThisMonth.length,
+        criticalUnattended: criticalUnattended.length
+      },
+      visualData: {
+        byType: {
+          labels: Object.keys(byType),
+          values: Object.values(byType)
+        },
+        monthlyTrends,
+        byInstructor: byInstructorList,
+        avgResolutionHours
+      },
+      urgentAlerts
+    };
+  }
+
+  async addTimelineEvent(noveltyId, { event, description, authorId, authorRole }) {
+    const novelty = await Novelty.findById(noveltyId);
+    if (!novelty) {
+      const error = new Error('Novelty not found');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    novelty.timeline.push({
+      event,
+      description: description || '',
+      author: authorId,
+      authorRole: authorRole || 'ADMIN',
+      createdAt: new Date()
+    });
+
+    await novelty.save();
+    return novelty;
+  }
+
+  async getNoveltyDetail(noveltyId) {
+    const novelty = await Novelty.findById(noveltyId)
+      .populate('apprentice', 'fullName email nationalId enrollmentNumber program trainingLevel trainingCenter')
+      .populate('reportedBy', 'fullName email nationalId')
+      .populate('resolvedBy', 'fullName email nationalId')
+      .populate('timeline.author', 'fullName role')
+      .populate('generatedDocuments.generatedBy', 'fullName')
+      .populate('productiveStage', 'modality status startDate estimatedEndDate');
+
+    if (!novelty) {
+      const error = new Error('Novelty not found');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    const apprenticeHistory = await Promise.all([
+      Novelty.find({ apprentice: novelty.apprentice._id, isActive: true, _id: { $ne: noveltyId } })
+        .sort({ createdAt: -1 })
+        .limit(5)
+        .select('type severity status createdAt'),
+      Tracking.find({ apprentice: novelty.apprentice._id, isActive: true })
+        .sort({ executedDate: -1 })
+        .limit(5)
+        .select('type status executedDate trackingNumber'),
+      Bitacora.find({ apprentice: novelty.apprentice._id, isActive: true, status: 'APPROVED' })
+        .sort({ reviewedAt: -1 })
+        .limit(5)
+        .select('logbookNumber reviewedAt assignedHours')
+    ]);
+
+    return {
+      ...novelty.toObject(),
+      apprenticeHistory: {
+        previousNovelties: apprenticeHistory[0],
+        recentTrackings: apprenticeHistory[1],
+        recentBitacoras: apprenticeHistory[2]
+      }
+    };
   }
 }
 

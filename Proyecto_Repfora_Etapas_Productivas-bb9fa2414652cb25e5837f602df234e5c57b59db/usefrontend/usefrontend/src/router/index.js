@@ -149,6 +149,12 @@ const routes = [
         component: () => import('../pages/admin/ReportsDashboardPage.vue'),
         meta: { role: 'ADMIN' }
       },
+      {
+        path: 'admin/hour-validation',
+        name: 'admin-hour-validation',
+        component: () => import('../pages/admin/HourValidationPage.vue'),
+        meta: { role: 'ADMIN' }
+      },
 
       // SHARED PROTECTED ROUTES
       // (profile removed - use role-specific profile pages)

@@ -318,9 +318,9 @@ class ProductiveStageService {
             updates.projectInstructor = projectInstructorId;
         }
 
-        // Validar que los instructores existan y tengan el tipo correcto
+        // Validar que los instructores existan, esten activos y no tengan contrato finalizado
         const instructorIds = Object.values(updates);
-        const instructors = await User.find({ _id: { $in: instructorIds }, role: "INSTRUCTOR", status: "ACTIVE" });
+        const instructors = await User.find({ _id: { $in: instructorIds }, role: "INSTRUCTOR", status: "ACTIVE", isActive: true });
 
         if (instructors.length !== instructorIds.length) {
             const error = new Error("Uno o más instructores no son válidos o no están activos");

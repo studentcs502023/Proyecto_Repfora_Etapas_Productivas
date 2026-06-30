@@ -52,7 +52,7 @@
     <!-- Filters -->
     <q-card class="filter-card my-card q-mb-lg no-shadow">
       <q-card-section class="row q-col-gutter-md items-center">
-        <div class="col-12 col-md-6">
+        <div class="col-12 col-md-4">
           <q-input 
             v-model="filter" 
             dense 
@@ -65,7 +65,20 @@
             <template v-slot:prepend><q-icon name="search" color="grey-6" /></template>
           </q-input>
         </div>
-        <div class="col-12 col-md-6 row justify-end items-center">
+        <div v-if="activeTab === 'INSTRUCTORS'" class="col-12 col-md-4">
+          <q-select
+            v-model="knowledgeAreaFilter"
+            :options="knowledgeAreas"
+            label="Área de Conocimiento"
+            outlined dense clearable
+            color="primary"
+            class="glass-input text-weight-medium"
+            @update:model-value="onFilterChange"
+          >
+            <template v-slot:prepend><q-icon name="psychology" color="grey-6" /></template>
+          </q-select>
+        </div>
+        <div class="col-12 col-md-4 row justify-end items-center">
           <q-checkbox 
             v-model="showInactive" 
             label="Mostrar Usuarios Inactivos" 
@@ -159,6 +172,10 @@
 
             <q-btn v-if="activeTab === 'INSTRUCTORS' && props.row.isActive && props.row.status === 'INACTIVE'" size="xs" flat round color="positive" icon="check_circle" class="action-btn" @click="confirmEnableInstructor(props.row)">
               <q-tooltip class="bg-positive text-white shadow-4">Habilitar instructor</q-tooltip>
+            </q-btn>
+
+            <q-btn v-if="activeTab === 'INSTRUCTORS' && props.row.isActive && props.row.status !== 'CONTRACT_ENDED'" size="xs" flat round color="deep-orange" icon="cancel_presentation" class="action-btn" @click="confirmEndContract(props.row)">
+              <q-tooltip class="bg-deep-orange text-white shadow-4">Finalizar contrato</q-tooltip>
             </q-btn>
 
             <q-btn v-if="!props.row.isActive" size="xs" flat round color="positive" icon="restore_from_trash" class="action-btn" @click="confirmActivateUser(props.row)">
@@ -374,6 +391,76 @@
       </q-card>
     </q-dialog>
 
+    <!-- Modal: Reasignación por Finalización de Contrato -->
+    <q-dialog v-model="showReassignModal" persistent transition-show="scale" transition-hide="scale">
+      <q-card class="modal-card" style="width: 650px; max-width: 95vw;">
+        <q-card-section class="bg-deep-orange text-white row items-center">
+          <div class="text-h6 text-weight-bold">
+            <q-icon name="swap_horiz" class="q-mr-sm" size="sm"/>
+            Reasignación de Aprendices
+          </div>
+          <q-space />
+          <q-btn icon="close" flat round dense @click="cancelReassignment" />
+        </q-card-section>
+        
+        <q-card-section class="q-pa-lg" style="max-height: 60vh; overflow-y: auto;">
+          <q-banner rounded class="bg-orange-1 text-orange-10 q-mb-md">
+            <template v-slot:avatar>
+              <q-icon name="info" color="orange-10" size="lg" />
+            </template>
+            <div class="text-weight-bold">El contrato de <span class="text-deep-orange">{{ endingInstructor?.fullName }}</span> ha sido finalizado.</div>
+            <div class="text-caption">Debe reasignar los siguientes {{ affectedApprentices.length }} aprendiz(es) a un nuevo instructor activo:</div>
+          </q-banner>
+
+          <q-list bordered separator class="rounded-borders q-mb-md">
+            <q-item v-for="(app, i) in affectedApprentices" :key="app.stageId" class="q-px-md">
+              <q-item-section avatar>
+                <q-avatar color="deep-orange-1" text-color="deep-orange-8" size="sm">{{ i + 1 }}</q-avatar>
+              </q-item-section>
+              <q-item-section>
+                <q-item-label class="text-weight-medium">{{ app.fullName }}</q-item-label>
+                <q-item-label caption>Modalidad: {{ app.modality || '—' }}</q-item-label>
+              </q-item-section>
+            </q-item>
+          </q-list>
+
+          <q-select
+            v-model="newInstructorForReassign"
+            :options="activeInstructorsList"
+            option-value="_id"
+            option-label="fullName"
+            label="Selecciona el nuevo instructor"
+            outlined
+            dense
+            color="deep-orange"
+            class="glass-input"
+            emit-value
+            map-options
+            :rules="[val => !!val || 'Debe seleccionar un instructor']"
+          >
+            <template v-slot:prepend><q-icon name="school" color="deep-orange" /></template>
+            <template v-slot:option="scope">
+              <q-item v-bind="scope.itemProps">
+                <q-item-section avatar>
+                  <q-avatar color="deep-orange" text-color="white" size="sm">{{ scope.opt.fullName.charAt(0) }}</q-avatar>
+                </q-item-section>
+                <q-item-section>
+                  <q-item-label>{{ scope.opt.fullName }}</q-item-label>
+                  <q-item-label caption>{{ scope.opt.email }}</q-item-label>
+                </q-item-section>
+              </q-item>
+            </template>
+          </q-select>
+        </q-card-section>
+
+        <q-separator class="opacity-20" />
+        <q-card-actions align="right" class="q-pa-md bg-grey-1">
+          <q-btn flat label="Cancelar" color="grey-8" class="text-weight-bold" @click="cancelReassignment" />
+          <q-btn color="deep-orange" label="Reasignar Aprendices" :loading="reassigning" :disable="!newInstructorForReassign" @click="executeReassignment" class="text-weight-bold shadow-2" rounded padding="xs lg"/>
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
+
   </div>
 </template>
 
@@ -485,6 +572,7 @@ const activeTab = ref('INSTRUCTORS');
 const users = ref([]);
 const loading = ref(false);
 const filter = ref('');
+const knowledgeAreaFilter = ref('');
 const showInactive = ref(false);
 
 const pagination = ref({
@@ -507,6 +595,14 @@ const assigning = ref(false);
 const selectedApprentice = ref(null);
 const selectedInstructor = ref('');
 const instructorsList = ref([]);
+
+// End Contract / Reassign State
+const showReassignModal = ref(false);
+const reassigning = ref(false);
+const endingInstructor = ref(null);
+const affectedApprentices = ref([]);
+const newInstructorForReassign = ref('');
+const activeInstructorsList = ref([]);
 
 // Form State
 const userForm = ref({
@@ -545,6 +641,7 @@ onMounted(() => {
 
 watch(activeTab, () => {
   filter.value = '';
+  knowledgeAreaFilter.value = '';
   pagination.value.page = 1;
   fetchUsers();
 });
@@ -557,6 +654,11 @@ function debouncedFetch() {
   }, 500);
 }
 
+function onFilterChange() {
+  pagination.value.page = 1;
+  fetchUsers();
+}
+
 async function fetchUsers() {
   loading.value = true;
   try {
@@ -566,6 +668,10 @@ async function fetchUsers() {
       search: filter.value || undefined,
       isActive: showInactive.value ? false : true
     };
+
+    if (activeTab.value === 'INSTRUCTORS' && knowledgeAreaFilter.value) {
+      params.knowledgeArea = knowledgeAreaFilter.value;
+    }
 
     let response;
     if (activeTab.value === 'INSTRUCTORS') {
@@ -802,6 +908,87 @@ async function enableInstructor(user) {
     const msg = error.response?.data?.message || 'Error al activar instructor';
     $q.notify({ type: 'negative', message: msg, position: 'top', timeout: 5000 });
   }
+}
+
+// --- Finalizar Contrato / Reasignación ---
+
+function confirmEndContract(user) {
+  $q.dialog({
+    title: 'Finalizar Contrato',
+    message: `¿Está seguro de finalizar el contrato de ${user.fullName}? Se identificarán los aprendices activos y deberá reasignarlos a otro instructor. Esta acción es irreversible.`,
+    cancel: { label: 'Cancelar', flat: true },
+    ok: { label: 'Finalizar Contrato', color: 'deep-orange' },
+    persistent: true
+  }).onOk(() => endContract(user));
+}
+
+async function endContract(user) {
+  try {
+    const res = await userService.changeInstructorStatus(user._id, 'CONTRACT_ENDED', 'Contrato finalizado por administrador');
+    const data = res.data?.data || res.data;
+    endingInstructor.value = user;
+
+    const idx = users.value.findIndex(u => u._id === user._id);
+    if (idx !== -1) users.value[idx] = { ...users.value[idx], status: 'CONTRACT_ENDED' };
+
+    const apprentices = data.affectedApprentices || [];
+    affectedApprentices.value = apprentices;
+
+    if (apprentices.length > 0) {
+      await loadActiveInstructors(user._id);
+      showReassignModal.value = true;
+      $q.notify({ type: 'warning', message: `Contrato finalizado. ${apprentices.length} aprendiz(es) pendiente(s) de reasignación.`, position: 'top', timeout: 5000 });
+    } else {
+      $q.notify({ type: 'positive', message: 'Contrato de ' + user.fullName + ' finalizado. Sin aprendices pendientes.', position: 'top', timeout: 5000 });
+    }
+  } catch (error) {
+    const msg = error.response?.data?.message || 'Error al finalizar contrato';
+    $q.notify({ type: 'negative', message: msg, position: 'top', timeout: 5000 });
+  }
+}
+
+async function loadActiveInstructors(excludeId) {
+  try {
+    const res = await userService.getInstructors({ limit: 100, isActive: true });
+    const resData = res.data.data || res.data;
+    const list = resData.instructors || resData;
+    activeInstructorsList.value = (Array.isArray(list) ? list : [])
+      .filter(i => i._id !== excludeId && i.status === 'ACTIVE' && i.isActive !== false);
+    newInstructorForReassign.value = '';
+  } catch (e) {
+    console.error(e);
+    $q.notify({ type: 'negative', message: 'Error cargando instructores activos', position: 'top', timeout: 5000 });
+  }
+}
+
+async function executeReassignment() {
+  if (!newInstructorForReassign.value) return;
+  reassigning.value = true;
+  try {
+    const stageIds = affectedApprentices.value.map(a => a.stageId);
+    await userService.reassignApprentices(endingInstructor.value._id, newInstructorForReassign.value, stageIds);
+    const newInstructor = activeInstructorsList.value.find(i => i._id === newInstructorForReassign.value);
+    $q.notify({
+      type: 'positive',
+      message: `¡Reasignación completada! ${affectedApprentices.value.length} aprendiz(es) transferido(s) a ${newInstructor?.fullName || 'nuevo instructor'}.`,
+      position: 'top',
+      timeout: 5000
+    });
+    fetchUsers();
+    cancelReassignment();
+  } catch (error) {
+    const msg = error.response?.data?.message || 'Error en reasignación';
+    $q.notify({ type: 'negative', message: msg, position: 'top', timeout: 5000 });
+  } finally {
+    reassigning.value = false;
+  }
+}
+
+function cancelReassignment() {
+  showReassignModal.value = false;
+  affectedApprentices.value = [];
+  endingInstructor.value = null;
+  newInstructorForReassign.value = '';
 }
 
 function confirmDeleteUser(user) {
