@@ -284,22 +284,21 @@ class ProductiveStageService {
 
         const updates = { followupInstructor: followupInstructorId };
 
-        if (ep.modality === "INDIVIDUAL_PRODUCTIVE_PROJECT") {
+        if (['INTERNSHIP', 'INDIVIDUAL_PRODUCTIVE_PROJECT', 'GROUP_PRODUCTIVE_PROJECT'].includes(ep.modality)) {
             if (!technicalInstructorId) {
-                const error = new Error("El instructor técnico es obligatorio para proyectos individuales");
+                const error = new Error("El instructor técnico es obligatorio para esta modalidad");
                 error.statusCode = 400;
                 throw error;
             }
             updates.technicalInstructor = technicalInstructorId;
         }
 
-        if (ep.modality === "GROUP_PRODUCTIVE_PROJECT") {
-            if (!technicalInstructorId || !projectInstructorId) {
-                const error = new Error("Los instructores técnico y de proyecto son obligatorios para proyectos grupales");
+        if (['INTERNSHIP', 'INDIVIDUAL_PRODUCTIVE_PROJECT', 'GROUP_PRODUCTIVE_PROJECT', 'APPRENTICESHIP_CONTRACT'].includes(ep.modality)) {
+            if (!projectInstructorId) {
+                const error = new Error("El instructor de proyecto es obligatorio para esta modalidad");
                 error.statusCode = 400;
                 throw error;
             }
-            updates.technicalInstructor = technicalInstructorId;
             updates.projectInstructor = projectInstructorId;
         }
 
