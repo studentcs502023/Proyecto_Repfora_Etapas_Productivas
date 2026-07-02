@@ -2,6 +2,11 @@ import Notification from '../models/Notification.model.js';
 import User from '../models/User.model.js';
 import emailService from './email.service.js';
 
+const stripHtml = (str) => {
+  if (!str) return '';
+  return str.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').trim();
+};
+
 /**
  * Simple HTML email template
  */
@@ -41,7 +46,7 @@ class NotificationService {
           recipient: recipientId,
           type,
           title,
-          message,
+          message: stripHtml(message),
           metadata,
           emailSent: false
         });

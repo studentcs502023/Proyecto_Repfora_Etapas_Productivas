@@ -217,7 +217,7 @@
                 <q-input v-model="userForm.email" label="Correo Electrónico" type="email" outlined dense color="primary" class="glass-input" :rules="[val => !!val || 'Requerido', val => !val || /.+@.+\..+/.test(val) || 'El correo debe contener @ y un dominio válido']" />
               </div>
               <div class="col-12 col-md-6">
-                <q-input v-model="userForm.phone" label="Teléfono" outlined dense color="primary" class="glass-input" :rules="[val => !val || /^\d{7,15}$/.test(val) || 'Debe tener solo dígitos (7-15)']" />
+                <q-input v-model="userForm.phone" label="Teléfono" outlined dense color="primary" class="glass-input" :rules="[val => !!val || 'Requerido', val => /^\d{7,15}$/.test(val) || 'Debe tener solo dígitos (7-15)']" />
               </div>
             </div>
             

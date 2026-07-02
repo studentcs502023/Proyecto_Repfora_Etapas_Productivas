@@ -51,6 +51,42 @@ router.get('/instructors/:instructorId/report/:year/:month',
     hourController.getReport
 );
 
+// Instructor: request charge (notify admin)
+router.post('/instructors/:instructorId/month/:year/:month/request-charge',
+    [
+        param('instructorId').isMongoId(),
+        param('year').isInt({ min: 2020 }),
+        param('month').isInt({ min: 1, max: 12 }),
+        validateFields
+    ],
+    hourController.requestCharge
+);
+
+// Admin: manage charge requests
+router.get('/charge-requests/pending',
+    checkRole('ADMIN'),
+    hourController.getPendingChargeRequests
+);
+
+router.post('/charge-requests/:id/approve',
+    checkRole('ADMIN'),
+    [
+        param('id').isMongoId(),
+        validateFields
+    ],
+    hourController.approveChargeRequest
+);
+
+router.post('/charge-requests/:id/reject',
+    checkRole('ADMIN'),
+    [
+        param('id').isMongoId(),
+        body('reason').isString().isLength({ min: 10 }).withMessage('El motivo debe tener al menos 10 caracteres'),
+        validateFields
+    ],
+    hourController.rejectChargeRequest
+);
+
 // Admin only actions
 router.patch('/instructors/:instructorId/month/:year/:month/mark-paid',
     checkRole('ADMIN'),

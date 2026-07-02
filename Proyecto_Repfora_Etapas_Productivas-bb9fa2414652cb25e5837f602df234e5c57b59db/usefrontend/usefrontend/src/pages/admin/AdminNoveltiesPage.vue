@@ -72,74 +72,6 @@
         </div>
       </div>
 
-      <div class="row q-col-gutter-md q-mb-lg">
-        <div class="col-12 col-md-4">
-          <q-card flat class="chart-card my-card">
-            <q-card-section>
-              <div class="text-subtitle2 text-primary text-weight-bold q-mb-md">Distribucion por Tipo</div>
-              <div v-if="stats.visualData?.byType?.labels?.length">
-                <div v-for="(label, i) in stats.visualData.byType.labels" :key="label" class="row items-center q-mb-sm">
-                  <div class="col-7 text-caption text-weight-medium text-grey-8">{{ getTypeLabel(label) }}</div>
-                  <div class="col-5">
-                    <div class="row items-center">
-                      <q-linear-progress :value="stats.visualData.byType.values[i] / maxTypeValue" :color="barColors[i % barColors.length]" rounded size="18px" class="col-9 q-mr-sm" />
-                      <span class="col-3 text-caption text-weight-bold">{{ stats.visualData.byType.values[i] }}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div v-else class="text-caption text-grey-6 text-center q-pa-md">Sin datos</div>
-            </q-card-section>
-          </q-card>
-        </div>
-
-        <div class="col-12 col-md-4">
-          <q-card flat class="chart-card my-card">
-            <q-card-section>
-              <div class="text-subtitle2 text-primary text-weight-bold q-mb-md">Tendencias Mensuales</div>
-              <div v-if="stats.visualData?.monthlyTrends?.length">
-                <div v-for="(t, i) in stats.visualData.monthlyTrends" :key="i" class="row items-center q-mb-md">
-                  <div class="col-2 text-caption text-weight-bold text-grey-8 text-capitalize">{{ t.month }}</div>
-                  <div class="col-10">
-                    <div class="row items-center q-mb-xs">
-                      <span class="text-caption col-3 text-grey-7">Creadas:</span>
-                      <q-linear-progress :value="t.created / maxMonthly" color="negative" rounded size="10px" class="col-7" />
-                      <span class="text-caption col-2 text-weight-bold text-right">{{ t.created }}</span>
-                    </div>
-                    <div class="row items-center">
-                      <span class="text-caption col-3 text-grey-7">Resueltas:</span>
-                      <q-linear-progress :value="t.resolved / maxMonthly" color="positive" rounded size="10px" class="col-7" />
-                      <span class="text-caption col-2 text-weight-bold text-right">{{ t.resolved }}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div v-else class="text-caption text-grey-6 text-center q-pa-md">Sin datos</div>
-            </q-card-section>
-          </q-card>
-        </div>
-
-        <div class="col-12 col-md-4">
-          <q-card flat class="chart-card my-card">
-            <q-card-section>
-              <div class="text-subtitle2 text-primary text-weight-bold q-mb-md">Novedades por Instructor</div>
-              <div v-if="stats.visualData?.byInstructor?.length">
-                <div v-for="(ins, i) in stats.visualData.byInstructor" :key="ins.instructorId" class="row items-center q-mb-sm">
-                  <div class="col-1 text-caption text-weight-bold text-grey-6">{{ i + 1 }}</div>
-                  <div class="col-9 text-caption text-weight-medium text-grey-8 truncate">
-                    <q-icon name="person" class="q-mr-xs"/> Instructor {{ ins.instructorId.substring(18) }}
-                  </div>
-                  <div class="col-2 text-right">
-                    <q-badge color="primary" class="text-weight-bold" rounded>{{ ins.count }}</q-badge>
-                  </div>
-                </div>
-              </div>
-              <div v-else class="text-caption text-grey-6 text-center q-pa-md">Sin datos</div>
-            </q-card-section>
-          </q-card>
-        </div>
-      </div>
-
       <div v-if="stats.urgentAlerts?.length" class="q-mb-lg">
         <div class="text-h6 text-negative text-weight-bolder q-mb-sm flex items-center">
           <q-icon name="error" class="q-mr-sm" size="sm"/> Alertas Destacadas - Criticas sin Atender &gt;3 dias
@@ -437,8 +369,6 @@ const noveltyTypeOptions = [
   { label: 'Otro', value: 'OTHER' }
 ];
 
-const barColors = ['primary', 'accent', 'negative', 'warning', 'info', 'positive', 'purple'];
-
 const showManageModal = ref(false);
 const selectedNovelty = ref(null);
 const detailNovelty = ref(null);
@@ -447,21 +377,6 @@ const saving = ref(false);
 const addingComment = ref(false);
 const newComment = ref('');
 const actionForm = ref({ status: '', actionsTaken: '' });
-
-const maxTypeValue = computed(() => {
-  const vals = stats.value.visualData?.byType?.values || [];
-  return Math.max(1, ...vals);
-});
-
-const maxMonthly = computed(() => {
-  const trends = stats.value.visualData?.monthlyTrends || [];
-  let max = 1;
-  trends.forEach(t => {
-    if (t.created > max) max = t.created;
-    if (t.resolved > max) max = t.resolved;
-  });
-  return max;
-});
 
 const availableStatusTransitions = computed(() => {
   if (!detailNovelty.value) return [];

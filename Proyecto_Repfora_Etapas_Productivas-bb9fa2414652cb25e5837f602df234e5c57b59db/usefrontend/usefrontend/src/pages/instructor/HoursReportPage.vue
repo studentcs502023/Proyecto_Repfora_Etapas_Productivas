@@ -187,7 +187,33 @@
         </q-table>
       </q-card>
 
-      <div class="row justify-end q-mb-xl">
+      <div class="row justify-end q-mb-xl q-gutter-md">
+        <q-btn
+          v-if="record && record.pendingPaymentHours > 0 && !record.chargeRequested"
+          color="warning"
+          icon="request_quote"
+          label="Cobrar Horas"
+          rounded
+          unelevated
+          :loading="requestingCharge"
+          class="text-weight-bold q-px-lg"
+          :disable="record.pendingPaymentHours <= 0"
+          @click="confirmRequestCharge"
+        >
+          <q-tooltip>Solicitar al administrador el cobro de horas pendientes</q-tooltip>
+        </q-btn>
+        <q-btn
+          v-if="record && record.chargeRequested"
+          color="grey-6"
+          icon="check_circle"
+          label="Cobro Solicitado"
+          rounded
+          unelevated
+          disable
+          class="text-weight-bold q-px-lg"
+        >
+          <q-tooltip>Ya solicitaste el cobro de este mes. Un administrador revisara tu solicitud.</q-tooltip>
+        </q-btn>
         <q-btn
           color="primary"
           icon="download"
@@ -273,6 +299,7 @@ const authStore = useAuthStore();
 
 const loading = ref(false);
 const downloading = ref(false);
+const requestingCharge = ref(false);
 const record = ref(null);
 const summaryByEP = ref([]);
 const detailItems = ref([]);
@@ -372,6 +399,31 @@ async function fetchDetail() {
 function openDetailDialog(epRow) {
   detailEP.value = epRow;
   showDetailDialog.value = true;
+}
+
+function confirmRequestCharge() {
+  $q.dialog({
+    title: 'Solicitar Cobro de Horas',
+    message: `Estas a punto de solicitar el cobro de ${record.value.pendingPaymentHours} horas pendientes al administrador. Recibira una notificacion para revisar y aprobar el pago.`,
+    cancel: { label: 'Cancelar', flat: true },
+    ok: { label: 'Solicitar Cobro', color: 'warning' },
+    persistent: true
+  }).onOk(() => executeRequestCharge());
+}
+
+async function executeRequestCharge() {
+  if (!authStore.user?.id || !selectedMonth.value) return;
+  requestingCharge.value = true;
+  try {
+    await hourService.requestCharge(authStore.user.id, selectedYear.value, selectedMonth.value);
+    $q.notify({ type: 'positive', message: 'Solicitud de cobro enviada al administrador.', position: 'top', timeout: 5000 });
+    fetchDetail();
+  } catch (error) {
+    const msg = error.response?.data?.message || 'Error al solicitar el cobro.';
+    $q.notify({ type: 'negative', message: msg, position: 'top', timeout: 5000 });
+  } finally {
+    requestingCharge.value = false;
+  }
 }
 
 function formatDate(date) {

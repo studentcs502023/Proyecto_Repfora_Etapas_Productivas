@@ -5,6 +5,7 @@ import cors from 'cors'; // Que no falte cors
 import { env } from './src/config/env.js';
 import { conectarMongo } from './src/config/db.js'; 
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -73,9 +74,8 @@ app.use('/api/hour-validation', hourValidationRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/dashboard', dashboardRoutes);
-app.use(express.static('dist'));
-// Ahora sí, path y __dirname estarán definidos
-app.use(express.static(path.join(__dirname, 'public')));
+if (fs.existsSync('dist')) app.use(express.static('dist'));
+if (fs.existsSync(path.join(__dirname, 'public'))) app.use(express.static(path.join(__dirname, 'public')));
 // Error handler global (incluye errores de multer)
 app.use((err, req, res, next) => {
   if (err.code === 'LIMIT_FILE_SIZE') {

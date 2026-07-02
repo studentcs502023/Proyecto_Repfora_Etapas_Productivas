@@ -14,7 +14,8 @@ router.get('/pending',
   [
     query('page').optional().isInt({ min: 1 }),
     query('limit').optional().isInt({ min: 1, max: 100 }),
-    query('instructorId').optional().isMongoId()
+    query('instructorId').optional().isMongoId(),
+    validateFields
   ],
   hourValidationController.getPendingValidations
 );

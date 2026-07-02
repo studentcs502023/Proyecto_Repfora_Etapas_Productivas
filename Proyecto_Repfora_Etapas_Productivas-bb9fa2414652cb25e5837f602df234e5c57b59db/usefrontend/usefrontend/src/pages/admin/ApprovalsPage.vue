@@ -25,6 +25,7 @@
       >
         <q-tab name="ep" class="custom-tab text-weight-bold" icon="work" label="Etapas Productivas" />
         <q-tab name="trackings" class="custom-tab text-weight-bold" icon="event" label="Seguimientos Extraordinarios" />
+        <q-tab name="charge-requests" class="custom-tab text-weight-bold" icon="request_quote" label="Cobros Pendientes" />
       </q-tabs>
     </div>
 
@@ -121,6 +122,78 @@
           <div class="full-width row flex-center text-grey-6 q-pa-xl">
             <q-icon size="4em" name="event_available" class="q-mb-md full-width text-center" />
             <div class="text-h6">No hay solicitudes de seguimiento extraordinario pendientes.</div>
+          </div>
+        </template>
+      </q-table>
+    </q-card>
+
+    <!-- Tab: Cobros Pendientes -->
+    <q-card v-if="activeTab === 'charge-requests'" class="table-card my-card no-shadow">
+      <q-table
+        :rows="chargeRequests"
+        :columns="chargeColumns"
+        :loading="loadingCharges"
+        row-key="_id"
+        flat
+        class="custom-table bg-transparent"
+        table-header-class="custom-table-header"
+      >
+        <template v-slot:loading>
+          <q-inner-loading showing color="primary" />
+        </template>
+
+        <template v-slot:body-cell-instructor="props">
+          <q-td :props="props">
+            <div class="text-weight-bold">{{ props.row.instructor?.fullName }}</div>
+            <div class="text-caption text-grey-7">{{ props.row.instructor?.email }}</div>
+          </q-td>
+        </template>
+
+        <template v-slot:body-cell-period="props">
+          <q-td :props="props">
+            {{ getMonthName(props.row.month) }} {{ props.row.year }}
+          </q-td>
+        </template>
+
+        <template v-slot:body-cell-hours="props">
+          <q-td :props="props">
+            <div class="row q-col-gutter-sm">
+              <div class="col-auto">
+                <q-badge color="deep-orange" class="text-weight-bold q-px-sm q-py-xs" rounded>
+                  Pend: {{ props.row.pendingPaymentHours }}h
+                </q-badge>
+              </div>
+              <div class="col-auto">
+                <q-badge color="positive" class="text-weight-bold q-px-sm q-py-xs" rounded>
+                  Cobrado: {{ props.row.paidHours }}h
+                </q-badge>
+              </div>
+              <div class="col-auto">
+                <q-badge color="primary" class="text-weight-bold q-px-sm q-py-xs" rounded>
+                  Total: {{ props.row.totalHours }}h
+                </q-badge>
+              </div>
+            </div>
+          </q-td>
+        </template>
+
+        <template v-slot:body-cell-requestedAt="props">
+          <q-td :props="props">
+            {{ formatDate(props.value) }}
+          </q-td>
+        </template>
+
+        <template v-slot:body-cell-actions="props">
+          <q-td :props="props" class="q-gutter-xs">
+            <q-btn size="sm" color="positive" label="Aprobar Cobro" icon="check_circle" class="header-btn text-weight-bold shadow-2" rounded @click="confirmApproveCharge(props.row)" :loading="props.row._approving" />
+            <q-btn size="sm" color="negative" label="Rechazar" icon="cancel" class="header-btn text-weight-bold shadow-2" rounded outline @click="openRejectChargeDialog(props.row)" :loading="props.row._rejecting" />
+          </q-td>
+        </template>
+
+        <template v-slot:no-data>
+          <div class="full-width row flex-center text-grey-6 q-pa-xl">
+            <q-icon size="4em" name="check_circle_outline" class="q-mb-md full-width text-center" />
+            <div class="text-h6">No hay solicitudes de cobro pendientes.</div>
           </div>
         </template>
       </q-table>
@@ -254,7 +327,7 @@
                       <div class="text-subtitle2 text-primary text-uppercase text-weight-bold q-mb-sm">Instructor de Seguimiento *</div>
                       <q-select
                         v-model="assignments.followupInstructorId"
-                        :options="instructors.followup"
+                        :options="availableFollowupInstructors"
                         option-value="_id"
                         option-label="fullName"
                         label="Seleccionar Instructor"
@@ -273,7 +346,7 @@
                       <div class="text-subtitle2 text-primary text-uppercase text-weight-bold q-mb-sm">Instructor Técnico *</div>
                       <q-select
                         v-model="assignments.technicalInstructorId"
-                        :options="instructors.technical"
+                        :options="availableTechnicalInstructors"
                         option-value="_id"
                         option-label="fullName"
                         label="Seleccionar Instructor"
@@ -292,7 +365,7 @@
                       <div class="text-subtitle2 text-primary text-uppercase text-weight-bold q-mb-sm">Instructor de Proyecto *</div>
                       <q-select
                         v-model="assignments.projectInstructorId"
-                        :options="instructors.project"
+                        :options="availableProjectInstructors"
                         option-value="_id"
                         option-label="fullName"
                         label="Seleccionar Instructor"
@@ -320,6 +393,41 @@
         </q-card-section>
       </q-card>
     </q-dialog>
+
+    <!-- Dialog: Rechazar Cobro -->
+    <q-dialog v-model="showRejectChargeDialog" persistent>
+      <q-card class="modal-card" style="width: 450px;">
+        <q-card-section class="bg-negative text-white row items-center">
+          <div class="text-h6 text-weight-bold">
+            <q-icon name="cancel" class="q-mr-sm" size="sm"/>Rechazar Solicitud de Cobro
+          </div>
+          <q-space />
+          <q-btn icon="close" flat round dense v-close-popup />
+        </q-card-section>
+        <q-card-section class="q-pa-lg">
+          <p class="text-body1 text-grey-8 q-mb-md">
+            Rechazar solicitud de <strong>{{ selectedChargeRequest?.instructor?.fullName }}</strong>
+            por <strong>{{ selectedChargeRequest?.pendingPaymentHours }} horas</strong>
+            ({{ getMonthName(selectedChargeRequest?.month) }} {{ selectedChargeRequest?.year }}).
+          </p>
+          <q-input
+            v-model="rejectChargeReason"
+            label="Motivo del rechazo"
+            type="textarea"
+            outlined
+            dense
+            color="negative"
+            class="glass-input"
+            :rules="[val => !!val && val.length >= 10 || 'Minimo 10 caracteres']"
+          />
+        </q-card-section>
+        <q-separator class="opacity-20" />
+        <q-card-actions align="right" class="q-pa-md bg-grey-1">
+          <q-btn flat label="Cancelar" color="grey-8" class="text-weight-bold" v-close-popup />
+          <q-btn color="negative" label="Rechazar Cobro" :loading="rejectingCharge" :disable="!rejectChargeReason || rejectChargeReason.length < 10" @click="executeRejectCharge" class="text-weight-bold shadow-2" rounded padding="xs lg"/>
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </div>
 </template>
 
@@ -329,6 +437,7 @@ import productiveStageService from '../../api/productiveStage.service';
 import userService from '../../api/user.service';
 import documentService from '../../api/document.service';
 import trackingService from '../../api/tracking.service';
+import hourService from '../../api/hours.service';
 import { useQuasar } from 'quasar';
 
 const $q = useQuasar();
@@ -344,6 +453,22 @@ const pagination = ref({ page: 1, rowsPerPage: 10, rowsNumber: 0 });
 // State — Extraordinary trackings
 const pendingExtraordinary = ref([]);
 const loadingExtra = ref(false);
+
+// State — Charge requests
+const chargeRequests = ref([]);
+const loadingCharges = ref(false);
+const showRejectChargeDialog = ref(false);
+const selectedChargeRequest = ref(null);
+const rejectChargeReason = ref('');
+const rejectingCharge = ref(false);
+
+const chargeColumns = [
+  { name: 'instructor', label: 'Instructor', field: 'instructor', align: 'left' },
+  { name: 'period', label: 'Periodo', field: 'month', align: 'center', style: 'width: 120px;' },
+  { name: 'hours', label: 'Horas', field: 'pendingPaymentHours', align: 'center', style: 'width: 200px;' },
+  { name: 'requestedAt', label: 'Solicitado', field: 'chargeRequestedAt', align: 'center', style: 'width: 110px;' },
+  { name: 'actions', label: 'Acciones', align: 'center', style: 'width: 180px;' }
+];
 
 const extraColumns = [
   { name: 'instructor', label: 'Instructor', field: 'instructor', align: 'left' },
@@ -393,10 +518,12 @@ onMounted(() => {
   fetchPendingEPs();
   preloadInstructors();
   fetchPendingExtraordinary();
+  fetchChargeRequests();
 });
 
 watch(activeTab, (tab) => {
   if (tab === 'trackings') fetchPendingExtraordinary();
+  if (tab === 'charge-requests') fetchChargeRequests();
 });
 
 // Computed properties for dynamic assignment rules
@@ -408,6 +535,27 @@ const needsTechnicalInstructor = computed(() => {
 const needsProjectInstructor = computed(() => {
   if (!selectedEP.value) return false;
   return selectedEP.value.modality === 'GROUP_PRODUCTIVE_PROJECT';
+});
+
+const availableFollowupInstructors = computed(() => {
+  return instructors.value.followup.filter(i =>
+    i._id !== assignments.value.technicalInstructorId &&
+    i._id !== assignments.value.projectInstructorId
+  );
+});
+
+const availableTechnicalInstructors = computed(() => {
+  return instructors.value.technical.filter(i =>
+    i._id !== assignments.value.followupInstructorId &&
+    i._id !== assignments.value.projectInstructorId
+  );
+});
+
+const availableProjectInstructors = computed(() => {
+  return instructors.value.project.filter(i =>
+    i._id !== assignments.value.followupInstructorId &&
+    i._id !== assignments.value.technicalInstructorId
+  );
 });
 
 function getModalityLabel(val) {
@@ -455,7 +603,7 @@ async function preloadInstructors() {
     const list = Array.isArray(allInstructors) ? allInstructors : [];
     instructors.value.followup = [...list];
     instructors.value.technical = list.filter(i => i.instructorType === 'TECHNICAL');
-    instructors.value.project = list.filter(i => i.instructorType === 'PROJECT');
+    instructors.value.project = [...list];
   } catch (error) {
     console.error('Error loading instructors', error);
     $q.notify({ type: 'negative', message: error.message || 'Error al cargar instructores.', position: 'top', timeout: 5000 });
@@ -602,6 +750,73 @@ async function rejectEP() {
     $q.notify({ type: 'negative', message: msg, position: 'top', timeout: 5000 });
   } finally {
     processing.value = false;
+  }
+}
+
+async function fetchChargeRequests() {
+  loadingCharges.value = true;
+  try {
+    const res = await hourService.getPendingChargeRequests();
+    chargeRequests.value = res.data?.data || res.data || [];
+  } catch (error) {
+    console.error(error);
+    $q.notify({ type: 'negative', message: error.message || 'Error al cargar solicitudes de cobro.', position: 'top', timeout: 5000 });
+  } finally {
+    loadingCharges.value = false;
+  }
+}
+
+function getMonthName(m) {
+  const names = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+  return names[m] || m;
+}
+
+function confirmApproveCharge(row) {
+  $q.dialog({
+    title: 'Aprobar Cobro de Horas',
+    message: `¿Aprueba el cobro de ${row.pendingPaymentHours} horas solicitado por ${row.instructor?.fullName} para ${getMonthName(row.month)} ${row.year}?`,
+    cancel: { label: 'Cancelar', flat: true },
+    ok: { label: 'Aprobar Cobro', color: 'positive' },
+    persistent: true
+  }).onOk(() => approveCharge(row));
+}
+
+async function approveCharge(row) {
+  row._approving = true;
+  try {
+    await hourService.approveChargeRequest(row._id);
+    $q.notify({ type: 'positive', message: `Cobro de ${row.pendingPaymentHours}h aprobado para ${row.instructor?.fullName}.`, position: 'top', timeout: 5000 });
+    fetchChargeRequests();
+  } catch (error) {
+    const msg = error.response?.data?.message || 'Error al aprobar cobro.';
+    $q.notify({ type: 'negative', message: msg, position: 'top', timeout: 5000 });
+  } finally {
+    row._approving = false;
+  }
+}
+
+function openRejectChargeDialog(row) {
+  selectedChargeRequest.value = row;
+  rejectChargeReason.value = '';
+  showRejectChargeDialog.value = true;
+}
+
+async function executeRejectCharge() {
+  if (!rejectChargeReason.value || rejectChargeReason.value.length < 10) return;
+  const row = selectedChargeRequest.value;
+  row._rejecting = true;
+  rejectingCharge.value = true;
+  try {
+    await hourService.rejectChargeRequest(row._id, { reason: rejectChargeReason.value });
+    $q.notify({ type: 'warning', message: `Solicitud de cobro de ${row.instructor?.fullName} rechazada.`, position: 'top', timeout: 5000 });
+    showRejectChargeDialog.value = false;
+    fetchChargeRequests();
+  } catch (error) {
+    const msg = error.response?.data?.message || 'Error al rechazar solicitud.';
+    $q.notify({ type: 'negative', message: msg, position: 'top', timeout: 5000 });
+  } finally {
+    row._rejecting = false;
+    rejectingCharge.value = false;
   }
 }
 </script>

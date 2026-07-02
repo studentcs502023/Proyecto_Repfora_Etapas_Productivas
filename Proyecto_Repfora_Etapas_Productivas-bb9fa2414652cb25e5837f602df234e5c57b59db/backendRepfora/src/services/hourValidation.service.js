@@ -6,7 +6,9 @@ import notificationService from './notifications.service.js';
 class HourValidationService {
 
   async getPendingValidations({ page = 1, limit = 20, instructorId } = {}) {
-    const skip = (page - 1) * limit;
+    const pageNum = parseInt(page) || 1;
+    const limitNum = parseInt(limit) || 20;
+    const skip = (pageNum - 1) * limitNum;
 
     const bitacoraQuery = { status: 'APPROVED', hoursValidated: false, assignedHours: { $gt: 0 } };
     const trackingQuery = { status: 'EXECUTED', hoursValidated: false, assignedHours: { $gt: 0 } };
@@ -16,26 +18,17 @@ class HourValidationService {
       trackingQuery.instructor = instructorId;
     }
 
-    const [bitacoras, bitacoraTotal] = await Promise.all([
+    const [bitacoras, trackings] = await Promise.all([
       Bitacora.find(bitacoraQuery)
         .populate('instructor', 'fullName email')
         .populate('apprentice', 'fullName')
         .sort({ reviewedAt: -1 })
-        .skip(skip)
-        .limit(limit)
         .lean(),
-      Bitacora.countDocuments(bitacoraQuery)
-    ]);
-
-    const [trackings, trackingTotal] = await Promise.all([
       Tracking.find(trackingQuery)
         .populate('instructor', 'fullName email')
         .populate('apprentice', 'fullName')
         .sort({ executedDate: -1 })
-        .skip(skip)
-        .limit(limit)
-        .lean(),
-      Tracking.countDocuments(trackingQuery)
+        .lean()
     ]);
 
     const bitacoraItems = bitacoras.map(b => ({
@@ -63,14 +56,16 @@ class HourValidationService {
     }));
 
     const allItems = [...bitacoraItems, ...trackingItems]
-      .sort((a, b) => new Date(b.date) - new Date(a.date))
-      .slice(0, limit);
+      .sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    const total = allItems.length;
+    const paginatedItems = allItems.slice(skip, skip + limitNum);
 
     return {
-      items: allItems,
-      total: bitacoraTotal + trackingTotal,
-      page,
-      limit
+      items: paginatedItems,
+      total,
+      page: pageNum,
+      limit: limitNum
     };
   }
 

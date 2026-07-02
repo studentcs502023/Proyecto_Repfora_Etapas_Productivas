@@ -27,6 +27,8 @@ const hourRecordSchema = new Schema({
   paidHours:              { type: Number, default: 0 },
   pendingPaymentHours:    { type: Number, default: 0 },
   lastPaymentDate:        { type: Date, default: null },
+  chargeRequested:        { type: Boolean, default: false },
+  chargeRequestedAt:      { type: Date, default: null },
 
   // === REPORT ===
   reportDriveId:          { type: String, default: null },

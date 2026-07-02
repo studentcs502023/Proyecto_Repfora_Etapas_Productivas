@@ -113,7 +113,7 @@
                 <q-input v-model="companyForm.name" label="Razón Social / Nombre" lazy-trim outlined dense color="primary" class="glass-input" hint="Nombre legal o razón social de la empresa" :rules="[val => !!val || 'Requerido', val => !val || !/\d/.test(val) || 'No se permiten números']" />
               </div>
               <div class="col-12 col-md-6">
-                <q-input v-model="companyForm.taxId" label="NIT / Documento" lazy-trim outlined dense color="primary" class="glass-input" hint="NIT sin guiones ni dígito de verificación" :rules="[val => !!val || 'Requerido', val => /^\d{5,15}$/.test(val) || 'Debe tener solo dígitos (5-15)']" />
+                <q-input v-model="companyForm.taxId" label="NIT / Documento" lazy-trim outlined dense color="primary" class="glass-input" :disable="isEditing" hint="NIT sin guiones ni dígito de verificación" :rules="[val => !!val || 'Requerido', val => /^\d{5,15}$/.test(val) || 'Debe tener solo dígitos (5-15)']" />
               </div>
               <div class="col-12">
                 <q-input v-model="companyForm.address" label="Dirección" lazy-trim outlined dense color="primary" class="glass-input" hint="Dirección física de la empresa" :rules="[val => !!val || 'Requerido']" />
@@ -130,7 +130,7 @@
             <div class="text-subtitle2 text-primary text-uppercase text-weight-bold q-mb-sm"><q-icon name="person_outline" class="q-mr-xs"/>Contacto Principal (Opcional)</div>
             <div class="row q-col-gutter-md">
               <div class="col-12 col-md-6">
-                <q-input v-model="contactForm.fullName" label="Nombre del Supervisor" lazy-trim outlined dense color="primary" class="glass-input" hint="Nombre completo del supervisor" :rules="[val => !!val || 'Requerido', val => !val || !/\d/.test(val) || 'No se permiten números']" />
+                <q-input v-model="contactForm.fullName" label="Nombre del Supervisor" lazy-trim outlined dense color="primary" class="glass-input" hint="Nombre completo del supervisor" :rules="[val => !val || !/\d/.test(val) || 'No se permiten números']" />
               </div>
               <div class="col-12 col-md-6">
                 <q-input v-model="contactForm.jobTitle" label="Cargo del Supervisor" lazy-trim outlined dense color="primary" class="glass-input" hint="Ej: Jefe de Recursos Humanos" :rules="[val => !val || val.trim().length >= 3 || 'Mínimo 3 caracteres']" />

@@ -31,6 +31,44 @@ class HourController {
     }
   }
 
+  async requestCharge(req, res) {
+    try {
+      const { instructorId, year, month } = req.params;
+      const result = await hourService.requestCharge(req.user, instructorId, year, month);
+      return successResponse(res, 200, 'Solicitud de cobro enviada al administrador', result);
+    } catch (error) {
+      return errorResponse(res, error.statusCode || 500, error.message);
+    }
+  }
+
+  async getPendingChargeRequests(req, res) {
+    try {
+      const data = await hourService.getPendingChargeRequests();
+      return successResponse(res, 200, 'Solicitudes de cobro pendientes', data);
+    } catch (error) {
+      return errorResponse(res, error.statusCode || 500, error.message);
+    }
+  }
+
+  async approveChargeRequest(req, res) {
+    try {
+      const result = await hourService.approveChargeRequest(req.user, req.params.id);
+      return successResponse(res, 200, 'Cobro aprobado exitosamente', result);
+    } catch (error) {
+      return errorResponse(res, error.statusCode || 500, error.message);
+    }
+  }
+
+  async rejectChargeRequest(req, res) {
+    try {
+      const { reason } = req.body;
+      const result = await hourService.rejectChargeRequest(req.user, req.params.id, reason);
+      return successResponse(res, 200, 'Solicitud de cobro rechazada', result);
+    } catch (error) {
+      return errorResponse(res, error.statusCode || 500, error.message);
+    }
+  }
+
   async carryOver(req, res) {
     try {
       const result = await hourService.carryOver(req.user, req.params.instructorId, req.body);

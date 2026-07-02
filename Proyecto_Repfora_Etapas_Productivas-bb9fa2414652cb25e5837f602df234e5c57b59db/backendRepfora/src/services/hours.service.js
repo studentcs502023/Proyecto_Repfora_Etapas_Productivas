@@ -358,6 +358,171 @@ class HourService {
   }
 
   /**
+   * POST .../request-charge
+   */
+  async requestCharge(reqUser, instructorId, year, month) {
+    if (reqUser.id.toString() !== instructorId.toString()) {
+      const error = new Error('Solo puedes solicitar cobro de tus propias horas');
+      error.statusCode = 403;
+      throw error;
+    }
+
+    const record = await HourRecord.findOne({ instructor: instructorId, year: Number(year), month: Number(month) });
+    if (!record) {
+      const error = new Error('No tienes horas registradas en este mes');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    if (record.pendingPaymentHours <= 0) {
+      const error = new Error('No tienes horas pendientes de cobro en este mes');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    if (record.chargeRequested) {
+      const error = new Error('Ya has solicitado el cobro de este mes');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    record.chargeRequested = true;
+    record.chargeRequestedAt = new Date();
+    await record.save();
+
+    const instructor = await User.findById(instructorId).select('fullName');
+    const mesLetra = new Date(year, month - 1).toLocaleString('es-CO', { month: 'long' });
+
+    const admins = await User.find({ role: 'ADMIN', status: 'ACTIVE' }).select('_id');
+    const adminIds = admins.map(a => a._id.toString());
+
+    if (adminIds.length > 0) {
+      await notificationService.send({
+        type: 'HOURS_PAYMENT_REQUEST',
+        recipients: adminIds,
+        title: `Solicitud de Cobro - ${instructor.fullName}`,
+        message: `<p>El instructor <strong>${instructor.fullName}</strong> ha solicitado el cobro de <strong>${record.pendingPaymentHours} horas</strong> correspondientes al mes de <strong>${mesLetra} ${year}</strong>.</p>
+          <p>Total horas del mes: ${record.totalHours}h | Horas ya pagadas: ${record.paidHours}h | Pendientes por pagar: ${record.pendingPaymentHours}h</p>`,
+        metadata: { entity: 'HourRecord', entityId: record._id.toString() }
+      }).catch(e => console.error('[HourService] Error notificando solicitud de cobro:', e.message));
+    }
+
+    await recordAuditLog({
+      action: 'HOURS_PAYMENT_REQUEST',
+      entity: 'HourRecord',
+      entityId: record._id,
+      performedBy: reqUser.id,
+      details: { instructorId, year, month, pendingHours: record.pendingPaymentHours }
+    });
+
+    return { success: true, pendingHours: record.pendingPaymentHours, requestedAt: record.chargeRequestedAt };
+  }
+
+  async getPendingChargeRequests() {
+    const records = await HourRecord.find({ chargeRequested: true, pendingPaymentHours: { $gt: 0 } })
+      .populate('instructor', 'fullName email nationalId')
+      .sort({ chargeRequestedAt: -1 })
+      .lean();
+
+    return records.map(r => ({
+      _id: r._id,
+      instructor: r.instructor,
+      month: r.month,
+      year: r.year,
+      totalHours: r.totalHours,
+      pendingPaymentHours: r.pendingPaymentHours,
+      paidHours: r.paidHours,
+      chargeRequestedAt: r.chargeRequestedAt
+    }));
+  }
+
+  async approveChargeRequest(reqUser, recordId) {
+    const record = await HourRecord.findById(recordId);
+    if (!record) {
+      const error = new Error('Registro de horas no encontrado');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    if (!record.chargeRequested) {
+      const error = new Error('Este registro no tiene una solicitud de cobro pendiente');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const pending = record.pendingPaymentHours;
+    record.paidHours += pending;
+    record.pendingPaymentHours = 0;
+    record.lastPaymentDate = new Date();
+    record.chargeRequested = false;
+    await record.save();
+
+    await User.findByIdAndUpdate(record.instructor, {
+      $inc: { pendingPaymentHours: -pending }
+    });
+
+    const instructor = await User.findById(record.instructor).select('fullName');
+    const mesLetra = new Date(record.year, record.month - 1).toLocaleString('es-CO', { month: 'long' });
+
+    notificationService.send({
+      type: 'HOURS_LIMIT_ALERT',
+      recipients: [record.instructor.toString()],
+      title: 'Cobro de horas aprobado',
+      message: `<p>El administrador ha <strong>aprobado</strong> el cobro de <strong>${pending} horas</strong> correspondientes a <strong>${mesLetra} ${record.year}</strong>.</p>`
+    }).catch(e => console.error('[HourService] Error notificando aprobacion de cobro:', e.message));
+
+    await recordAuditLog({
+      action: 'HOURS_MARKED_PAID',
+      entity: 'HourRecord',
+      entityId: record._id,
+      performedBy: reqUser.id,
+      details: { instructorId: record.instructor, year: record.year, month: record.month, amount: pending, via: 'CHARGE_REQUEST_APPROVAL' }
+    });
+
+    return { success: true, paidHours: pending, instructor: instructor.fullName };
+  }
+
+  async rejectChargeRequest(reqUser, recordId, reason) {
+    const record = await HourRecord.findById(recordId);
+    if (!record) {
+      const error = new Error('Registro de horas no encontrado');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    if (!record.chargeRequested) {
+      const error = new Error('Este registro no tiene una solicitud de cobro pendiente');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    record.chargeRequested = false;
+    await record.save();
+
+    const instructor = await User.findById(record.instructor).select('fullName');
+    const mesLetra = new Date(record.year, record.month - 1).toLocaleString('es-CO', { month: 'long' });
+
+    notificationService.send({
+      type: 'HOURS_LIMIT_ALERT',
+      recipients: [record.instructor.toString()],
+      title: 'Cobro de horas rechazado',
+      message: `<p>El administrador ha <strong>rechazado</strong> tu solicitud de cobro de <strong>${record.pendingPaymentHours} horas</strong> de <strong>${mesLetra} ${record.year}</strong>.</p>
+        ${reason ? `<p><strong>Motivo:</strong> ${reason}</p>` : ''}
+        <p>Puedes volver a solicitarlo cuando corrijas lo necesario.</p>`
+    }).catch(e => console.error('[HourService] Error notificando rechazo de cobro:', e.message));
+
+    await recordAuditLog({
+      action: 'HOURS_REJECTED',
+      entity: 'HourRecord',
+      entityId: record._id,
+      performedBy: reqUser.id,
+      details: { instructorId: record.instructor, year: record.year, month: record.month, reason }
+    });
+
+    return { success: true, instructor: instructor.fullName, reason };
+  }
+
+  /**
    * GET /api/hours/summary
    */
   async getSummary(query) {
