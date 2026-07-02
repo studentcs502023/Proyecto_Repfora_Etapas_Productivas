@@ -1,10 +1,18 @@
 <template>
-  <q-page padding class="register-ep-container">
-    <div class="text-h4 text-black text-weight-bold q-mb-md">Registro de Etapa Productiva</div>
-    <p class="text-grey-7" v-if="!rejectReason">Completa los siguientes pasos para registrar oficialmente tu etapa productiva.</p>
+  <q-page class="q-pa-md register-ep-container">
+    <!-- Premium Header -->
+    <div class="page-header q-mb-xl row items-center justify-between shadow-4">
+      <div class="cover-overlay"></div>
+      <div class="header-content col-12 col-md-auto q-mb-sm-md text-white">
+        <h2 class="text-h3 text-weight-bolder q-my-none shadow-text">
+          <q-icon name="app_registration" class="q-mr-sm" size="md"/>Registro de Etapa Productiva
+        </h2>
+        <p class="text-subtitle1 opacity-80 q-mt-xs q-mb-none" v-if="!rejectReason">Completa los siguientes pasos para registrar oficialmente tu etapa productiva.</p>
+      </div>
+    </div>
 
     <!-- Banner de rechazo previo -->
-    <q-banner v-if="rejectReason" class="bg-red-1 text-negative rounded-borders q-mb-lg" rounded>
+    <q-banner v-if="rejectReason" class="bg-red-1 text-negative rounded-borders q-mb-lg shadow-2" rounded>
       <template v-slot:avatar><q-icon name="cancel" color="negative" size="md" /></template>
       <div class="text-weight-bold">Tu solicitud anterior fue rechazada</div>
       <p class="q-mt-xs q-mb-none">
@@ -14,6 +22,8 @@
         Los campos han sido pre-llenados con tus datos anteriores. Revisa el motivo, corrige lo necesario y vuelve a enviar.
       </p>
     </q-banner>
+
+    <q-card class="my-card no-shadow q-pa-md">
 
     <q-stepper
       v-model="step"
@@ -59,7 +69,7 @@
             <div class="col-12 col-md-6">
               <q-input
                 v-model="form.estimatedEndDate"
-                label="Fecha de Finalizaci+¶n Estimada"
+                label="Fecha de Finalizaci√≥n Estimada"
                 type="date"
                 outlined
                 stack-label
@@ -74,16 +84,16 @@
         </q-form>
       </q-step>
 
-      <!-- STEP 2: Documentaci+¶n de Soporte -->
+      <!-- STEP 2: Documentaci√≥n de Soporte -->
       <q-step
         :name="2"
-        title="Documentaci+¶n Obligatoria"
+        title="Documentaci√≥n Obligatoria"
         icon="upload_file"
         :done="step > 2"
       >
         <q-form @submit="stepper.next()" class="q-gutter-md">
           <div class="text-subtitle2 text-black q-mb-sm">Documentos Requeridos para: {{ getModalityLabel(form.modality) || '...' }}</div>
-          <p class="text-grey-7">Por favor, adjunte los siguientes documentos en formato PDF (m+Ìximo 3MB por archivo).</p>
+          <p class="text-grey-7">Por favor, adjunte los siguientes documentos en formato PDF (m√°ximo 3MB por archivo).</p>
 
           <div v-if="requiredDocuments.length === 0" class="text-warning q-mb-md">
             Seleccione una modalidad en el paso anterior para ver los documentos requeridos.
@@ -98,7 +108,7 @@
               :rules="[
                 val => (!doc.required || !!val) || 'Requerido',
                 val => !val || val.type === 'application/pdf' || 'Solo formato PDF',
-                val => !val || val.size <= 3 * 1024 * 1024 || 'M+Ìximo 3MB'
+                val => !val || val.size <= 3 * 1024 * 1024 || 'M√°ximo 3MB'
               ]"
             >
               <template v-slot:prepend><q-icon name="picture_as_pdf" /></template>
@@ -107,7 +117,7 @@
 
           <q-stepper-navigation>
             <q-btn type="submit" color="primary" label="Continuar" :disable="requiredDocuments.length === 0" />
-            <q-btn flat color="primary" @click="step = 1" label="Atr+Ìs" class="q-ml-sm" />
+            <q-btn flat color="primary" @click="step = 1" label="Atr√°s" class="q-ml-sm" />
           </q-stepper-navigation>
         </q-form>
       </q-step>
@@ -154,19 +164,19 @@
             <div class="text-subtitle2 text-black q-mb-sm">Datos de la Empresa</div>
             <div class="row q-col-gutter-md">
               <div class="col-12 col-md-6">
-                <q-input v-model="newCompany.taxId" label="NIT" outlined :rules="[val => !!val || 'Requerido', val => /^\d{5,15}$/.test(val) || 'Debe tener solo dÌgitos (5-15)']" />
+                <q-input v-model="newCompany.taxId" label="NIT" outlined :rules="[val => !!val || 'Requerido', val => /^\d{5,15}$/.test(val) || 'Debe tener solo d√≠gitos (5-15)']" />
               </div>
               <div class="col-12 col-md-6">
-                <q-input v-model="newCompany.name" label="Raz+¶n Social" outlined :rules="[val => !!val || 'Requerido']" />
+                <q-input v-model="newCompany.name" label="Raz√≥n Social" outlined :rules="[val => !!val || 'Requerido']" />
               </div>
               <div class="col-12">
-                <q-input v-model="newCompany.address" label="Direcci+¶n" outlined :rules="[val => !!val || 'Requerido']" />
+                <q-input v-model="newCompany.address" label="Direcci√≥n" outlined :rules="[val => !!val || 'Requerido']" />
               </div>
               <div class="col-12 col-md-6">
-                <q-input v-model="newCompany.phone" label="Tel+Æfono (Empresa)" outlined :rules="[val => !!val || 'Requerido', val => /^\d{7,15}$/.test(val) || 'Debe tener solo dÌgitos (7-15)']" />
+                <q-input v-model="newCompany.phone" label="Tel√©fono (Empresa)" outlined :rules="[val => !!val || 'Requerido', val => /^\d{7,15}$/.test(val) || 'Debe tener solo d√≠gitos (7-15)']" />
               </div>
               <div class="col-12 col-md-6">
-                <q-input v-model="newCompany.email" label="Correo Electr+¶nico (Empresa)" type="email" outlined :rules="[val => !!val || 'Requerido']" />
+                <q-input v-model="newCompany.email" label="Correo Electr√≥nico (Empresa)" type="email" outlined :rules="[val => !!val || 'Requerido']" />
               </div>
             </div>
           </div>
@@ -178,7 +188,7 @@
             <div class="col-12 col-md-6">
               <q-input
                 v-model="form.companySnapshot.apprenticeJobTitle"
-                label="Cargo que ocupar+Ì el aprendiz"
+                label="Cargo que ocupar√° el aprendiz"
                 outlined
                 :rules="[val => !!val || 'Requerido']"
               />
@@ -188,7 +198,7 @@
                 v-model="form.companySnapshot.supervisorName"
                 label="Nombre del Supervisor"
                 outlined
-                :rules="[val => !!val || 'Requerido', val => !val || !/\d/.test(val) || 'No se permiten n˙meros']"
+                :rules="[val => !!val || 'Requerido', val => !val || !/\d/.test(val) || 'No se permiten n√∫meros']"
               />
             </div>
             <div class="col-12 col-md-6">
@@ -203,24 +213,24 @@
             <div class="col-12 col-md-6">
               <q-input
                 v-model="form.companySnapshot.supervisorPhone"
-                label="Tel+Æfono del Supervisor"
+                label="Tel√©fono del Supervisor"
                 outlined
-                :rules="[val => !!val || 'Requerido', val => /^\d{7,15}$/.test(val) || 'Debe tener solo dÌgitos (7-15)']"
+                :rules="[val => !!val || 'Requerido', val => /^\d{7,15}$/.test(val) || 'Debe tener solo d√≠gitos (7-15)']"
               />
             </div>
           </div>
 
           <q-stepper-navigation>
             <q-btn type="submit" color="primary" label="Continuar" />
-            <q-btn flat color="primary" @click="step = 2" label="Atr+Ìs" class="q-ml-sm" />
+            <q-btn flat color="primary" @click="step = 2" label="Atr√°s" class="q-ml-sm" />
           </q-stepper-navigation>
         </q-form>
       </q-step>
 
-      <!-- STEP 4: Confirmaci+¶n -->
+      <!-- STEP 4: Confirmaci√≥n -->
       <q-step
         :name="4"
-        title="Confirmaci+¶n"
+        title="Confirmaci√≥n"
         icon="check"
       >
         <div class="q-pa-md bg-grey-2 rounded-borders">
@@ -267,16 +277,17 @@
           </q-list>
 
           <div class="q-mt-md text-caption text-grey-8">
-            Al enviar esta solicitud, ser+Ì revisada por la coordinaci+¶n para su aprobaci+¶n y asignaci+¶n de instructores.
+            Al enviar esta solicitud, ser√° revisada por la coordinaci√≥n para su aprobaci√≥n y asignaci√≥n de instructores.
           </div>
         </div>
 
         <q-stepper-navigation>
           <q-btn color="positive" @click="submitEP" label="Enviar Solicitud" :loading="submitting" />
-          <q-btn flat color="primary" @click="step = 3" label="Atr+Ìs" class="q-ml-sm" />
+          <q-btn flat color="primary" @click="step = 3" label="Atr√°s" class="q-ml-sm" />
         </q-stepper-navigation>
       </q-step>
     </q-stepper>
+    </q-card>
   </q-page>
 </template>
 
@@ -329,14 +340,14 @@ const requiredDocuments = computed(() => {
     case 'APPRENTICESHIP_CONTRACT':
       return [
         { type: 'SIGNED_CONTRACT', label: 'Contrato firmado por todas las partes', required: true },
-        { type: 'ARL_CERTIFICATE', label: 'Certificaci+¶n de afiliaci+¶n a ARL', required: true },
+        { type: 'ARL_CERTIFICATE', label: 'Certificaci√≥n de afiliaci√≥n a ARL', required: true },
         { type: 'PAYROLL_REGISTRY', label: 'Registro en planilla', required: true }
       ];
     case 'INTERNSHIP':
       return [
-        { type: 'ACCEPTANCE_LETTER', label: 'Convenio o carta de aceptaci+¶n de la empresa', required: true },
-        { type: 'ARL_CERTIFICATE', label: 'Certificaci+¶n ARL (cuando aplique)', required: true },
-        { type: 'ALTERNATIVE_SELECTION_FORMAT', label: 'Formato de selecci+¶n de alternativa', required: true },
+        { type: 'ACCEPTANCE_LETTER', label: 'Convenio o carta de aceptaci√≥n de la empresa', required: true },
+        { type: 'ARL_CERTIFICATE', label: 'Certificaci√≥n ARL (cuando aplique)', required: true },
+        { type: 'ALTERNATIVE_SELECTION_FORMAT', label: 'Formato de selecci√≥n de alternativa', required: true },
         { type: 'ACTIVITIES_SCHEDULE', label: 'Cronograma de actividades', required: true }
       ];
     case 'INDIVIDUAL_PRODUCTIVE_PROJECT':
@@ -349,8 +360,8 @@ const requiredDocuments = computed(() => {
       ];
     case 'LABOR_LINK':
       return [
-        { type: 'EMPLOYMENT_CONTRACT', label: 'Contrato laboral o acta de vinculaci+¶n', required: true },
-        { type: 'ARL_CERTIFICATE', label: 'Certificaci+¶n ARL', required: true },
+        { type: 'EMPLOYMENT_CONTRACT', label: 'Contrato laboral o acta de vinculaci√≥n', required: true },
+        { type: 'ARL_CERTIFICATE', label: 'Certificaci√≥n ARL', required: true },
         { type: 'PAYROLL_REGISTRY', label: 'Registro en planilla (cuando aplique)', required: true }
       ];
     default:
@@ -364,8 +375,8 @@ watch(() => form.value.modality, () => {
 
 const modalityOptions = [
   { label: 'Contrato de Aprendizaje', value: 'APPRENTICESHIP_CONTRACT' },
-  { label: 'V+°nculo Laboral', value: 'LABOR_LINK' },
-  { label: 'Pasant+°a', value: 'INTERNSHIP' },
+  { label: 'V√≠nculo Laboral', value: 'LABOR_LINK' },
+  { label: 'Pasant√≠a', value: 'INTERNSHIP' },
   { label: 'Proyecto Productivo Individual', value: 'INDIVIDUAL_PRODUCTIVE_PROJECT' },
   { label: 'Proyecto Productivo Grupal', value: 'GROUP_PRODUCTIVE_PROJECT' }
 ];
@@ -462,7 +473,7 @@ async function submitEP() {
     
     // Si la empresa es nueva, NO la creamos en base de datos.
     // Enviamos omitido el companyId y guardamos los datos de la nueva empresa en el snapshot.
-    // El backend se encargar+Ì de crearla S+ÙLO si el Admin aprueba la solicitud.
+    // El backend se encargar√° de crearla S√ìLO si el Admin aprueba la solicitud.
     if (companyMode.value === 'new') {
       delete payload.companyId;
       payload.companySnapshot.companyName = newCompany.value.name;
@@ -485,7 +496,7 @@ async function submitEP() {
     const epRes = await productiveStageService.registerEP(payload);
     const newEpId = epRes.data?.ep?._id || epRes.data?.data?.ep?._id || epRes.data?._id;
 
-    // 2. Subir Documentos Din+Ìmicos
+    // 2. Subir Documentos Din√°micos
     if (newEpId) {
       const uploadPromises = [];
       for (const doc of requiredDocuments.value) {
@@ -503,7 +514,7 @@ async function submitEP() {
 
     $q.notify({
       type: 'positive',
-      message: 'Solicitud enviada con +Æxito. Pendiente de revisi+¶n por Administraci+¶n.'
+      message: 'Solicitud enviada con √©xito. Pendiente de revisi√≥n por Administraci√≥n.'
     });
     router.push({ name: 'dashboard' });
   } catch (error) {
@@ -518,7 +529,43 @@ async function submitEP() {
 
 <style scoped>
 .register-ep-container {
-  max-width: 900px;
+  max-width: 1000px;
   margin: 0 auto;
+  animation: fadeIn 0.5s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Premium Header */
+.page-header {
+  background: linear-gradient(135deg, var(--q-primary) 0%, #43A047 100%);
+  border-radius: 20px;
+  padding: 30px;
+  position: relative;
+  overflow: hidden;
+}
+
+.cover-overlay {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-image: radial-gradient(circle at 2px 2px, rgba(255,255,255,0.1) 1px, transparent 0);
+  background-size: 20px 20px;
+  pointer-events: none;
+}
+
+.shadow-text { text-shadow: 2px 2px 8px rgba(0,0,0,0.4); }
+.opacity-80 { opacity: 0.8; }
+
+/* Glassmorphism Card */
+.my-card {
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(15px);
+  border: 1px solid rgba(0,0,0,0.03);
+  box-shadow: 0 10px 40px rgba(0,0,0,0.06) !important;
+  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.3s ease;
 }
 </style>

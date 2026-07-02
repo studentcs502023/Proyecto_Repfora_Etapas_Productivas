@@ -15,58 +15,58 @@
     </div>
 
     <template v-else>
-      <div class="row q-col-gutter-md q-mb-lg">
+      <div class="row q-col-gutter-lg q-mb-lg">
         <div class="col-12 col-sm-4 col-md-2">
-          <q-card flat class="kpi-card bg-primary text-white shadow-4">
-            <q-card-section class="q-pa-md text-center">
-              <div class="text-caption text-uppercase opacity-80">Total Activas</div>
-              <div class="text-h3 text-weight-bolder q-mt-xs">{{ stats.kpis?.totalActive || 0 }}</div>
-              <q-icon name="gavel" size="sm" class="opacity-60 q-mt-sm" />
+          <q-card class="my-card kpi-card no-shadow text-center q-pa-sm">
+            <q-card-section>
+              <div class="text-caption text-uppercase text-grey-7 text-weight-bold">Total Activas</div>
+              <div class="text-h3 text-weight-bolder text-primary q-mt-xs">{{ stats.kpis?.totalActive || 0 }}</div>
+              <q-icon name="gavel" size="sm" color="primary" class="opacity-60 q-mt-sm" />
             </q-card-section>
           </q-card>
         </div>
         <div class="col-12 col-sm-4 col-md-2">
-          <q-card flat class="kpi-card bg-orange text-white shadow-4">
-            <q-card-section class="q-pa-md text-center">
-              <div class="text-caption text-uppercase opacity-80">Pendientes</div>
-              <div class="text-h3 text-weight-bolder q-mt-xs">{{ stats.kpis?.pending || 0 }}</div>
-              <q-icon name="hourglass_empty" size="sm" class="opacity-60 q-mt-sm" />
+          <q-card class="my-card kpi-card no-shadow text-center q-pa-sm">
+            <q-card-section>
+              <div class="text-caption text-uppercase text-grey-7 text-weight-bold">Pendientes</div>
+              <div class="text-h3 text-weight-bolder text-orange q-mt-xs">{{ stats.kpis?.pending || 0 }}</div>
+              <q-icon name="hourglass_empty" size="sm" color="orange" class="opacity-60 q-mt-sm" />
             </q-card-section>
           </q-card>
         </div>
         <div class="col-12 col-sm-4 col-md-2">
-          <q-card flat class="kpi-card bg-info text-white shadow-4">
-            <q-card-section class="q-pa-md text-center">
-              <div class="text-caption text-uppercase opacity-80">En Proceso</div>
-              <div class="text-h3 text-weight-bolder q-mt-xs">{{ stats.kpis?.inProgress || 0 }}</div>
-              <q-icon name="autorenew" size="sm" class="opacity-60 q-mt-sm" />
+          <q-card class="my-card kpi-card no-shadow text-center q-pa-sm">
+            <q-card-section>
+              <div class="text-caption text-uppercase text-grey-7 text-weight-bold">En Proceso</div>
+              <div class="text-h3 text-weight-bolder text-info q-mt-xs">{{ stats.kpis?.inProgress || 0 }}</div>
+              <q-icon name="autorenew" size="sm" color="info" class="opacity-60 q-mt-sm" />
             </q-card-section>
           </q-card>
         </div>
         <div class="col-12 col-sm-4 col-md-2">
-          <q-card flat class="kpi-card bg-positive text-white shadow-4">
-            <q-card-section class="q-pa-md text-center">
-              <div class="text-caption text-uppercase opacity-80">Resueltas (Mes)</div>
-              <div class="text-h3 text-weight-bolder q-mt-xs">{{ stats.kpis?.resolvedThisMonth || 0 }}</div>
-              <q-icon name="check_circle" size="sm" class="opacity-60 q-mt-sm" />
+          <q-card class="my-card kpi-card no-shadow text-center q-pa-sm">
+            <q-card-section>
+              <div class="text-caption text-uppercase text-grey-7 text-weight-bold">Resueltas (Mes)</div>
+              <div class="text-h3 text-weight-bolder text-positive q-mt-xs">{{ stats.kpis?.resolvedThisMonth || 0 }}</div>
+              <q-icon name="check_circle" size="sm" color="positive" class="opacity-60 q-mt-sm" />
             </q-card-section>
           </q-card>
         </div>
         <div class="col-12 col-sm-4 col-md-2">
-          <q-card flat :class="stats.kpis?.criticalUnattended > 0 ? 'bg-negative' : 'bg-grey' + ' text-white shadow-4 kpi-card'">
-            <q-card-section class="q-pa-md text-center">
-              <div class="text-caption text-uppercase opacity-80">Criticas &gt;3d</div>
-              <div class="text-h3 text-weight-bolder q-mt-xs">{{ stats.kpis?.criticalUnattended || 0 }}</div>
-              <q-icon name="warning" size="sm" class="opacity-60 q-mt-sm" />
+          <q-card class="my-card kpi-card no-shadow text-center q-pa-sm" :class="stats.kpis?.criticalUnattended > 0 ? 'bg-red-1' : ''">
+            <q-card-section>
+              <div class="text-caption text-uppercase text-grey-7 text-weight-bold" :class="stats.kpis?.criticalUnattended > 0 ? 'text-red-9' : ''">Críticas &gt;3d</div>
+              <div class="text-h3 text-weight-bolder q-mt-xs" :class="stats.kpis?.criticalUnattended > 0 ? 'text-negative' : 'text-grey-5'">{{ stats.kpis?.criticalUnattended || 0 }}</div>
+              <q-icon name="warning" size="sm" :color="stats.kpis?.criticalUnattended > 0 ? 'negative' : 'grey-5'" class="opacity-60 q-mt-sm" />
             </q-card-section>
           </q-card>
         </div>
         <div class="col-12 col-sm-4 col-md-2">
-          <q-card flat class="kpi-card bg-teal text-white shadow-4">
-            <q-card-section class="q-pa-md text-center">
-              <div class="text-caption text-uppercase opacity-80">Prom. Resolucion</div>
-              <div class="text-h3 text-weight-bolder q-mt-xs">{{ stats.visualData?.avgResolutionHours || 0 }}h</div>
-              <q-icon name="schedule" size="sm" class="opacity-60 q-mt-sm" />
+          <q-card class="my-card kpi-card no-shadow text-center q-pa-sm">
+            <q-card-section>
+              <div class="text-caption text-uppercase text-grey-7 text-weight-bold">Prom. Resolución</div>
+              <div class="text-h3 text-weight-bolder text-teal q-mt-xs">{{ stats.visualData?.avgResolutionHours || 0 }}h</div>
+              <q-icon name="schedule" size="sm" color="teal" class="opacity-60 q-mt-sm" />
             </q-card-section>
           </q-card>
         </div>
@@ -98,19 +98,20 @@
             <q-card-section>
               <div class="text-subtitle2 text-primary text-weight-bold q-mb-md">Tendencias Mensuales</div>
               <div v-if="stats.visualData?.monthlyTrends?.length">
-                <div v-for="(t, i) in stats.visualData.monthlyTrends" :key="i" class="row items-center q-mb-xs">
-                  <div class="col-3 text-caption text-weight-medium text-grey-8">{{ t.month }}</div>
-                  <div class="col-7">
+                <div v-for="(t, i) in stats.visualData.monthlyTrends" :key="i" class="row items-center q-mb-md">
+                  <div class="col-2 text-caption text-weight-bold text-grey-8 text-capitalize">{{ t.month }}</div>
+                  <div class="col-10">
                     <div class="row items-center q-mb-xs">
-                      <span class="text-caption col-2 text-positive">C:</span>
-                      <q-linear-progress :value="t.created / maxMonthly" color="green-4" rounded size="8px" class="col-10" />
+                      <span class="text-caption col-3 text-grey-7">Creadas:</span>
+                      <q-linear-progress :value="t.created / maxMonthly" color="negative" rounded size="10px" class="col-7" />
+                      <span class="text-caption col-2 text-weight-bold text-right">{{ t.created }}</span>
                     </div>
                     <div class="row items-center">
-                      <span class="text-caption col-2 text-negative">R:</span>
-                      <q-linear-progress :value="t.resolved / maxMonthly" color="red-4" rounded size="8px" class="col-10" />
+                      <span class="text-caption col-3 text-grey-7">Resueltas:</span>
+                      <q-linear-progress :value="t.resolved / maxMonthly" color="positive" rounded size="10px" class="col-7" />
+                      <span class="text-caption col-2 text-weight-bold text-right">{{ t.resolved }}</span>
                     </div>
                   </div>
-                  <div class="col-2 text-caption text-weight-bold text-right">{{ t.created }}/{{ t.resolved }}</div>
                 </div>
               </div>
               <div v-else class="text-caption text-grey-6 text-center q-pa-md">Sin datos</div>
@@ -125,8 +126,10 @@
               <div v-if="stats.visualData?.byInstructor?.length">
                 <div v-for="(ins, i) in stats.visualData.byInstructor" :key="ins.instructorId" class="row items-center q-mb-sm">
                   <div class="col-1 text-caption text-weight-bold text-grey-6">{{ i + 1 }}</div>
-                  <div class="col-9 text-caption text-weight-medium text-grey-8 truncate">{{ ins.instructorId }}</div>
-                  <div class="col-2">
+                  <div class="col-9 text-caption text-weight-medium text-grey-8 truncate">
+                    <q-icon name="person" class="q-mr-xs"/> Instructor {{ ins.instructorId.substring(18) }}
+                  </div>
+                  <div class="col-2 text-right">
                     <q-badge color="primary" class="text-weight-bold" rounded>{{ ins.count }}</q-badge>
                   </div>
                 </div>
@@ -143,113 +146,32 @@
         </div>
         <q-card flat class="my-card q-mb-md">
           <q-list separator>
-            <q-item v-for="alert in stats.urgentAlerts" :key="alert._id" clickable @click="openUrgentNovelty(alert._id)" class="q-py-sm">
+            <q-item v-for="alert in stats.urgentAlerts" :key="alert._id" class="q-py-sm">
               <q-item-section avatar>
                 <q-icon :color="alert.hoursElapsed > 72 ? 'negative' : 'orange'" :name="alert.hoursElapsed > 72 ? 'error' : 'warning'" size="sm" />
               </q-item-section>
               <q-item-section>
-                <q-item-label class="text-weight-medium">{{ getTypeLabel(alert.type) }}</q-item-label>
-                <q-item-label caption class="text-grey-7">{{ alert.description }}</q-item-label>
+                <q-item-label class="text-weight-bold text-grey-9">{{ getTypeLabel(alert.type) }}</q-item-label>
+                <q-item-label caption class="text-grey-7" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">{{ alert.description }}</q-item-label>
               </q-item-section>
               <q-item-section side>
-                <q-badge :color="alert.hoursElapsed > 72 ? 'negative' : 'orange'" text-color="white" class="text-weight-bold q-px-sm q-py-xs">
-                  {{ alert.hoursElapsed }}h
-                </q-badge>
+                <q-btn
+                  color="primary"
+                  label="Gestionar"
+                  icon="settings"
+                  size="sm"
+                  rounded
+                  unelevated
+                  class="text-weight-bold"
+                  @click="openUrgentNovelty(alert._id)"
+                />
               </q-item-section>
             </q-item>
           </q-list>
         </q-card>
       </div>
 
-      <div class="row justify-end q-mb-lg">
-        <q-btn
-          color="primary"
-          :icon="showTable ? 'visibility_off' : 'visibility'"
-          :label="showTable ? 'Ocultar Tabla' : 'Ver Todas las Novedades'"
-          rounded
-          unelevated
-          class="text-weight-bold shadow-2 q-px-lg"
-          @click="showTable = !showTable"
-        />
-      </div>
 
-      <div v-if="showTable">
-        <q-card class="filter-card my-card q-mb-lg no-shadow">
-          <q-card-section class="row q-col-gutter-md items-center">
-            <div class="col-12 col-md-4">
-              <q-select
-                v-model="filterStatus"
-                :options="statusOptions"
-                label="Filtrar por Estado"
-                outlined dense emit-value map-options clearable
-                color="primary"
-                class="glass-input text-weight-medium"
-                @update:model-value="fetchNovelties"
-              >
-                <template v-slot:prepend><q-icon name="filter_list" color="grey-6" /></template>
-              </q-select>
-            </div>
-          </q-card-section>
-        </q-card>
-
-        <q-card class="table-card my-card no-shadow">
-          <q-table
-            :rows="novelties"
-            :columns="columns"
-            :loading="loadingTable"
-            row-key="_id"
-            flat
-            class="custom-table bg-transparent"
-            table-header-class="custom-table-header"
-            v-model:pagination="pagination"
-            @request="onRequest"
-          >
-            <template v-slot:loading>
-              <q-inner-loading showing color="primary" />
-            </template>
-
-            <template v-slot:body-cell-apprentice="props">
-              <q-td :props="props">
-                <div class="text-weight-bold">{{ props.row.apprentice?.fullName }}</div>
-                <div class="text-caption text-grey-7">Ficha: {{ props.row.apprentice?.enrollmentNumber }}</div>
-              </q-td>
-            </template>
-
-            <template v-slot:body-cell-instructor="props">
-              <q-td :props="props">
-                <div class="text-weight-bold">{{ props.row.reportedBy?.fullName }}</div>
-              </q-td>
-            </template>
-
-            <template v-slot:body-cell-type="props">
-              <q-td :props="props">
-                <q-badge color="accent" :label="getTypeLabel(props.value)" class="role-badge q-px-sm q-py-xs text-weight-bold shadow-1" rounded />
-              </q-td>
-            </template>
-
-            <template v-slot:body-cell-status="props">
-              <q-td :props="props">
-                <q-chip :color="getStatusColor(props.value)" text-color="white" dense class="status-chip text-weight-bold shadow-1">
-                  {{ getStatusLabel(props.value) }}
-                </q-chip>
-              </q-td>
-            </template>
-
-            <template v-slot:body-cell-actions="props">
-              <q-td :props="props" class="q-gutter-xs">
-                <q-btn size="sm" color="primary" label="Gestionar" icon="settings" class="header-btn text-weight-bold shadow-2" rounded @click="openManageModal(props.row)" />
-              </q-td>
-            </template>
-
-            <template v-slot:no-data>
-              <div class="full-width row flex-center text-grey-6 q-pa-xl">
-                <q-icon size="4em" name="fact_check" class="q-mb-md full-width text-center" />
-                <div class="text-h6">No hay novedades reportadas bajo este filtro.</div>
-              </div>
-            </template>
-          </q-table>
-        </q-card>
-      </div>
     </template>
 
     <q-dialog v-model="showManageModal" persistent maximized transition-show="slide-up" transition-hide="slide-down">
@@ -487,7 +409,6 @@ const $q = useQuasar();
 
 const stats = ref({ kpis: {}, visualData: {}, urgentAlerts: [] });
 const loadingStats = ref(true);
-const showTable = ref(false);
 
 const novelties = ref([]);
 const loadingTable = ref(false);
@@ -557,6 +478,7 @@ const availableStatusTransitions = computed(() => {
 
 onMounted(() => {
   loadStats();
+  fetchNovelties();
 });
 
 async function loadStats() {
@@ -571,10 +493,6 @@ async function loadStats() {
     loadingStats.value = false;
   }
 }
-
-watch(showTable, (val) => {
-  if (val) fetchNovelties();
-});
 
 async function fetchNovelties() {
   loadingTable.value = true;
@@ -717,7 +635,7 @@ async function updateStatus() {
     apprenticeHistory.value = detailNovelty.value.apprenticeHistory || apprenticeHistory.value;
     $q.notify({ type: 'positive', message: 'Estado actualizado.', position: 'top', timeout: 3000 });
     loadStats();
-    if (showTable.value) fetchNovelties();
+    fetchNovelties();
   } catch (error) {
     console.error(error);
     $q.notify({ type: 'negative', message: error.response?.data?.message || 'Error al actualizar.', position: 'top', timeout: 5000 });
@@ -803,6 +721,14 @@ function notify(msg) {
   transform: scale(1.02);
   box-shadow: 0 4px 20px rgba(0,0,0,0.06);
   background: #fff;
+}
+
+.custom-table-header {
+  background-color: #f1f8f4 !important;
+  color: #1b5e20 !important;
+  font-weight: 700 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .custom-table { border-radius: 20px; }

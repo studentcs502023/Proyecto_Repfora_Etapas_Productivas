@@ -343,7 +343,7 @@
           <div class="text-caption text-grey-7">Seguimientos por Vencer (7 días)</div>
         </q-card>
       </div>
-      
+
       </div> <!-- End KPIs Row -->
       
       <!-- Tables Row -->

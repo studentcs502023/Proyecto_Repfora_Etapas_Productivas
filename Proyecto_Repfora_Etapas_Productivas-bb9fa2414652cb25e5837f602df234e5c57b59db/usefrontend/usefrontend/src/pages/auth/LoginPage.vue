@@ -273,7 +273,7 @@ onBeforeUnmount(() => {
 
 /* ── Left SENA panel ─────────────────────────── */
 .sena-panel {
-  background: linear-gradient(135deg, #318335 0%, #43A047 100%);
+  background: linear-gradient(160deg, #2d6329 0%, #3a7d34 55%, #1e4d1b 100%);
   position: relative;
   overflow: hidden;
   min-width: 280px;
