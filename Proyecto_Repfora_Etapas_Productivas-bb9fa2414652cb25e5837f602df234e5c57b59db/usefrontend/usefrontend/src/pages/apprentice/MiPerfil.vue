@@ -262,7 +262,7 @@ async function changePassword() {
 /* Cover Image */
 .cover-image {
   height: 220px;
-  background: linear-gradient(135deg, #093028 0%, #237A57 100%);
+  background: linear-gradient(135deg, #318335 0%, #43A047 100%);
   border-radius: 20px;
   position: relative;
   transition: all 0.3s ease;
@@ -344,7 +344,7 @@ async function changePassword() {
 .rounded-top {
   border-top-left-radius: 20px;
   border-top-right-radius: 20px;
-  background: linear-gradient(to right, #093028, var(--q-primary));
+  background: linear-gradient(to right, #318335, #43A047);
 }
 
 .glass-input :deep(.q-field__control) {

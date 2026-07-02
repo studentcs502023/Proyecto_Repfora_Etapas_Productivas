@@ -73,7 +73,9 @@
             {{ n.title }}
             <q-badge v-if="!n.isRead" color="primary" rounded class="q-ml-sm shadow-1" />
           </q-item-label>
-          <q-item-label caption class="q-mt-sm text-body2 text-grey-9" v-html="n.message"></q-item-label>
+          <q-item-label caption class="q-mt-sm text-body2 text-grey-9" style="display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis;">
+            {{ stripHtml(n.message) }}
+          </q-item-label>
           <q-item-label caption class="text-caption text-weight-bold text-grey-6 q-mt-sm">
             <q-icon name="schedule" class="q-mr-xs"/>{{ formatNotifDate(n.createdAt) }}
           </q-item-label>
@@ -125,6 +127,13 @@ function formatNotifDate(dateStr) {
   if (!dateStr) return '';
   const d = new Date(dateStr);
   return d.toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+function stripHtml(html) {
+  if (!html) return '';
+  const tmp = document.createElement("DIV");
+  tmp.innerHTML = html;
+  return tmp.textContent || tmp.innerText || "";
 }
 
 function iconForType(type) {
@@ -246,7 +255,7 @@ onMounted(fetchNotifications);
 
 /* Premium Header */
 .page-header {
-  background: linear-gradient(135deg, #093028 0%, #237A57 100%);
+  background: linear-gradient(135deg, #318335 0%, #43A047 100%);
   border-radius: 20px;
   padding: 30px;
   position: relative;

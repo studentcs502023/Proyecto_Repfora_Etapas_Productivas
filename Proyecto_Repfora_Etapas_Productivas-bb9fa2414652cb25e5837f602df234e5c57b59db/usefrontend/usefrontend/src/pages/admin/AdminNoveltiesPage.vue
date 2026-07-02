@@ -747,7 +747,7 @@ function notify(msg) {
 }
 
 .page-header {
-  background: linear-gradient(135deg, #093028 0%, #237A57 100%);
+  background: linear-gradient(135deg, #318335 0%, #43A047 100%);
   border-radius: 20px;
   padding: 30px;
   position: relative;

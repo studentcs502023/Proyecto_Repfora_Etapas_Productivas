@@ -29,7 +29,7 @@
     </div>
 
     <!-- ==================== APRENDIZ ==================== -->
-    <div v-else-if="authStore.isApprentice" class="row q-col-gutter-md">
+    <div v-else-if="authStore.isApprentice" class="row q-col-gutter-lg">
 
       <!-- Sin EP registrada -->
       <div v-if="!ep" class="col-12">
@@ -60,8 +60,8 @@
 
         <!-- ─── Progreso General ─── -->
         <div class="col-12">
-          <q-card flat bordered>
-            <q-card-section class="bg-primary text-white">
+          <q-card class="my-card no-shadow">
+            <q-card-section class="bg-primary text-white" style="border-radius: 20px 20px 0 0;">
               <div class="text-subtitle1 text-weight-bold">
                 <q-icon name="trending_up" class="q-mr-sm" />Progreso General
               </div>
@@ -97,8 +97,8 @@
 
         <!-- ─── Notificaciones ─── -->
         <div class="col-12 col-md-6">
-          <q-card flat bordered>
-            <q-card-section class="bg-grey-2 row items-center justify-between">
+          <q-card class="my-card no-shadow" style="height: 100%;">
+            <q-card-section class="bg-grey-2 row items-center justify-between" style="border-radius: 20px 20px 0 0;">
               <div class="text-subtitle1 text-weight-bold text-black">
                 <q-icon name="notifications" class="q-mr-sm" />Notificaciones
               </div>
@@ -127,7 +127,9 @@
                   >
                     <q-item-section>
                       <q-item-label class="text-weight-bold">{{ n.title }}</q-item-label>
-                      <q-item-label caption class="q-mt-xs">{{ n.message }}</q-item-label>
+                      <q-item-label caption class="q-mt-xs" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis;">
+                        {{ stripHtml(n.message) }}
+                      </q-item-label>
                       <q-item-label caption class="text-caption text-grey-6 q-mt-xs">
                         {{ formatNotifDate(n.createdAt) }}
                       </q-item-label>
@@ -145,8 +147,8 @@
 
         <!-- ─── Detalle del Vínculo ─── -->
         <div class="col-12 col-md-6">
-          <q-card flat bordered>
-            <q-card-section class="bg-grey-2">
+          <q-card class="my-card no-shadow" style="height: 100%;">
+            <q-card-section class="bg-grey-2" style="border-radius: 20px 20px 0 0;">
               <div class="text-subtitle1 text-weight-bold text-black">
                 <q-icon name="link" class="q-mr-sm" />Detalle del Vínculo
               </div>
@@ -189,8 +191,8 @@
 
         <!-- ─── Instructores Asignados ─── -->
         <div class="col-12 col-md-6">
-          <q-card flat bordered>
-            <q-card-section class="bg-grey-2">
+          <q-card class="my-card no-shadow" style="height: 100%;">
+            <q-card-section class="bg-grey-2" style="border-radius: 20px 20px 0 0;">
               <div class="text-subtitle1 text-weight-bold text-black">
                 <q-icon name="people" class="q-mr-sm" />Instructores Asignados
               </div>
@@ -290,11 +292,14 @@
     </div>
 
     <!-- ==================== INSTRUCTOR ==================== -->
-    <div v-else-if="authStore.isInstructor" class="row q-col-gutter-md">
+    <div v-else-if="authStore.isInstructor">
+      
+      <!-- KPIs Row -->
+      <div class="row q-col-gutter-lg q-mb-lg">
 
       <!-- KPI: Aprendices asignados -->
       <div class="col-12 col-sm-6 col-md">
-        <q-card flat bordered class="kpi-card text-center q-pa-md">
+        <q-card class="my-card kpi-card no-shadow text-center q-pa-md">
           <q-icon name="group" color="primary" size="2em" />
           <div class="text-h4 text-weight-bold text-primary q-mt-sm">{{ stats.instructor.totalApprentices }}</div>
           <div class="text-caption text-grey-7">Aprendices Asignados</div>
@@ -303,7 +308,7 @@
 
       <!-- KPI: Horas del mes -->
       <div class="col-12 col-sm-6 col-md">
-        <q-card flat bordered class="kpi-card text-center q-pa-md">
+        <q-card class="my-card kpi-card no-shadow text-center q-pa-md">
           <q-icon name="schedule" color="blue" size="2em" />
           <div class="text-h4 text-weight-bold text-blue q-mt-sm">
             {{ stats.instructor.hoursThisMonth }}
@@ -314,7 +319,7 @@
 
       <!-- KPI: Horas por cobrar -->
       <div class="col-12 col-sm-6 col-md">
-        <q-card flat bordered class="kpi-card text-center q-pa-md">
+        <q-card class="my-card kpi-card no-shadow text-center q-pa-md">
           <q-icon name="payments" color="warning" size="2em" />
           <div class="text-h4 text-weight-bold text-warning q-mt-sm">{{ stats.instructor.pendingHours }}</div>
           <div class="text-caption text-grey-7">Horas Pendientes de Pago</div>
@@ -323,7 +328,7 @@
 
       <!-- KPI: Bitácoras pendientes -->
       <div class="col-12 col-sm-6 col-md">
-        <q-card flat bordered class="kpi-card text-center q-pa-md">
+        <q-card class="my-card kpi-card no-shadow text-center q-pa-md">
           <q-icon name="rule_folder" color="orange" size="2em" />
           <div class="text-h4 text-weight-bold text-orange q-mt-sm">{{ stats.instructor.pendingBitacoras }}</div>
           <div class="text-caption text-grey-7">Bitácoras por Revisar</div>
@@ -332,17 +337,22 @@
 
       <!-- KPI: Seguimientos próximos a vencer -->
       <div class="col-12 col-sm-6 col-md">
-        <q-card flat bordered class="kpi-card text-center q-pa-md">
+        <q-card class="my-card kpi-card no-shadow text-center q-pa-md">
           <q-icon name="event_busy" color="red" size="2em" />
           <div class="text-h4 text-weight-bold text-red q-mt-sm">{{ stats.instructor.upcomingTrackings }}</div>
           <div class="text-caption text-grey-7">Seguimientos por Vencer (7 días)</div>
         </q-card>
       </div>
+      
+      </div> <!-- End KPIs Row -->
+      
+      <!-- Tables Row -->
+      <div class="row q-col-gutter-lg">
 
       <!-- Tabla: Seguimientos próximos a vencer -->
       <div class="col-12 col-md-6" v-if="upcomingTrackings.length > 0">
-        <q-card flat bordered>
-          <q-card-section class="bg-red-1 row items-center justify-between">
+        <q-card class="my-card no-shadow">
+          <q-card-section class="bg-red-1 row items-center justify-between" style="border-radius: 20px 20px 0 0;">
             <div class="text-subtitle1 text-weight-bold text-red-9">
               <q-icon name="warning" class="q-mr-sm" />Seguimientos Próximos a Vencer
             </div>
@@ -350,6 +360,7 @@
           </q-card-section>
           <q-table
             flat
+            class="bg-transparent"
             :rows="upcomingTrackings"
             :columns="trackingAlertColumns"
             row-key="_id"
@@ -390,13 +401,14 @@
 
       <!-- Tabla: Bitácoras pendientes de revisión -->
       <div class="col-12 col-md-6">
-        <q-card flat bordered>
-          <q-card-section class="bg-grey-2 row items-center justify-between">
+        <q-card class="my-card no-shadow">
+          <q-card-section class="bg-grey-2 row items-center justify-between" style="border-radius: 20px 20px 0 0;">
             <div class="text-subtitle1 text-weight-bold text-black">Bitácoras Pendientes de Revisión</div>
             <q-btn flat size="sm" color="primary" label="Ver todas" to="/instructor/review-bitacoras" />
           </q-card-section>
           <q-table
             flat
+            class="bg-transparent"
             :rows="pendingBitacoras"
             :columns="bitacoraColumns"
             row-key="_id"
@@ -417,6 +429,7 @@
           </q-table>
         </q-card>
       </div>
+      </div> <!-- End Tables Row -->
     </div>
 
     <!-- ==================== ADMIN ==================== -->
@@ -579,6 +592,13 @@ function formatDateTime(d) {
   return new Date(d).toLocaleString('es-CO', {
     month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
   });
+}
+
+function stripHtml(html) {
+  if (!html) return '';
+  const tmp = document.createElement("DIV");
+  tmp.innerHTML = html;
+  return tmp.textContent || tmp.innerText || "";
 }
 
 function statusLabel(s) {
@@ -848,7 +868,7 @@ async function loadAdmin() {
 
 /* Premium Header */
 .page-header {
-  background: linear-gradient(135deg, #093028 0%, #237A57 100%);
+  background: linear-gradient(135deg, #318335 0%, #43A047 100%);
   border-radius: 20px;
   padding: 30px;
   position: relative;

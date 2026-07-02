@@ -1457,7 +1457,7 @@ async function executeTracking() {
 
 /* ─── Header ─────────────────────────────────────── */
 .page-header {
-  background: linear-gradient(135deg, #093028 0%, #237A57 100%);
+  background: linear-gradient(135deg, #318335 0%, #43A047 100%);
   border-radius: 20px;
   padding: 28px 32px;
   position: relative;
@@ -1563,7 +1563,7 @@ async function executeTracking() {
 }
 
 .modal-header {
-  background: linear-gradient(135deg, #093028 0%, #237A57 100%);
+  background: linear-gradient(135deg, #318335 0%, #43A047 100%);
   position: relative;
   overflow: hidden;
   flex-shrink: 0;
